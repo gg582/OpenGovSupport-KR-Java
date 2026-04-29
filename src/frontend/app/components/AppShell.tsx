@@ -59,7 +59,7 @@ export default function AppShell({
               사회복지 계산식 포털
             </Link>
             <span className="hidden md:inline text-[11px] text-white/60 font-mono">
-              v1.0 / Go · Next.js
+              v1.0
             </span>
           </div>
           <nav className="hidden md:flex items-center gap-5 text-sm text-white/85">
@@ -134,8 +134,6 @@ export default function AppShell({
       <footer className="border-t border-line bg-white">
         <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-5 text-xs text-navy/60 flex flex-wrap gap-x-6 gap-y-1">
           <span>법령 기반 공개정보 산식</span>
-          <span className="hidden md:inline">백엔드: Go (net/http) · 워커풀 + 코얼레서</span>
-          <span className="hidden md:inline">프런트엔드: Next.js (App Router) · Tailwind</span>
           <span className="md:ml-auto">© 행정업무 보조 도구 · 일반 배포용</span>
         </div>
       </footer>
