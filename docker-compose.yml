@@ -1,0 +1,80 @@
+# Single-host stack: Go backend + Next.js frontend on a shared bridge.
+#
+#   docker compose up --build              # foreground
+#   docker compose up -d --build           # detached
+#   docker compose logs -f backend         # tail one service
+#   docker compose down                    # stop & remove
+#
+# Open the app at http://localhost:31778  (frontend reverse-proxies /api/* to backend).
+# Direct backend access: http://localhost:31777  (e.g. /api/runtime/stats).
+
+name: opengovsupport
+
+services:
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    image: opengovsupport-backend:latest
+    container_name: opengovsupport-backend
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      # — runtime tuning (see src/backend/runtime/) —
+      POOL_WORKERS: "${POOL_WORKERS:-8}"
+      POOL_QUEUE: "${POOL_QUEUE:-4096}"
+      POOL_FAST_THRESHOLD: "${POOL_FAST_THRESHOLD:-4096}"
+      GOGC_TARGET: "${GOGC_TARGET:-300}"
+      GOMAXPROCS: "${GOMAXPROCS:-0}"   # 0 = use container's CPU quota
+      JSON_INDENT: "${JSON_INDENT:-0}" # set to "1" in dev for readable JSON
+    ports:
+      - "${BACKEND_PORT:-31777}:8080"
+    networks:
+      - app
+    # distroless has no shell — use the binary itself as a healthcheck via
+    # an HTTP probe from the frontend container instead. Compose's built-in
+    # `healthcheck` here uses CMD-SHELL which won't work without /bin/sh,
+    # so we leave it off and rely on `restart: unless-stopped`.
+    deploy:
+      resources:
+        limits:
+          cpus: "${BACKEND_CPUS:-2.0}"
+          memory: "${BACKEND_MEMORY:-512M}"
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    image: opengovsupport-frontend:latest
+    container_name: opengovsupport-frontend
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      NODE_ENV: "production"
+      # next.config.mjs reads BACKEND_URL at *build* time for the rewrite
+      # destination. We pass it again at runtime for any server-side fetch
+      # in app/lib/api.ts (listFeatures / callFeature on the server).
+      BACKEND_URL: "http://backend:8080"
+      # Required so Next.js binds 0.0.0.0 in the container.
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-31778}:3000"
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "${FRONTEND_CPUS:-1.0}"
+          memory: "${FRONTEND_MEMORY:-512M}"
+
+networks:
+  app:
+    driver: bridge

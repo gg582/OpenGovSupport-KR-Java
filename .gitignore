@@ -1,0 +1,64 @@
+# --- Environment ---
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editors / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Claude Code ---
+.claude/settings.local.json
+.claude/.credentials.json
+
+# --- Go (src/backend) ---
+src/backend/bin/
+src/backend/dist/
+src/backend/*.exe
+src/backend/*.test
+src/backend/*.out
+src/backend/coverage.*
+src/backend/cmd/loadtest/loadtest
+src/backend/cmd/*/[!.]*[!.go]
+vendor/
+
+# --- Next.js / Node (src/frontend) ---
+src/frontend/node_modules/
+src/frontend/.next/
+src/frontend/out/
+src/frontend/build/
+src/frontend/dist/
+src/frontend/.turbo/
+src/frontend/coverage/
+src/frontend/next-env.d.ts
+src/frontend/*.tsbuildinfo
+
+# npm/yarn/pnpm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- Docker ---
+*.pid
+docker-compose.override.yml
+
+# --- 로그 / 캐시 ---
+*.log
+logs/
+.cache/
+
+# --- 작업용 자료 (커밋 제외) ---
+orig/
+*.xlsm
+*.xlsx

@@ -1,0 +1,126 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
+  }
+  body {
+    @apply bg-page text-navy font-sans tracking-tight text-base;
+  }
+  h1, h2, h3, h4, h5 {
+    @apply tracking-tighter font-semibold;
+  }
+  *:focus-visible {
+    outline: 2px solid #005BAB;
+    outline-offset: 2px;
+  }
+  table {
+    border-collapse: collapse;
+  }
+}
+
+@layer components {
+  /* Top-weighted government-form table:
+     2px navy top border, 1px line dividers, zebra striping. */
+  .gov-table {
+    @apply w-full border-t-[2px] border-t-navy text-sm;
+  }
+  .gov-table thead th {
+    @apply bg-navy-50 text-navy font-semibold py-3 px-3 border-b border-line text-left;
+    letter-spacing: -0.01em;
+  }
+  .gov-table tbody td,
+  .gov-table tbody th {
+    @apply border-b border-line py-3 px-3 align-top;
+  }
+  .gov-table tbody tr:hover td,
+  .gov-table tbody tr:hover th {
+    @apply bg-navy-50/60;
+  }
+  .gov-table tbody tr:nth-child(even):not(:hover) td,
+  .gov-table tbody tr:nth-child(even):not(:hover) th {
+    @apply bg-page;
+  }
+  .gov-table tbody th {
+    @apply bg-navy-50/40 font-medium text-navy whitespace-nowrap w-[180px];
+  }
+
+  /* Dense form key-value layout used inside feature pages.
+     Renders like a paper form: row-label cell + row-value cell. */
+  .form-row {
+    @apply grid grid-cols-[180px_1fr] border-b border-line;
+  }
+  .form-row > .label {
+    @apply bg-navy-50/40 px-3 py-3 text-sm font-medium text-navy flex items-start gap-1;
+  }
+  .form-row > .value {
+    @apply px-3 py-3 text-sm;
+  }
+  .form-grid {
+    @apply border-t-[2px] border-t-navy border-x border-line bg-white;
+  }
+
+  .field-input {
+    @apply w-full text-sm bg-white border border-line rounded-sm px-2 py-1.5
+           transition-colors hover:border-navy-200 focus:border-accent
+           focus:shadow-focus focus:outline-none;
+  }
+  .field-input::placeholder { @apply text-navy-200; }
+  textarea.field-input { @apply min-h-[80px] font-mono; }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-1 bg-accent hover:bg-accent-hover text-white
+           text-sm font-medium px-4 py-2 rounded-sm transition-colors
+           focus:outline-none focus:shadow-focus;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-1 bg-white border border-line hover:border-navy
+           text-navy text-sm font-medium px-4 py-2 rounded-sm transition-colors
+           focus:outline-none focus:shadow-focus;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center text-xs text-navy/70 hover:text-accent
+           underline-offset-2 hover:underline;
+  }
+
+  .pill {
+    @apply inline-flex items-center px-2 py-0.5 rounded-sm border border-line
+           bg-white text-xs font-mono text-navy/80;
+  }
+
+  /* "Filing-system" container card. */
+  .panel {
+    @apply bg-white border border-line;
+  }
+  .panel-header {
+    @apply border-b-[2px] border-b-navy px-4 py-3 flex items-center gap-2 text-base
+           font-semibold tracking-tighter;
+  }
+  .panel-header::before {
+    content: "■";
+    @apply text-accent text-sm;
+  }
+  .panel-sub-header::before {
+    content: "▶";
+    @apply text-accent text-xs mr-1;
+  }
+
+  /* Left navigation (LNB). */
+  .lnb-section {
+    @apply text-[11px] uppercase tracking-[0.08em] text-navy/60 font-semibold
+           px-3 pt-4 pb-1.5;
+  }
+  .lnb-link {
+    @apply flex items-center justify-between px-3 py-2 text-sm border-l-[3px]
+           border-transparent text-navy/85 hover:bg-navy-50 transition-colors;
+  }
+  .lnb-link[aria-current="page"] {
+    @apply border-l-accent bg-navy-50 text-navy font-semibold;
+  }
+}
