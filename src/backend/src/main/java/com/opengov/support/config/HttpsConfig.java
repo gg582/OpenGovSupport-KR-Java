@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.catalina.connector.Connector;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.tomcat.ConfigurableTomcatWebServerFactory;
+import org.springframework.boot.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -38,7 +38,7 @@ public class HttpsConfig {
     private int internalPort;
 
     @Bean
-    public WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> additionalConnectors() {
+    public WebServerFactoryCustomizer<TomcatServletWebServerFactory> additionalConnectors() {
         return factory -> factory.addAdditionalConnectors(
                 httpConnector(httpPort),
                 httpConnector(internalPort)
