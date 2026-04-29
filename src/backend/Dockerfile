@@ -15,7 +15,8 @@ RUN mvn -B -q -DskipTests package && \
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /out.jar /app/backend.jar
-EXPOSE 8080
-ENV PORT=8080
+EXPOSE 80 443 8080
+ENV PORT=443
+ENV HTTP_PORT=80
 ENV JAVA_OPTS=""
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/backend.jar"]

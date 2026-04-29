@@ -1,5 +1,11 @@
 server:
-  port: ${PORT:8080}
+  port: ${PORT:443}
+  http-port: ${HTTP_PORT:80}
+  internal-port: ${INTERNAL_PORT:8080}
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    certificate: ${SSL_CERT:/certs/cert.pem}
+    certificate-private-key: ${SSL_KEY:/certs/privkey.pem}
 
 spring:
   application:
@@ -20,6 +26,7 @@ opengov:
   coalescer:
     enabled: true
     shards: 32
+  frontend-url: ${FRONTEND_URL:http://frontend:3000}
 
 logging:
   pattern:

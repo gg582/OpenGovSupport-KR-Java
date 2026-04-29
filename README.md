@@ -60,10 +60,11 @@ make compose-logs          # 로그 따라가기
 make compose-down
 ```
 
-- 기본 노출 포트: 프런트엔드 31778 / 백엔드 31777 (`docker-compose.yml` 의
-  `${FRONTEND_PORT:-31778}` / `${BACKEND_PORT:-31777}` 참조).
-- 백엔드 이미지: `eclipse-temurin:21-jdk-alpine` 빌드 → `eclipse-temurin:21-jre-alpine` 런타임
-- 프런트엔드 이미지: Next.js standalone 출력으로 `node:20-alpine` 위에 올림 (≈ 150 MB)
+- HTTPS는 Spring Boot 내장 SSL(Tomcat)이 처리합니다. nginx 없이 포트 443에서 직접 TLS 종료.
+- HTTP(80) 요청은 Spring Boot가 자동으로 HTTPS(443)로 301 리다이렉트합니다.
+- 포트 8080(HTTP)은 컨테이너 내부 전용 — Next.js 프런트엔드가 `BACKEND_URL=http://backend:8080` 으로 API를 호출하는 데 사용.
+- 인증서 파일(`cert.pem`, `privkey.pem`)을 `CERTS_DIR`(기본 `./certs`)에 놓으면 컨테이너에 마운트됩니다.
+- 프런트엔드(Next.js, 포트 3000)는 내부 네트워크에만 노출되고, Spring Boot가 역방향 프록시 역할을 합니다.
 - 두 컨테이너는 `app` 브리지 네트워크에 합류, 프런트엔드는 `BACKEND_URL=http://backend:8080` 으로 백엔드를 호출
 - `.env` 의 변수로 `POOL_WORKERS / POOL_QUEUE / POOL_FAST_THRESHOLD / JSON_INDENT / JAVA_OPTS / *_CPUS / *_MEMORY` 모두 외부에서 조정 가능
 
@@ -122,7 +123,13 @@ CORS (Spring MVC) → RequestLoggingFilter → BoundedRequestPool → RequestCoa
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `PORT` | 8080 | HTTP 포트 |
+| `PORT` | 443 | HTTPS 포트 |
+| `HTTP_PORT` | 80 | HTTP 포트 (HTTPS 리다이렉트용) |
+| `INTERNAL_PORT` | 8080 | 내부 HTTP 포트 (프런트엔드 → 백엔드 API 호출용) |
+| `SSL_ENABLED` | `false` (로컬), `true` (Docker) | TLS 활성화 여부 |
+| `SSL_CERT` | `/certs/cert.pem` | TLS 인증서 경로 (PEM) |
+| `SSL_KEY` | `/certs/privkey.pem` | TLS 개인키 경로 (PEM) |
+| `FRONTEND_URL` | `http://frontend:3000` | 프록시 대상 프런트엔드 URL |
 | `POOL_WORKERS` | `0` (= `Runtime.availableProcessors()`) | 워커 가상 스레드 수 |
 | `POOL_QUEUE` | 1024 | 레인 당 큐 용량 |
 | `POOL_FAST_THRESHOLD` | 4096 | fast 레인 진입 바이트 임계값 |

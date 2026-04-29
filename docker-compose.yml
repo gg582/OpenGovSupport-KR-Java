@@ -1,18 +1,16 @@
-# Single-host stack: Spring Boot 4.0.2 (Java 21) backend + Next.js frontend + nginx HTTPS proxy.
+# Single-host stack: Spring Boot 4.0.2 (Java 21) backend (HTTPS) + Next.js frontend.
 #
 #   docker compose up --build              # foreground
 #   docker compose up -d --build           # detached
 #   docker compose logs -f backend         # tail one service
 #   docker compose down                    # stop & remove
 #
-# HTTPS setup (nginx):
+# HTTPS setup (Spring Boot built-in SSL):
 #   Place your TLS certificate files in the directory pointed to by CERTS_DIR (.env):
 #     ${CERTS_DIR}/cert.pem     — Cloudflare origin certificate (not fullchain)
 #     ${CERTS_DIR}/privkey.pem  — private key
 #   Access the app at https://<host>  (port 443 by default, see HTTPS_PORT in .env).
 #   HTTP requests on port 80 are permanently redirected to HTTPS.
-#
-# Direct backend access (no TLS): http://localhost:31777  (e.g. /api/runtime/stats).
 
 name: opengovsupport
 
@@ -25,7 +23,12 @@ services:
     container_name: opengovsupport-backend
     restart: unless-stopped
     environment:
-      PORT: "8080"
+      PORT: "${HTTPS_PORT:-443}"
+      HTTP_PORT: "${HTTP_PORT:-80}"
+      SSL_ENABLED: "true"
+      SSL_CERT: "/certs/cert.pem"
+      SSL_KEY: "/certs/privkey.pem"
+      FRONTEND_URL: "http://frontend:3000"
       # — runtime tuning (see src/backend/src/main/java/.../runtime/) —
       POOL_WORKERS: "${POOL_WORKERS:-8}"
       POOL_QUEUE: "${POOL_QUEUE:-4096}"
@@ -33,7 +36,10 @@ services:
       JSON_INDENT: "${JSON_INDENT:-false}"
       JAVA_OPTS: "${JAVA_OPTS:--XX:+UseG1GC -XX:MaxRAMPercentage=75}"
     ports:
-      - "${BACKEND_PORT:-31777}:8080"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ${CERTS_DIR:-./certs}:/certs:ro
     networks:
       - app
     healthcheck:
@@ -69,27 +75,6 @@ services:
         limits:
           cpus: "${FRONTEND_CPUS:-1.0}"
           memory: "${FRONTEND_MEMORY:-512M}"
-
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: opengovsupport-nginx
-    restart: unless-stopped
-    ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-    volumes:
-      - ./src/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${CERTS_DIR:-./certs}:/etc/nginx/certs:ro
-    depends_on:
-      - frontend
-    networks:
-      - app
-    healthcheck:
-      test: ["CMD-SHELL", "nginx -t 2>/dev/null && wget -qO- http://localhost:80/ >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
 networks:
   app:
