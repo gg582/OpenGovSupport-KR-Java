@@ -1,0 +1,26 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: opengovsupport-backend
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    default-property-inclusion: non_empty
+    serialization:
+      indent_output: ${JSON_INDENT:false}
+
+opengov:
+  pool:
+    workers: ${POOL_WORKERS:0}            # 0 = Runtime.availableProcessors()
+    queue: ${POOL_QUEUE:1024}
+    fast-threshold: ${POOL_FAST_THRESHOLD:4096}
+  coalescer:
+    enabled: true
+    shards: 32
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level %logger{0} - %msg%n"

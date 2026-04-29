@@ -20,16 +20,18 @@ desktop.ini
 .claude/settings.local.json
 .claude/.credentials.json
 
-# --- Go (src/backend) ---
-src/backend/bin/
-src/backend/dist/
-src/backend/*.exe
-src/backend/*.test
-src/backend/*.out
-src/backend/coverage.*
-src/backend/cmd/loadtest/loadtest
-src/backend/cmd/*/[!.]*[!.go]
-vendor/
+# --- Java / Maven (src/backend) ---
+src/backend/target/
+src/backend/.mvn/
+src/backend/.gradle/
+src/backend/build/
+src/backend/*.jar
+!src/backend/maven-wrapper.jar
+src/backend/.classpath
+src/backend/.project
+src/backend/.settings/
+src/backend/dependency-reduced-pom.xml
+src/backend/hs_err_pid*.log
 
 # --- Next.js / Node (src/frontend) ---
 src/frontend/node_modules/

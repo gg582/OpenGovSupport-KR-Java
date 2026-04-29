@@ -1,5 +1,10 @@
 Dockerfile
 .dockerignore
-*_test.go
-**/*_test.go
+target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
 *.log

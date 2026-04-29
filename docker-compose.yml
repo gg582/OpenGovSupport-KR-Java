@@ -1,4 +1,4 @@
-# Single-host stack: Go backend + Next.js frontend on a shared bridge.
+# Single-host stack: Spring Boot 4.0.2 (Java 21) backend + Next.js frontend.
 #
 #   docker compose up --build              # foreground
 #   docker compose up -d --build           # detached
@@ -20,26 +20,27 @@ services:
     restart: unless-stopped
     environment:
       PORT: "8080"
-      # — runtime tuning (see src/backend/runtime/) —
+      # — runtime tuning (see src/backend/src/main/java/.../runtime/) —
       POOL_WORKERS: "${POOL_WORKERS:-8}"
       POOL_QUEUE: "${POOL_QUEUE:-4096}"
       POOL_FAST_THRESHOLD: "${POOL_FAST_THRESHOLD:-4096}"
-      GOGC_TARGET: "${GOGC_TARGET:-300}"
-      GOMAXPROCS: "${GOMAXPROCS:-0}"   # 0 = use container's CPU quota
-      JSON_INDENT: "${JSON_INDENT:-0}" # set to "1" in dev for readable JSON
+      JSON_INDENT: "${JSON_INDENT:-false}"
+      JAVA_OPTS: "${JAVA_OPTS:--XX:+UseG1GC -XX:MaxRAMPercentage=75}"
     ports:
       - "${BACKEND_PORT:-31777}:8080"
     networks:
       - app
-    # distroless has no shell — use the binary itself as a healthcheck via
-    # an HTTP probe from the frontend container instead. Compose's built-in
-    # `healthcheck` here uses CMD-SHELL which won't work without /bin/sh,
-    # so we leave it off and rely on `restart: unless-stopped`.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
           cpus: "${BACKEND_CPUS:-2.0}"
-          memory: "${BACKEND_MEMORY:-512M}"
+          memory: "${BACKEND_MEMORY:-1024M}"
 
   frontend:
     build:
@@ -51,11 +52,7 @@ services:
     environment:
       PORT: "3000"
       NODE_ENV: "production"
-      # next.config.mjs reads BACKEND_URL at *build* time for the rewrite
-      # destination. We pass it again at runtime for any server-side fetch
-      # in app/lib/api.ts (listFeatures / callFeature on the server).
       BACKEND_URL: "http://backend:8080"
-      # Required so Next.js binds 0.0.0.0 in the container.
       HOSTNAME: "0.0.0.0"
     depends_on:
       - backend

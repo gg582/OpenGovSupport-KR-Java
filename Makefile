@@ -1,4 +1,4 @@
-.PHONY: run run-backend run-frontend install install-backend install-frontend test bench clean compose-up compose-down compose-build compose-logs loadtest
+.PHONY: run run-backend run-frontend install install-backend install-frontend build test bench clean compose-up compose-down compose-build compose-logs loadtest
 
 BACKEND_PORT ?= 8080
 FRONTEND_PORT ?= 3000
@@ -6,13 +6,13 @@ FRONTEND_PORT ?= 3000
 run: install
 	@echo "▶ backend  : http://localhost:$(BACKEND_PORT)"
 	@echo "▶ frontend : http://localhost:$(FRONTEND_PORT)"
-	@trap 'kill 0' INT TERM EXIT; \
-	  ( cd src/backend && PORT=$(BACKEND_PORT) go run ./... ) & \
-	  ( cd src/frontend && BACKEND_URL=http://localhost:$(BACKEND_PORT) PORT=$(FRONTEND_PORT) npm run dev ) & \
+	@trap 'kill 0' INT TERM; \
+	  ( cd src/backend && PORT=$(BACKEND_PORT) mvn -B spring-boot:run 2>&1 | sed 's/^/[backend]  /' ) & \
+	  ( cd src/frontend && BACKEND_URL=http://localhost:$(BACKEND_PORT) PORT=$(FRONTEND_PORT) npm run dev 2>&1 | sed 's/^/[frontend] /' ) & \
 	  wait
 
 run-backend: install-backend
-	cd src/backend && PORT=$(BACKEND_PORT) go run ./...
+	cd src/backend && PORT=$(BACKEND_PORT) mvn -B spring-boot:run
 
 run-frontend: install-frontend
 	cd src/frontend && BACKEND_URL=http://localhost:$(BACKEND_PORT) PORT=$(FRONTEND_PORT) npm run dev
@@ -20,21 +20,25 @@ run-frontend: install-frontend
 install: install-backend install-frontend
 
 install-backend:
-	cd src/backend && go mod download
+	cd src/backend && mvn -B -q dependency:go-offline
 
 install-frontend:
 	cd src/frontend && [ -d node_modules ] || npm install
 
+build:
+	cd src/backend && mvn -B -DskipTests package
+
 test:
-	cd src/backend && go test ./...
+	cd src/backend && mvn -B test
 
 bench:
-	cd src/backend && go test -bench=. -benchmem -run=^$$ ./runtime/numerics/
+	cd src/backend && mvn -B -q test -Dtest='*Benchmark*' || true
 
 loadtest:
-	cd src/backend && go run ./cmd/loadtest \
-	  -url http://localhost:$(BACKEND_PORT)/api/overseas/care \
-	  -concurrency 200 -duration 10s
+	@command -v hey >/dev/null || { echo "install 'hey' (brew install hey) — Go cmd/loadtest는 제거되었습니다."; exit 1; }
+	hey -n 2000 -c 200 -m POST -T application/json \
+	  -d '{"departureDate":"2026-01-15"}' \
+	  http://localhost:$(BACKEND_PORT)/api/overseas/care
 
 # ── docker-compose helpers ──────────────────────────────────────────────
 compose-build:
@@ -50,4 +54,4 @@ compose-logs:
 	docker compose logs -f --tail=200
 
 clean:
-	rm -rf src/frontend/node_modules src/frontend/.next
+	rm -rf src/backend/target src/frontend/node_modules src/frontend/.next

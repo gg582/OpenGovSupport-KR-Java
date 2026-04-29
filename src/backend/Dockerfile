@@ -1,22 +1,21 @@
 # ── builder ─────────────────────────────────────────────────────────────
-FROM golang:1.23-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /src
 
-# Pre-cache modules first so source edits don't re-download.
-COPY go.mod ./
-RUN go mod download
+RUN apk add --no-cache maven
 
-COPY . .
+COPY pom.xml ./
+RUN mvn -B -q dependency:go-offline
 
-# Static, stripped, no CGO.
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
-RUN go build -trimpath -ldflags="-s -w" -o /out/backend . \
- && go test ./runtime/numerics/
+COPY src ./src
+RUN mvn -B -q -DskipTests package && \
+    cp target/backend.jar /out.jar
 
 # ── runtime ────────────────────────────────────────────────────────────
-FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=builder /out/backend /usr/local/bin/backend
-USER nonroot:nonroot
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /out.jar /app/backend.jar
 EXPOSE 8080
 ENV PORT=8080
-ENTRYPOINT ["/usr/local/bin/backend"]
+ENV JAVA_OPTS=""
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/backend.jar"]
