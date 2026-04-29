@@ -1,12 +1,18 @@
-# Single-host stack: Spring Boot 4.0.2 (Java 21) backend + Next.js frontend.
+# Single-host stack: Spring Boot 4.0.2 (Java 21) backend + Next.js frontend + nginx HTTPS proxy.
 #
 #   docker compose up --build              # foreground
 #   docker compose up -d --build           # detached
 #   docker compose logs -f backend         # tail one service
 #   docker compose down                    # stop & remove
 #
-# Open the app at http://localhost:31778  (frontend reverse-proxies /api/* to backend).
-# Direct backend access: http://localhost:31777  (e.g. /api/runtime/stats).
+# HTTPS setup (nginx):
+#   Place your TLS certificate files in the directory pointed to by CERTS_DIR (.env):
+#     ${CERTS_DIR}/fullchain.pem   — certificate chain
+#     ${CERTS_DIR}/privkey.pem     — private key
+#   Access the app at https://<host>  (port 443 by default, see HTTPS_PORT in .env).
+#   HTTP requests on port 80 are permanently redirected to HTTPS.
+#
+# Direct backend access (no TLS): http://localhost:31777  (e.g. /api/runtime/stats).
 
 name: opengovsupport
 
@@ -56,8 +62,6 @@ services:
       HOSTNAME: "0.0.0.0"
     depends_on:
       - backend
-    ports:
-      - "${FRONTEND_PORT:-31778}:3000"
     networks:
       - app
     healthcheck:
@@ -71,6 +75,27 @@ services:
         limits:
           cpus: "${FRONTEND_CPUS:-1.0}"
           memory: "${FRONTEND_MEMORY:-512M}"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: opengovsupport-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./src/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${CERTS_DIR:-./certs}:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t 2>/dev/null && wget -qO- http://localhost:80/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   app:
