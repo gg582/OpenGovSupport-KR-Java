@@ -7,8 +7,8 @@
 #
 # HTTPS setup (nginx):
 #   Place your TLS certificate files in the directory pointed to by CERTS_DIR (.env):
-#     ${CERTS_DIR}/fullchain.pem   — certificate chain
-#     ${CERTS_DIR}/privkey.pem     — private key
+#     ${CERTS_DIR}/cert.pem     — Cloudflare origin certificate (not fullchain)
+#     ${CERTS_DIR}/privkey.pem  — private key
 #   Access the app at https://<host>  (port 443 by default, see HTTPS_PORT in .env).
 #   HTTP requests on port 80 are permanently redirected to HTTPS.
 #
@@ -64,12 +64,6 @@ services:
       - backend
     networks:
       - app
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
     deploy:
       resources:
         limits:
