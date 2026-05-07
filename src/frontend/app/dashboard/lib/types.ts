@@ -132,6 +132,9 @@ export type GraphDoc = {
 /** 글로벌 dashboard 모드 — 상단 overlay 토글. */
 export type DashMode = "normal" | "reverse" | "conflict" | "timeline" | "audit";
 
+/** UI 전체 모드 — 쉬운 모드 / 전문가 모드. */
+export type UIMode = "easy" | "expert";
+
 /** Single execution log entry. */
 export type ExecLog = {
   ts: number;

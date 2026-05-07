@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import LNB from "./LNB";
 import { SECTIONS, sectionOf, type Feature } from "../lib/api";
+import { useGraphStore } from "../dashboard/lib/store";
 
 export default function AppShell({
   features,

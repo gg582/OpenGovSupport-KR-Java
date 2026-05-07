@@ -25,6 +25,7 @@ type State = {
   execState: ExecState;
   pendingExec: number; // request counter — superseded re-runs.
   mode: import("./types").DashMode;
+  uiMode: import("./types").UIMode;
   /** Time Machine — 비교 결과 저장. */
   timeMachine: {
     ruleId?: string;
@@ -73,6 +74,9 @@ type State = {
   setTimeMachine(r: State["timeMachine"]): void;
   setConflicts(c: State["conflicts"]): void;
   toggleNodeDirection(id: string): void;
+
+  // ui mode
+  setUIMode(m: import("./types").UIMode): void;
 };
 
 const newId = (prefix = "n"): string =>
@@ -97,6 +101,7 @@ export const useGraphStore = create<State>((set, get) => ({
   execState: "idle",
   pendingExec: 0,
   mode: "normal",
+  uiMode: "expert",
   timeMachine: { years: [], results: [] },
   conflicts: { activeBefore: [], suppressed: [], activeAfter: [], pairs: [] },
 
@@ -331,6 +336,7 @@ export const useGraphStore = create<State>((set, get) => ({
     set((s) => ({ doc: { ...s.doc, year: y } })),
   setTimeMachine: (r) => set({ timeMachine: r }),
   setConflicts: (c) => set({ conflicts: c }),
+  setUIMode: (m) => set({ uiMode: m }),
   toggleNodeDirection: (id) =>
     set((s) => ({
       doc: {

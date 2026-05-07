@@ -9,6 +9,9 @@ import ExecPanel from "./components/ExecPanel";
 import LogPanel from "./components/LogPanel";
 import OverlayPanel from "./components/OverlayPanel";
 import MobileDashboard from "./components/MobileDashboard";
+import EasyCanvas from "./components/EasyCanvas";
+import EasyToolbar from "./components/EasyToolbar";
+import EasyExecPanel from "./components/EasyExecPanel";
 import { useGraphStore } from "./lib/store";
 import { useIsMobile } from "./lib/useIsMobile";
 import { TEMPLATES } from "./lib/templates";
@@ -20,6 +23,7 @@ export default function Dashboard() {
   const setDoc = useGraphStore((s) => s.setDoc);
   const runAll = useGraphStore((s) => s.runAll);
   const mode = useGraphStore((s) => s.mode);
+  const uiMode = useGraphStore((s) => s.uiMode);
   const isMobile = useIsMobile();
 
   // 첫 진입 시 빈 그래프 → 기본 템플릿으로 부트스트랩.
@@ -36,6 +40,18 @@ export default function Dashboard() {
 
   if (isMobile) {
     return <MobileDashboard />;
+  }
+
+  if (uiMode === "easy") {
+    return (
+      <ReactFlowProvider>
+        <div className="dash-shell easy-shell">
+          <EasyToolbar />
+          <EasyCanvas />
+          <EasyExecPanel />
+        </div>
+      </ReactFlowProvider>
+    );
   }
 
   return (
