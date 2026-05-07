@@ -12,6 +12,7 @@ import ReactFlow, {
   ReactFlowProvider,
   Background,
   BackgroundVariant,
+  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -23,14 +24,24 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import { useGraphStore } from "../lib/store";
-import { GRID } from "../lib/types";
+import { GRID, type DashMode, type GraphDoc } from "../lib/types";
 import { ALL_TEMPLATES, type NodeTemplate } from "../lib/registry";
 import {
   SUBGRAPH_TEMPLATES,
   type SubgraphTemplate,
 } from "../lib/subgraphTemplates";
+import {
+  listGraphs,
+  loadGraph,
+  saveGraph,
+  deleteGraph,
+  timeMachineYears,
+} from "../lib/api";
+import { autoLayout } from "../lib/elk";
+import { TEMPLATES } from "../lib/templates";
 import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
+import OverlayPanel from "./OverlayPanel";
 
 const nodeTypes = { stat: StatNode } as const;
 const edgeTypes = { ortho: OrthoEdge } as const;
@@ -38,8 +49,20 @@ const defaultEdgeOptions = { type: "ortho" } as const;
 
 const LONG_PRESS_MS = 550;
 const LONG_PRESS_TOLERANCE_PX = 8;
+// 더블탭 줌: 두 번째 탭이 280ms 이내, 30px 이내면 같은 위치 더블탭으로 간주.
+const DOUBLE_TAP_MS = 280;
+const DOUBLE_TAP_TOLERANCE_PX = 30;
+const DOUBLE_TAP_ZOOM_FACTOR = 1.6;
 
-type Tab = "info" | "add" | "exec" | "log";
+type Tab = "info" | "add" | "exec" | "menu" | "log";
+
+const MODE_LABELS: Record<DashMode, string> = {
+  normal: "정상",
+  reverse: "역산",
+  conflict: "충돌",
+  timeline: "연도",
+  audit: "감사",
+};
 
 export default function MobileDashboard() {
   return (
@@ -52,6 +75,8 @@ export default function MobileDashboard() {
 function MobileBody() {
   const doc = useGraphStore((s) => s.doc);
   const rename = useGraphStore((s) => s.rename);
+  const setDoc = useGraphStore((s) => s.setDoc);
+  const setNodes = useGraphStore((s) => s.setNodes);
   const connect = useGraphStore((s) => s.connect);
   const select = useGraphStore((s) => s.select);
   const moveNode = useGraphStore((s) => s.moveNode);
@@ -64,9 +89,16 @@ function MobileBody() {
   const logs = useGraphStore((s) => s.logs);
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
+  const mode = useGraphStore((s) => s.mode);
+  const setMode = useGraphStore((s) => s.setMode);
+  const setYear = useGraphStore((s) => s.setYear);
 
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // 줌 컨트롤 + 더블탭에 사용. ReactFlowProvider 안쪽이라 안전.
+  const rf = useReactFlow();
+  const canvasRef = useRef<HTMLDivElement | null>(null);
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -160,16 +192,57 @@ function MobileBody() {
     startY: number;
   }>({ timer: null, nodeId: null, label: "", startX: 0, startY: 0 });
 
+  // ── 더블탭 줌 — 빈 영역 두 번 탭 시 손가락 위치를 중심으로 1.6x ─
+  const lastTapRef = useRef<{ ts: number; x: number; y: number } | null>(null);
+
   const findNodeIdAt = (target: EventTarget | null): string | null => {
     if (!(target instanceof Element)) return null;
     const el = target.closest<HTMLElement>(".react-flow__node");
     return el?.dataset.id ?? null;
   };
 
+  // 손가락 위치를 고정한 채 줌을 변경. (cx,cy)는 캔버스 로컬 좌표.
+  const zoomAtPoint = (cx: number, cy: number, factor: number) => {
+    const vp = rf.getViewport();
+    const nextZoom = Math.min(2, Math.max(0.3, vp.zoom * factor));
+    if (nextZoom === vp.zoom) return;
+    const fx = (cx - vp.x) / vp.zoom;
+    const fy = (cy - vp.y) / vp.zoom;
+    rf.setViewport(
+      { x: cx - fx * nextZoom, y: cy - fy * nextZoom, zoom: nextZoom },
+      { duration: 200 },
+    );
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse") return;
     const id = findNodeIdAt(e.target);
-    if (!id) return;
+
+    // 빈 영역에서만 더블탭 줌 검사 — 노드 위는 정보 표시용으로 둔다.
+    if (!id) {
+      const now = performance.now();
+      const last = lastTapRef.current;
+      if (
+        last &&
+        now - last.ts < DOUBLE_TAP_MS &&
+        Math.hypot(e.clientX - last.x, e.clientY - last.y) <
+          DOUBLE_TAP_TOLERANCE_PX
+      ) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          zoomAtPoint(
+            e.clientX - rect.left,
+            e.clientY - rect.top,
+            DOUBLE_TAP_ZOOM_FACTOR,
+          );
+        }
+        lastTapRef.current = null;
+        return;
+      }
+      lastTapRef.current = { ts: now, x: e.clientX, y: e.clientY };
+      return;
+    }
+
     const label = doc.nodes.find((n) => n.id === id)?.data.label ?? id.slice(0, 6);
     pressRef.current = {
       timer: window.setTimeout(() => {
@@ -234,6 +307,7 @@ function MobileBody() {
       </header>
 
       <div
+        ref={canvasRef}
         className="m-canvas stat-canvas mobile"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -275,12 +349,30 @@ function MobileBody() {
             variant={BackgroundVariant.Dots}
           />
         </ReactFlow>
+
+        <ZoomControls
+          onShowToast={showToast}
+          onMessage={(m) => showToast(m)}
+        />
+
+        {mode !== "normal" && (
+          <span
+            className={`m-mode-badge m-mode-${mode}`}
+            aria-label={`현재 모드: ${MODE_LABELS[mode]}`}
+          >
+            {MODE_LABELS[mode]}
+          </span>
+        )}
       </div>
 
       {tab && (
         <section className="m-sheet" role="dialog" aria-label={tab}>
           <div className="m-sheet-head">
-            <span className="m-sheet-title">{tabTitle(tab)}</span>
+            <span className="m-sheet-title">
+              {tab === "log" && mode !== "normal"
+                ? `오버레이 · ${MODE_LABELS[mode]}`
+                : tabTitle(tab)}
+            </span>
             <button
               className="m-sheet-close"
               onClick={() => setTab(null)}
@@ -306,7 +398,85 @@ function MobileBody() {
               />
             )}
             {tab === "exec" && <ExecSheet />}
-            {tab === "log" && <LogSheet logs={logs} />}
+            {tab === "menu" && (
+              <MenuSheet
+                doc={doc}
+                mode={mode}
+                onSetMode={setMode}
+                onSetYear={(y) => {
+                  setYear(y);
+                  queueMicrotask(() => runAll());
+                }}
+                onLoadTemplate={(id) => {
+                  const tpl = TEMPLATES.find((t) => t.id === id);
+                  if (!tpl) return;
+                  setDoc({ ...tpl, id: "" });
+                  queueMicrotask(() => runAll());
+                  showToast(`템플릿 로드: ${tpl.name}`);
+                }}
+                onLoadSaved={async (id) => {
+                  try {
+                    const g = await loadGraph(id);
+                    setDoc(g);
+                    queueMicrotask(() => runAll());
+                    showToast(`불러옴: ${g.name}`);
+                  } catch (e) {
+                    showToast(`× ${(e as Error).message}`);
+                  }
+                }}
+                onSave={async () => {
+                  try {
+                    showToast("저장 중…");
+                    const ack = await saveGraph(doc);
+                    if (!doc.id) {
+                      setDoc({ ...doc, id: ack.id, updatedAt: ack.updatedAt });
+                    }
+                    showToast(`✓ 저장됨`);
+                  } catch (e) {
+                    showToast(`× ${(e as Error).message}`);
+                  }
+                }}
+                onNew={() => {
+                  setDoc({
+                    id: "",
+                    name: "새 그래프",
+                    kind: "custom",
+                    nodes: [],
+                    edges: [],
+                  });
+                  showToast("빈 그래프로 시작");
+                }}
+                onDelete={async () => {
+                  if (!doc.id) return;
+                  if (!confirm(`"${doc.name}" 그래프를 삭제하시겠습니까?`)) return;
+                  try {
+                    await deleteGraph(doc.id);
+                    setDoc({ ...doc, id: "" });
+                    showToast("삭제됨");
+                  } catch (e) {
+                    showToast(`× ${(e as Error).message}`);
+                  }
+                }}
+                onAutoLayout={async () => {
+                  try {
+                    const laid = await autoLayout(doc.nodes, doc.edges);
+                    setNodes(() => laid);
+                    queueMicrotask(() =>
+                      rf.fitView({ padding: 0.18, duration: 240 }),
+                    );
+                    showToast("자동 정렬 완료");
+                  } catch (e) {
+                    showToast(`× ${(e as Error).message}`);
+                  }
+                }}
+              />
+            )}
+            {tab === "log" &&
+              (mode === "normal" ? (
+                <LogSheet logs={logs} />
+              ) : (
+                <OverlayPanel />
+              ))}
           </div>
         </section>
       )}
@@ -315,7 +485,13 @@ function MobileBody() {
         <TabButton label="＋추가" id="add" cur={tab} onSelect={setTab} />
         <TabButton label="ⓘ정보" id="info" cur={tab} onSelect={setTab} />
         <TabButton label="▶실행" id="exec" cur={tab} onSelect={setTab} />
-        <TabButton label="≡로그" id="log" cur={tab} onSelect={setTab} />
+        <TabButton label="☰메뉴" id="menu" cur={tab} onSelect={setTab} />
+        <TabButton
+          label={mode === "normal" ? "≡로그" : "✦오버"}
+          id="log"
+          cur={tab}
+          onSelect={setTab}
+        />
       </nav>
 
       {toast && <div className="m-toast">{toast}</div>}
@@ -333,9 +509,211 @@ function tabTitle(t: Tab): string {
       return "노드 추가";
     case "exec":
       return "실행";
+    case "menu":
+      return "메뉴";
     case "log":
       return "실행 로그";
   }
+}
+
+// ── 줌 컨트롤 — 캔버스 우측 하단 floating ─────────────────────────
+function ZoomControls({
+  onShowToast,
+}: {
+  onShowToast: (m: string) => void;
+  onMessage: (m: string) => void;
+}) {
+  const rf = useReactFlow();
+  return (
+    <div className="m-zoom" role="group" aria-label="줌 컨트롤">
+      <button
+        className="m-zoom-btn"
+        onClick={() => rf.zoomIn({ duration: 180 })}
+        aria-label="확대"
+      >
+        ＋
+      </button>
+      <button
+        className="m-zoom-btn"
+        onClick={() => rf.zoomOut({ duration: 180 })}
+        aria-label="축소"
+      >
+        −
+      </button>
+      <button
+        className="m-zoom-btn"
+        onClick={() => {
+          rf.fitView({ padding: 0.18, duration: 240 });
+          onShowToast("화면 맞춤");
+        }}
+        aria-label="화면 맞춤"
+        title="화면 맞춤"
+      >
+        ⛶
+      </button>
+      <button
+        className="m-zoom-btn"
+        onClick={() =>
+          rf.setViewport({ x: 24, y: 60, zoom: 0.9 }, { duration: 200 })
+        }
+        aria-label="줌 초기화"
+        title="줌 초기화"
+      >
+        ⌂
+      </button>
+    </div>
+  );
+}
+
+// ── 메뉴 시트 — 저장/불러오기/템플릿/자동정렬/연도/모드 ────────────
+function MenuSheet({
+  doc,
+  mode,
+  onSetMode,
+  onSetYear,
+  onLoadTemplate,
+  onLoadSaved,
+  onSave,
+  onNew,
+  onDelete,
+  onAutoLayout,
+}: {
+  doc: GraphDoc;
+  mode: DashMode;
+  onSetMode: (m: DashMode) => void;
+  onSetYear: (y: number) => void;
+  onLoadTemplate: (id: string) => void;
+  onLoadSaved: (id: string) => void;
+  onSave: () => void;
+  onNew: () => void;
+  onDelete: () => void;
+  onAutoLayout: () => void;
+}) {
+  const [saved, setSaved] = useState<
+    Array<{ id: string; name: string; kind: string; updatedAt: string }>
+  >([]);
+  const [years, setYears] = useState<number[]>([]);
+
+  useEffect(() => {
+    listGraphs()
+      .then((list) => setSaved(list))
+      .catch(() => setSaved([]));
+    timeMachineYears()
+      .then((r) => setYears(r.years))
+      .catch(() => setYears([]));
+  }, []);
+
+  return (
+    <div className="m-menu">
+      <section className="m-menu-section">
+        <div className="m-menu-label">그래프</div>
+        <div className="m-menu-row">
+          <button className="m-menu-btn accent" onClick={onSave}>
+            ▣ 저장
+          </button>
+          <button className="m-menu-btn" onClick={onNew}>
+            ＋ 새로
+          </button>
+          <button
+            className="m-menu-btn danger"
+            onClick={onDelete}
+            disabled={!doc.id}
+          >
+            × 삭제
+          </button>
+        </div>
+        <div className="m-menu-id">
+          ID: <span>{doc.id || "(미저장)"}</span>
+        </div>
+      </section>
+
+      <section className="m-menu-section">
+        <div className="m-menu-label">템플릿</div>
+        <select
+          className="m-menu-select"
+          value=""
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) onLoadTemplate(v);
+            e.currentTarget.value = "";
+          }}
+        >
+          <option value="">▼ 템플릿 로드…</option>
+          {TEMPLATES.map((t) => (
+            <option key={t.id} value={t.id}>
+              [{t.kind}] {t.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className="m-menu-select"
+          value=""
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) onLoadSaved(v);
+            e.currentTarget.value = "";
+          }}
+        >
+          <option value="">▼ 저장된 그래프 ({saved.length})</option>
+          {saved.map((g) => (
+            <option key={g.id} value={g.id}>
+              [{g.kind}] {g.name}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section className="m-menu-section">
+        <div className="m-menu-label">레이아웃</div>
+        <button className="m-menu-btn full" onClick={onAutoLayout}>
+          ⌗ 자동 정렬 (ELK)
+        </button>
+      </section>
+
+      <section className="m-menu-section">
+        <div className="m-menu-label">기준 연도</div>
+        {years.length === 0 ? (
+          <p className="m-empty" style={{ padding: 8 }}>
+            연도 목록을 가져올 수 없습니다.
+          </p>
+        ) : (
+          <div className="m-year-grid">
+            {years.map((y) => (
+              <button
+                key={y}
+                className={`m-year ${doc.year === y ? "active" : ""}`}
+                onClick={() => onSetYear(y)}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="m-menu-section">
+        <div className="m-menu-label">모드</div>
+        <div className="m-mode-grid">
+          {(
+            ["normal", "reverse", "conflict", "timeline", "audit"] as DashMode[]
+          ).map((m) => (
+            <button
+              key={m}
+              className={`m-mode ${mode === m ? "active" : ""} m-mode-${m}`}
+              onClick={() => onSetMode(m)}
+            >
+              {MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+        {mode !== "normal" && (
+          <p className="m-menu-hint">
+            “로그” 탭이 <b>{MODE_LABELS[mode]} 오버레이</b>로 전환됩니다.
+          </p>
+        )}
+      </section>
+    </div>
+  );
 }
 
 function TabButton({
@@ -546,6 +924,10 @@ function Hint() {
         <b>짧게 탭</b> — 노드 정보
         <br />
         <b>길게 누름</b> — 노드 삭제
+        <br />
+        <b>두 번 탭(빈 곳)</b> — 손가락 위치로 확대
+        <br />
+        <b>두 손가락</b> — 핀치 줌 / 한 손가락 드래그 = 팬
         <br />
         <b>엣지 끝점 드래그</b> — 다른 노드로 재연결
       </p>

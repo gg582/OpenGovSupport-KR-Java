@@ -1022,3 +1022,222 @@
 @media (max-width: 767px) {
   .dash-shell { display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   모바일 추가 컴포넌트 — 줌 컨트롤 / 메뉴 시트 / 모드 / 오버레이
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 줌 컨트롤 (캔버스 우하단 floating) ─────────────────────────── */
+.dash-mobile .m-zoom {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  grid-template-columns: 40px;
+  row-gap: 4px;
+  z-index: 4;
+  /* 핀치/팬 제스처가 버튼을 통과하지 않도록 */
+  touch-action: manipulation;
+}
+.dash-mobile .m-zoom-btn {
+  width: 40px;
+  height: 36px;
+  background: rgba(29, 35, 48, 0.92);
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(6px);
+}
+.dash-mobile .m-zoom-btn:active {
+  background: #283044;
+  color: #f6c668;
+}
+.dash-mobile .m-zoom-btn:focus-visible {
+  outline: 2px solid #f6c668;
+  outline-offset: -2px;
+}
+
+/* ── 모드 배지 (캔버스 좌상단) ──────────────────────────────────── */
+.dash-mobile .m-mode-badge {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 4;
+  background: rgba(29, 35, 48, 0.92);
+  border: 1px solid #f6c668;
+  color: #f6c668;
+  padding: 3px 9px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+.dash-mobile .m-mode-badge.m-mode-reverse { border-color: #a883da; color: #d8c2f5; }
+.dash-mobile .m-mode-badge.m-mode-conflict { border-color: #ee7d7d; color: #ee7d7d; }
+.dash-mobile .m-mode-badge.m-mode-timeline { border-color: #6fde8c; color: #6fde8c; }
+.dash-mobile .m-mode-badge.m-mode-audit { border-color: #97a3b9; color: #97a3b9; }
+
+/* ── 메뉴 시트 ──────────────────────────────────────────────────── */
+.dash-mobile .m-menu {
+  display: grid;
+  row-gap: 14px;
+}
+.dash-mobile .m-menu-section {
+  display: grid;
+  row-gap: 6px;
+}
+.dash-mobile .m-menu-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6e7a93;
+  border-bottom: 1px solid #2a313e;
+  padding-bottom: 3px;
+}
+.dash-mobile .m-menu-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.dash-mobile .m-menu-btn {
+  background: #1d2330;
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  padding: 9px 8px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 40px;
+}
+.dash-mobile .m-menu-btn:active { background: #283044; }
+.dash-mobile .m-menu-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.dash-mobile .m-menu-btn.accent {
+  background: #134075;
+  border-color: #1f5da3;
+  color: #fff;
+}
+.dash-mobile .m-menu-btn.danger {
+  background: #421515;
+  border-color: #6b2424;
+  color: #f4d4d4;
+}
+.dash-mobile .m-menu-btn.full {
+  width: 100%;
+}
+.dash-mobile .m-menu-id {
+  font-size: 10px;
+  color: #6e7a93;
+  letter-spacing: 0.04em;
+}
+.dash-mobile .m-menu-id span { color: #d8dde6; }
+.dash-mobile .m-menu-select {
+  background: #0e1116;
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  padding: 8px 8px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  width: 100%;
+  min-height: 38px;
+}
+.dash-mobile .m-menu-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #97a3b9;
+  line-height: 1.5;
+}
+.dash-mobile .m-menu-hint b { color: #f6c668; }
+
+/* ── 연도 그리드 ────────────────────────────────────────────────── */
+.dash-mobile .m-year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.dash-mobile .m-year {
+  background: #1d2330;
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  padding: 8px 4px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 36px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-mobile .m-year:active { background: #283044; }
+.dash-mobile .m-year.active {
+  background: #134075;
+  border-color: #1f5da3;
+  color: #fff;
+}
+
+/* ── 모드 그리드 ────────────────────────────────────────────────── */
+.dash-mobile .m-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.dash-mobile .m-mode {
+  background: #1d2330;
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  padding: 9px 4px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 40px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-mobile .m-mode:active { background: #283044; }
+.dash-mobile .m-mode.active.m-mode-normal {
+  background: #134075;
+  border-color: #1f5da3;
+  color: #fff;
+}
+.dash-mobile .m-mode.active.m-mode-reverse {
+  background: #2a1a3f;
+  border-color: #a883da;
+  color: #d8c2f5;
+}
+.dash-mobile .m-mode.active.m-mode-conflict {
+  background: #421515;
+  border-color: #ee7d7d;
+  color: #f4d4d4;
+}
+.dash-mobile .m-mode.active.m-mode-timeline {
+  background: #1a3520;
+  border-color: #6fde8c;
+  color: #d2f5d8;
+}
+.dash-mobile .m-mode.active.m-mode-audit {
+  background: #283044;
+  border-color: #97a3b9;
+  color: #f1f5fb;
+}
+
+/* ── 오버레이 패널을 시트 안에 끼워 넣기 위해 자체 패딩/배경 무력화 ── */
+.dash-mobile .m-sheet-body .dash-logs {
+  background: transparent !important;
+  padding: 0 !important;
+  /* 표 폭이 화면을 넘기면 가로 스크롤 */
+  overflow-x: auto;
+}
+.dash-mobile .m-sheet-body .dash-logs > div:first-child {
+  /* "OVERLAY · MODE" 헤더 — 시트 헤더와 중복되어 숨김 */
+  display: none;
+}
