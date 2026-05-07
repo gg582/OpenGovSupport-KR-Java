@@ -146,19 +146,27 @@ function EasyMobileBody() {
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       const updated = applyNodeChanges(changes, rfNodes);
-      let lastSelected: string | null | undefined;
+
+      // React Flow 제어 컴포넌트 동기화 — 드래그 중에도 위치 반영
+      setNodes(() =>
+        updated.map((n) => ({
+          id: n.id,
+          type: n.type as string,
+          position: n.position,
+          data: n.data,
+        })),
+      );
+
       changes.forEach((c) => {
         if (c.type === "position" && c.position && !c.dragging) {
           moveNode(c.id, c.position.x, c.position.y);
         }
         if (c.type === "select") {
-          if (c.selected) lastSelected = c.id;
+          select(c.selected ? c.id : null);
         }
       });
-      if (lastSelected !== undefined) select(lastSelected);
-      void updated;
     },
-    [rfNodes, select, moveNode],
+    [rfNodes, setNodes, select, moveNode],
   );
 
   const onEdgesChange = useCallback(
