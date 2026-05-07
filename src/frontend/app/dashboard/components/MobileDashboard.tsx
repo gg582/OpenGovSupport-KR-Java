@@ -42,6 +42,7 @@ import { TEMPLATES } from "../lib/templates";
 import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
 import OverlayPanel from "./OverlayPanel";
+import { clearReactFlowSelection } from "../lib/clearSelection";
 
 const nodeTypes = { stat: StatNode } as const;
 const edgeTypes = { ortho: OrthoEdge } as const;
@@ -288,6 +289,11 @@ function MobileBody() {
     },
     [select],
   );
+  const clearAllSelection = useCallback(() => {
+    select(null);
+    setTab(null);
+    clearReactFlowSelection(rf);
+  }, [rf, select]);
 
   return (
     <div className="dash-mobile">
@@ -327,10 +333,7 @@ function MobileBody() {
           onConnect={onConnect}
           onReconnect={onReconnect}
           onNodeClick={onNodeClick}
-          onPaneClick={() => {
-            select(null);
-            setTab(null);
-          }}
+          onPaneClick={clearAllSelection}
           defaultViewport={{ x: 24, y: 60, zoom: 0.9 }}
           proOptions={{ hideAttribution: true }}
           minZoom={0.3}
