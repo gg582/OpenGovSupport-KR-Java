@@ -49,3 +49,44 @@ export async function autoLayout(
     return p ? { ...n, position: p } : n;
   });
 }
+
+/** 쉬운 모드 전용 — n8n 스타일 프리폼 레이아웃. 간격 넉넉, 곡선 엣지. */
+export async function autoLayoutEasy(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): Promise<GraphNode[]> {
+  if (nodes.length === 0) return nodes;
+  const graph = {
+    id: "root",
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": "RIGHT",
+      "elk.edgeRouting": "SPLINES",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "220",
+      "elk.spacing.nodeNode": "100",
+      "elk.layered.crossingMinimization.semiInteractive": "true",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
+    },
+    children: nodes.map((n) => ({
+      id: n.id,
+      width: 280,
+      height: 160,
+    })),
+    edges: edges.map((e, i) => ({
+      id: e.id ?? `e${i}`,
+      sources: [e.source],
+      targets: [e.target],
+    })),
+  } as const;
+
+  const out = await elk.layout(graph as never);
+  const positions = new Map<string, { x: number; y: number }>();
+  out.children?.forEach((c) => {
+    if (c.id == null) return;
+    positions.set(c.id, { x: snap(c.x ?? 0), y: snap(c.y ?? 0) });
+  });
+  return nodes.map((n) => {
+    const p = positions.get(n.id);
+    return p ? { ...n, position: p } : n;
+  });
+}

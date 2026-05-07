@@ -14,23 +14,22 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import EasyStatNode from "./EasyStatNode";
-import OrthoEdge from "./OrthoEdge";
 import { useGraphStore } from "../lib/store";
 import { GRID } from "../lib/types";
-import { autoLayout } from "../lib/elk";
+import { autoLayoutEasy } from "../lib/elk";
 
 const nodeTypes = { easyStat: EasyStatNode } as const;
-const edgeTypes = { ortho: OrthoEdge } as const;
+const defaultEdgeOptions = { type: "smoothstep" } as const;
 
 export default function EasyCanvas() {
   const doc = useGraphStore((s) => s.doc);
   const setNodes = useGraphStore((s) => s.setNodes);
   const select = useGraphStore((s) => s.select);
 
-  // 쉬운 모드 진입 시 자동 레이아웃 1회 적용
+  // 쉬운 모드 진입 시 자동 레이아웃 1회 적용 (n8n 스타일 프리폼)
   useEffect(() => {
     if (doc.nodes.length === 0) return;
-    autoLayout(doc.nodes, doc.edges).then((laid) => {
+    autoLayoutEasy(doc.nodes, doc.edges).then((laid) => {
       setNodes(() => laid);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +91,7 @@ export default function EasyCanvas() {
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         snapToGrid
         snapGrid={[GRID.size, GRID.size]}
         onNodesChange={onNodesChange}

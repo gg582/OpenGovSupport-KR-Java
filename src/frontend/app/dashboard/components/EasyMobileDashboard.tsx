@@ -29,14 +29,11 @@ import {
   deleteGraph,
   timeMachineYears,
 } from "../lib/api";
-import { autoLayout } from "../lib/elk";
+import { autoLayoutEasy } from "../lib/elk";
 import { TEMPLATES } from "../lib/templates";
 import EasyStatNode from "./EasyStatNode";
-import OrthoEdge from "./OrthoEdge";
-
 const nodeTypes = { easyStat: EasyStatNode } as const;
-const edgeTypes = { ortho: OrthoEdge } as const;
-const defaultEdgeOptions = { type: "ortho" } as const;
+const defaultEdgeOptions = { type: "smoothstep" } as const;
 
 const DOUBLE_TAP_MS = 280;
 const DOUBLE_TAP_TOLERANCE_PX = 30;
@@ -70,10 +67,10 @@ function EasyMobileBody() {
   const rf = useReactFlow();
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
-  // 쉬운 모드 진입 시 자동 레이아웃 1회
+  // 쉬운 모드 진입 시 자동 레이아웃 1회 (n8n 스타일 프리폼)
   useEffect(() => {
     if (doc.nodes.length === 0) return;
-    autoLayout(doc.nodes, doc.edges).then((laid) => {
+    autoLayoutEasy(doc.nodes, doc.edges).then((laid) => {
       setNodes(() => laid);
       queueMicrotask(() => rf.fitView({ padding: 0.18, duration: 240 }));
     });
@@ -204,7 +201,6 @@ function EasyMobileBody() {
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           snapToGrid
           snapGrid={[GRID.size, GRID.size]}
@@ -317,7 +313,7 @@ function EasyMobileBody() {
                 }}
                 onAutoLayout={async () => {
                   try {
-                    const laid = await autoLayout(doc.nodes, doc.edges);
+                    const laid = await autoLayoutEasy(doc.nodes, doc.edges);
                     setNodes(() => laid);
                     queueMicrotask(() =>
                       rf.fitView({ padding: 0.18, duration: 240 }),
