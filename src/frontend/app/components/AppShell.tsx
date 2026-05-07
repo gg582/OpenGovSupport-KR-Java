@@ -147,6 +147,15 @@ export default function AppShell({
                 <ul className="py-1">
                   <li>
                     <Link
+                      href="/dashboard"
+                      className="lnb-link"
+                      aria-current={pathname === "/dashboard" ? "page" : undefined}
+                    >
+                      <span>▣ 실행 대시보드</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
                       href="/runtime"
                       className="lnb-link"
                       aria-current={pathname === "/runtime" ? "page" : undefined}
