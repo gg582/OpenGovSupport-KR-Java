@@ -8,7 +8,9 @@ import Toolbar from "./components/Toolbar";
 import ExecPanel from "./components/ExecPanel";
 import LogPanel from "./components/LogPanel";
 import OverlayPanel from "./components/OverlayPanel";
+import MobileDashboard from "./components/MobileDashboard";
 import { useGraphStore } from "./lib/store";
+import { useIsMobile } from "./lib/useIsMobile";
 import { TEMPLATES } from "./lib/templates";
 
 import "./dashboard.css";
@@ -18,6 +20,7 @@ export default function Dashboard() {
   const setDoc = useGraphStore((s) => s.setDoc);
   const runAll = useGraphStore((s) => s.runAll);
   const mode = useGraphStore((s) => s.mode);
+  const isMobile = useIsMobile();
 
   // 첫 진입 시 빈 그래프 → 기본 템플릿으로 부트스트랩.
   useEffect(() => {
@@ -30,6 +33,10 @@ export default function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
 
   return (
     <ReactFlowProvider>

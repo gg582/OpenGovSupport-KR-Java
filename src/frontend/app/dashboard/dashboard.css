@@ -643,3 +643,382 @@
 .dash-logs .row.ok  .msg { color: #d8dde6; }
 .dash-logs .row.error .msg { color: #ee7d7d; }
 .dash-logs .row.skipped .msg { color: #6e7a93; }
+
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE — 세로 화면 전용 별도 레이아웃.
+   - 단순 축소가 아니라 컴포넌트 자체가 다름 (바텀시트, 탭바, 큰 핸들)
+   ════════════════════════════════════════════════════════════════════ */
+
+.dash-mobile {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-rows: 44px 1fr 48px;
+  grid-template-areas: "head" "canvas" "tabs";
+  background: #0e1116;
+  color: #d8dde6;
+  font-family: var(--font-mono);
+  z-index: 30;
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.dash-mobile .m-head {
+  grid-area: head;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 0 10px;
+  background: #161b24;
+  border-bottom: 1px solid #2a313e;
+}
+.dash-mobile .m-title {
+  background: #0e1116;
+  border: 1px solid #2a313e;
+  color: #f1f5fb;
+  padding: 6px 8px;
+  font: inherit;
+  font-family: var(--font-mono);
+  min-width: 0;
+}
+.dash-mobile .m-status {
+  border: 1px solid #2a313e;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #97a3b9;
+}
+.dash-mobile .m-status-ok { color: #6fde8c; border-color: #2a4a32; }
+.dash-mobile .m-status-error { color: #ee7d7d; border-color: #5a2424; }
+.dash-mobile .m-status-running { color: #f6c668; border-color: #594028; }
+.dash-mobile .m-run {
+  background: #134075;
+  border: 1px solid #1f5da3;
+  color: #fff;
+  width: 36px;
+  height: 32px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.dash-mobile .m-run:active { background: #1a508f; }
+
+/* ── Canvas ─────────────────────────────────────────────────────── */
+.dash-mobile .m-canvas {
+  grid-area: canvas;
+  position: relative;
+  overflow: hidden;
+  /* 세로 스크롤 제스처가 RF 의 팬과 충돌하지 않도록 */
+  touch-action: none;
+}
+
+/* 모바일에서 React Flow 기본 핸들이 너무 작아 손가락으로 잡기 어렵다 → 확대 */
+.dash-mobile .react-flow__handle {
+  width: 14px !important;
+  height: 14px !important;
+  border-width: 2px;
+}
+.dash-mobile .react-flow__handle.connectable {
+  background: #1f5da3;
+  border-color: #91b7e2;
+}
+/* edge reconnect 앵커 — 끝점을 잡기 쉽게 큼직하게 */
+.dash-mobile .react-flow__edgeupdater,
+.dash-mobile .react-flow__connectionline circle {
+  r: 8;
+}
+
+/* 모바일 화면에서 노드는 약간 좁게 (가로 폭 절약) */
+.dash-mobile .stat-node {
+  width: 188px;
+  font-size: 11px;
+}
+.dash-mobile .stat-node .body input,
+.dash-mobile .stat-node .body select {
+  /* 터치 친화적 height */
+  padding: 6px 6px;
+  font-size: 12px;
+}
+
+/* ── Bottom sheet ───────────────────────────────────────────────── */
+.dash-mobile .m-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 48px;
+  max-height: 60vh;
+  background: #161b24;
+  border-top: 1px solid #2a313e;
+  display: grid;
+  grid-template-rows: 36px 1fr;
+  z-index: 5;
+  animation: m-sheet-up 0.18s ease-out;
+}
+@keyframes m-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.dash-mobile .m-sheet-head {
+  display: grid;
+  grid-template-columns: 1fr 36px;
+  align-items: center;
+  padding: 0 0 0 12px;
+  border-bottom: 1px solid #2a313e;
+  background: #1d2330;
+}
+.dash-mobile .m-sheet-title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #97a3b9;
+}
+.dash-mobile .m-sheet-close {
+  background: transparent;
+  border: none;
+  border-left: 1px solid #2a313e;
+  color: #97a3b9;
+  font-size: 20px;
+  cursor: pointer;
+  height: 100%;
+}
+.dash-mobile .m-sheet-body {
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+}
+
+.dash-mobile .m-empty {
+  color: #6e7a93;
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 12px;
+  line-height: 1.6;
+}
+
+/* Info sheet */
+.dash-mobile .m-info { display: grid; row-gap: 6px; }
+.dash-mobile .m-info-row {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  column-gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #2a313e;
+}
+.dash-mobile .m-info-row.block { grid-template-columns: 1fr; row-gap: 4px; }
+.dash-mobile .m-info-key {
+  color: #6e7a93;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.dash-mobile .m-info-val { color: #f1f5fb; word-break: break-all; }
+.dash-mobile .m-info-val.err { color: #ee7d7d; }
+.dash-mobile .m-info-formula {
+  background: #0e1116;
+  border: 1px solid #2a313e;
+  padding: 6px 8px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+.dash-mobile .m-info-del {
+  margin-top: 10px;
+  background: #421515;
+  border: 1px solid #6b2424;
+  color: #f4d4d4;
+  padding: 8px 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+/* Add sheet */
+.dash-mobile .m-add-section {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6e7a93;
+  padding: 8px 0 4px;
+}
+.dash-mobile .m-chip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.dash-mobile .m-chip {
+  background: #1d2330;
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  text-align: left;
+  padding: 8px 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: grid;
+  row-gap: 2px;
+  min-height: 48px;
+}
+.dash-mobile .m-chip:active { background: #283044; }
+.dash-mobile .m-chip.subgraph {
+  border-color: #594028;
+  background: #1d1a14;
+}
+.dash-mobile .m-chip-lbl {
+  font-size: 12px;
+  color: #f1f5fb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-mobile .m-chip.subgraph .m-chip-lbl { color: #f6c668; }
+.dash-mobile .m-chip-hint {
+  font-size: 10px;
+  color: #6e7a93;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Exec sheet */
+.dash-mobile .m-exec-btn {
+  width: 100%;
+  background: #134075;
+  border: 1px solid #1f5da3;
+  color: #fff;
+  padding: 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.dash-mobile .m-exec-list {
+  display: grid;
+  row-gap: 4px;
+}
+.dash-mobile .m-exec-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed #2a313e;
+  font-size: 12px;
+}
+.dash-mobile .m-exec-lbl { color: #97a3b9; }
+.dash-mobile .m-exec-val { color: #f6c668; font-weight: 600; }
+
+/* Log sheet */
+.dash-mobile .m-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  row-gap: 4px;
+}
+.dash-mobile .m-log-item {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  column-gap: 8px;
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px dashed #2a313e;
+}
+.dash-mobile .m-log-item.error .m-log-msg { color: #ee7d7d; }
+.dash-mobile .m-log-item.skipped .m-log-msg { color: #6e7a93; }
+.dash-mobile .m-log-lbl { color: #97a3b9; }
+.dash-mobile .m-log-msg { color: #d8dde6; word-break: break-all; }
+
+/* ── Tab bar ────────────────────────────────────────────────────── */
+.dash-mobile .m-tabs {
+  grid-area: tabs;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: #161b24;
+  border-top: 1px solid #2a313e;
+}
+.dash-mobile .m-tab {
+  background: transparent;
+  border: none;
+  border-right: 1px solid #2a313e;
+  color: #97a3b9;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 0;
+}
+.dash-mobile .m-tab:last-child { border-right: none; }
+.dash-mobile .m-tab.active {
+  background: #1d2330;
+  color: #f6c668;
+  border-top: 2px solid #f6c668;
+}
+.dash-mobile .m-tab:active { background: #283044; }
+
+/* ── Toast ──────────────────────────────────────────────────────── */
+.dash-mobile .m-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  background: #1d2330;
+  border: 1px solid #f6c668;
+  color: #f6c668;
+  padding: 8px 14px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  z-index: 8;
+  pointer-events: none;
+  animation: m-toast-fade 1.6s ease-out forwards;
+}
+@keyframes m-toast-fade {
+  0%   { opacity: 0; transform: translate(-50%, 8px); }
+  10%  { opacity: 1; transform: translate(-50%, 0); }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── First-visit hint ────────────────────────────────────────────── */
+.dash-mobile .m-hint {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 60px;
+  background: #1d2330;
+  border: 1px solid #f6c668;
+  padding: 14px 16px;
+  z-index: 9;
+  color: #d8dde6;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.dash-mobile .m-hint p { margin: 0 0 8px; }
+.dash-mobile .m-hint b { color: #f6c668; }
+.dash-mobile .m-hint-x {
+  display: block;
+  margin-left: auto;
+  background: #134075;
+  border: 1px solid #1f5da3;
+  color: #fff;
+  padding: 4px 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+/* ── 데스크톱 캔버스: 다중 선택 박스 시각화 ────────────────────── */
+.stat-canvas .react-flow__selection {
+  background: rgba(246, 198, 104, 0.10);
+  border: 1px dashed #f6c668;
+}
+
+/* 데스크톱 모드 전용으로 dash-shell 의 900px 미만 분기를 무력화.
+   모바일은 dash-mobile 로 별도 마운트되므로 dash-shell 자체가 안 보임. */
+@media (max-width: 767px) {
+  .dash-shell { display: none; }
+}
