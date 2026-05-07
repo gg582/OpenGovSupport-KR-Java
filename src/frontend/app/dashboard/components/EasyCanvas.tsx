@@ -158,7 +158,7 @@ export default function EasyCanvas() {
         edgesFocusable={false}
         deleteKeyCode={null}
         selectionOnDrag={false}
-        panOnDrag={true}
+        panOnDrag={[1, 2]}
         zoomOnDoubleClick={false}
       >
         <Background
