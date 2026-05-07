@@ -288,6 +288,12 @@ function MobileBody() {
     },
     [select],
   );
+  const clearAllSelection = useCallback(() => {
+    select(null);
+    setTab(null);
+    rf.setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
+    rf.setEdges((eds) => eds.map((e) => (e.selected ? { ...e, selected: false } : e)));
+  }, [rf, select]);
 
   return (
     <div className="dash-mobile">
@@ -327,10 +333,7 @@ function MobileBody() {
           onConnect={onConnect}
           onReconnect={onReconnect}
           onNodeClick={onNodeClick}
-          onPaneClick={() => {
-            select(null);
-            setTab(null);
-          }}
+          onPaneClick={clearAllSelection}
           defaultViewport={{ x: 24, y: 60, zoom: 0.9 }}
           proOptions={{ hideAttribution: true }}
           minZoom={0.3}

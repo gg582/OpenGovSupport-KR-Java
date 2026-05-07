@@ -5,6 +5,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   SelectionMode,
+  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export default function Canvas({ mobile = false }: Props) {
+  const rf = useReactFlow();
   const doc = useGraphStore((s) => s.doc);
   const connect = useGraphStore((s) => s.connect);
   const select = useGraphStore((s) => s.select);
@@ -129,6 +131,11 @@ export default function Canvas({ mobile = false }: Props) {
     multiSelectionKeyCode: null,
   } as const;
   const interactionProps = mobile ? mobileProps : desktopProps;
+  const clearAllSelection = useCallback(() => {
+    select(null);
+    rf.setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
+    rf.setEdges((eds) => eds.map((e) => (e.selected ? { ...e, selected: false } : e)));
+  }, [rf, select]);
 
   return (
     <div
@@ -147,7 +154,7 @@ export default function Canvas({ mobile = false }: Props) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={(_, n) => select(n.id)}
-        onPaneClick={() => select(null)}
+        onPaneClick={clearAllSelection}
         defaultViewport={{ x: 80, y: 60, zoom: 1 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.4}
