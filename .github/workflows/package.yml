@@ -10,7 +10,7 @@ name: package
 #
 #   각 OS 잡은 진짜 그 OS 의 VM 에서 동작:
 #     - Windows: GitHub-hosted windows-latest (Azure Windows Server VM)
-#     - macOS:   GitHub-hosted macos-13 (x64) + macos-14 (arm64) 실 VM
+#     - macOS:   GitHub-hosted macos-14 (arm64) 실 VM
 #     - Linux:   GitHub-hosted ubuntu-22.04 VM
 #
 #   FreeBSD 빌드는 vmactions VM 안정성 문제로 제거됨 (추후 재도입 예정).
@@ -172,8 +172,8 @@ jobs:
       fail-fast: false
       matrix:
         tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
-        # macos-13 = Intel x64 VM, macos-14 = Apple Silicon VM (모두 실 VM).
-        runner: [macos-13, macos-14]
+        # macos-14 = Apple Silicon VM (실 VM).
+        runner: [macos-14]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -328,8 +328,7 @@ jobs:
             echo "### 다운로드"
             echo ""
             echo "- Windows: \`Tyutya-Setup-*.exe\` — 더블클릭 → 설치"
-            echo "- macOS (Intel): \`Tyutya-*-x64.dmg\` (또는 \`.zip\`) — DMG 열기 → Applications 드롭"
-            echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` (또는 \`.zip\`) — 동일"
+            echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` (또는 \`.zip\`) — DMG 열기 → Applications 드롭"
             echo "- Linux: \`Tyutya-*.AppImage\` — 더블클릭 → 자동 설치 마법사 (chmod 불필요)"
             echo ""
             echo "### 면책"
