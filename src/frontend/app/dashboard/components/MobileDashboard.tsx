@@ -108,6 +108,7 @@ function MobileBody() {
         type: "stat",
         position: n.position,
         data: n.data,
+        draggable: true,
       })),
     [doc.nodes],
   );
@@ -160,6 +161,13 @@ function MobileBody() {
       queueMicrotask(() => runAll());
     },
     [connect, runAll],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      moveNode(node.id, node.position.x, node.position.y);
+    },
+    [moveNode],
   );
 
   // 엣지 끝점을 다른 노드/포트로 옮기는 인터랙션. 드롭된 새 연결로 source/target 갱신.
@@ -332,6 +340,7 @@ function MobileBody() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onReconnect={onReconnect}
+          onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onPaneClick={clearAllSelection}
           defaultViewport={{ x: 24, y: 60, zoom: 0.9 }}
@@ -341,6 +350,7 @@ function MobileBody() {
           panOnDrag
           zoomOnPinch
           deleteKeyCode={null}
+          nodesDraggable={true}
           selectionOnDrag={false}
           multiSelectionKeyCode={null}
           reconnectRadius={28}

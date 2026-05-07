@@ -199,6 +199,17 @@ function EasyMobileBody() {
     [connect, runAll],
   );
 
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      setNodes((nodes) =>
+        nodes.map((n) =>
+          n.id === node.id ? { ...n, position: node.position } : n,
+        ),
+      );
+    },
+    [setNodes],
+  );
+
   // 더블탭 줌
   const lastTapRef = useRef<{ ts: number; x: number; y: number } | null>(null);
 
@@ -283,6 +294,7 @@ function EasyMobileBody() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
           isValidConnection={isValidConnection}
           onNodeClick={onNodeClick}
           onPaneClick={() => {

@@ -153,6 +153,17 @@ export default function EasyCanvas() {
     [connect, runAll],
   );
 
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      setNodes((nodes) =>
+        nodes.map((n) =>
+          n.id === node.id ? { ...n, position: node.position } : n,
+        ),
+      );
+    },
+    [setNodes],
+  );
+
   return (
     <div className="dash-canvas easy-canvas" style={{ position: "relative" }}>
       <ReactFlow
@@ -166,6 +177,7 @@ export default function EasyCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
         isValidConnection={isValidConnection}
         onNodeClick={(_, n) => select(n.id)}
         onPaneClick={() => select(null)}
@@ -175,6 +187,7 @@ export default function EasyCanvas() {
         maxZoom={1.2}
         edgesFocusable={false}
         deleteKeyCode={null}
+        nodesDraggable={true}
         selectionOnDrag={true}
         selectionMode={SelectionMode.Partial}
         panOnDrag={[1, 2]}
