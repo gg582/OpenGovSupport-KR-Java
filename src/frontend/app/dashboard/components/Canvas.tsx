@@ -50,6 +50,7 @@ export default function Canvas({ mobile = false }: Props) {
         type: "stat",
         position: n.position,
         data: n.data,
+        draggable: true,
       })),
     [doc.nodes],
   );
@@ -160,6 +161,7 @@ export default function Canvas({ mobile = false }: Props) {
         minZoom={0.4}
         maxZoom={2}
         deleteKeyCode={["Backspace", "Delete"]}
+        nodesDraggable={true}
         {...interactionProps}
       >
         <Background
