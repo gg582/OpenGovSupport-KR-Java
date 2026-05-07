@@ -186,9 +186,26 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
               ))}
             </div>
           )}
-          <pre className="px-4 py-4 m-0 text-sm leading-relaxed font-mono text-navy whitespace-pre-wrap break-words bg-page border-b border-line">
-{result.text}
-          </pre>
+
+          <div className="bg-page">
+            {result.data?.explanationSteps ? (
+              <table className="result-table">
+                <tbody>
+                  {(result.data.explanationSteps as any[]).map((step, i) => (
+                    <tr key={i}>
+                      <th>{step.label}</th>
+                      <td className="whitespace-pre-wrap leading-relaxed">{step.body}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <pre className="px-4 py-4 m-0 text-sm leading-relaxed font-mono text-navy whitespace-pre-wrap break-words bg-page border-b border-line">
+                {result.text}
+              </pre>
+            )}
+          </div>
+
           {result.data && Object.keys(result.data).length > 0 && (
             <details className="px-4 py-3 text-xs">
               <summary className="cursor-pointer text-navy/70 hover:text-accent select-none">

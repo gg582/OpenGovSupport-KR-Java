@@ -23,9 +23,14 @@ export type Feature = {
 export type Result = {
   title: string;
   text: string;
-  data?: Record<string, unknown>;
+  data?: Record<string, any>;
   html?: string;
   notes?: string[];
+};
+
+export type ExplanationStep = {
+  label: string;
+  body: string;
 };
 
 // apiBase: when running on the server (no window) we need an absolute URL

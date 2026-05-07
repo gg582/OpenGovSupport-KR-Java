@@ -7,6 +7,7 @@ import com.opengov.support.tax.document.DocumentEngine;
 import com.opengov.support.tax.eligibility.EligibilityEngine;
 import com.opengov.support.tax.eligibility.EligibilityResult;
 import com.opengov.support.tax.explain.Explainer;
+import com.opengov.support.tax.explain.ExplanationStep;
 import com.opengov.support.tax.formula.FormulaContext;
 import com.opengov.support.tax.formula.FormulaEngine;
 import com.opengov.support.tax.formula.FormulaResult;
@@ -18,6 +19,7 @@ import com.opengov.support.web.Result;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -87,6 +89,7 @@ public class TaxCalculation {
                 : null;
         DocumentChecklist documents = documentEngine.build(rule);
         String text = explainer.render(rule, eligibility, formula, documents);
+        List<ExplanationStep> steps = explainer.renderSteps(rule, eligibility, formula, documents);
 
         long durationMs = (System.nanoTime() - startNs) / 1_000_000L;
         audit.recordCall(ruleId, year, eligibility, formula, durationMs);
@@ -96,6 +99,7 @@ public class TaxCalculation {
         data.put("category", rule.category());
         data.put("year", year);
         data.put("legalSource", rule.legalSource());
+        data.put("explanationSteps", steps);
         data.put("eligibility", Map.of(
                 "qualified", eligibility.qualified(),
                 "reasons", eligibility.reasons(),

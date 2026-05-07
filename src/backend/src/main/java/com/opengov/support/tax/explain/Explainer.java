@@ -26,6 +26,20 @@ public class Explainer {
                          EligibilityResult eligibility,
                          FormulaResult formula,
                          DocumentChecklist documents) {
+        List<ExplanationStep> steps = renderSteps(rule, eligibility, formula, documents);
+        StringBuilder b = new StringBuilder();
+        for (ExplanationStep s : steps) {
+            b.append(s.label());
+            if (s.body() != null && !s.body().isEmpty()) b.append(' ').append(s.body());
+            b.append('\n');
+        }
+        return b.toString();
+    }
+
+    public List<ExplanationStep> renderSteps(TaxRule rule,
+                                             EligibilityResult eligibility,
+                                             FormulaResult formula,
+                                             DocumentChecklist documents) {
         List<ExplanationStep> steps = new ArrayList<>();
         steps.add(ExplanationStep.of("[면책]",
                 "본 산출은 법령의 공개 산식을 코드로 평가한 참고 자료이며, 신고·납부의 효력을 갖지 않습니다. " +
@@ -65,14 +79,7 @@ public class Explainer {
         if (documents != null && !documents.submissionChannels().isEmpty()) {
             steps.add(ExplanationStep.of("[제출 채널]", String.join(", ", documents.submissionChannels())));
         }
-
-        StringBuilder b = new StringBuilder();
-        for (ExplanationStep s : steps) {
-            b.append(s.label());
-            if (s.body() != null && !s.body().isEmpty()) b.append(' ').append(s.body());
-            b.append('\n');
-        }
-        return b.toString();
+        return steps;
     }
 
     private static String won(BigDecimal v) {

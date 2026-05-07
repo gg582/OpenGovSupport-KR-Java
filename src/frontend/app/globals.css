@@ -1,4 +1,4 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-gov.css");
 
 @tailwind base;
 @tailwind components;
@@ -9,9 +9,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: geometricPrecision;
+    font-family: "Pretendard GOV", sans-serif;
   }
   body {
-    @apply bg-page text-navy font-sans tracking-tight text-base;
+    @apply bg-page text-navy tracking-tight text-base;
+    font-family: "Pretendard GOV", sans-serif;
   }
   h1, h2, h3, h4, h5 {
     @apply tracking-tighter font-semibold;
@@ -106,12 +108,20 @@
     content: "■";
     @apply text-accent text-sm;
   }
-  .panel-sub-header::before {
-    content: "▶";
-    @apply text-accent text-xs mr-1;
+  /* Result table: even more formal, no hover, thick borders. */
+  .result-table {
+    @apply w-full border-t-[2px] border-t-navy border-b border-line text-sm bg-white;
   }
-
-  /* Left navigation (LNB). */
+  .result-table th {
+    @apply bg-navy-50/60 font-semibold text-navy py-3 px-4 border-r border-line align-top text-left w-[140px];
+  }
+  .result-table td {
+    @apply py-3 px-4 align-top text-navy;
+  }
+  .result-table tr {
+    @apply border-b border-line;
+  }
+}
   .lnb-section {
     @apply text-[11px] uppercase tracking-[0.08em] text-navy/60 font-semibold
            px-3 pt-4 pb-1.5;
