@@ -12,6 +12,7 @@
  */
 
 import { app, BrowserWindow, dialog, Menu, shell, ipcMain, Tray, nativeImage } from "electron";
+import * as fs from "fs";
 import * as path from "path";
 import { autoUpdater } from "electron-updater";
 import { Backend, Frontend, devEndpoint } from "./lib/processes";
@@ -209,6 +210,19 @@ async function boot(): Promise<void> {
     logsDir: logsDir(),
   }));
   ipcMain.handle("opengov:openLogs", () => shell.openPath(logsDir()));
+  ipcMain.handle("opengov:saveFile", async (_, { content, filename }: { content: string; filename: string }) => {
+    if (!mainWindow) return { canceled: true };
+    const result = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: filename,
+      filters: [
+        { name: "Shell Scripts", extensions: ["sh", "zsh", "ps1"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    if (result.canceled || !result.filePath) return { canceled: true };
+    await fs.promises.writeFile(result.filePath, content, "utf-8");
+    return { canceled: false, filePath: result.filePath };
+  });
 }
 
 async function stage(s: string): Promise<void> {

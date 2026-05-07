@@ -18,19 +18,17 @@ function getBaseUrl(): string {
   return DEFAULT_BASE_URL;
 }
 
-function sanitizeVarName(name: string): string {
-  return name
-    .replace(/[^a-zA-Z0-9가-힣_]/g, "_")
-    .replace(/^[0-9]/, "_$&")
-    .slice(0, 40);
-}
-
+/** 영문/숫자/언더스코어만 허용 — 쉘 변수명 규칙 준수 */
 function nodeVarName(node: GraphNode): string {
-  return sanitizeVarName(`${node.data.label}_${node.id.slice(-4)}`);
+  return `node_${node.id.replace(/[^a-zA-Z0-9_]/g, "_")}`;
 }
 
 /** 한 노드의 입력 포트별로 들어오는 엣지의 source 출력값을 수집. */
-function collectInputSources(nodeId: string, edges: GraphEdge[], nodes: GraphNode[]): Record<string, { node: GraphNode; port: string }> {
+function collectInputSources(
+  nodeId: string,
+  edges: GraphEdge[],
+  nodes: GraphNode[],
+): Record<string, { node: GraphNode; port: string }> {
   const inputs: Record<string, { node: GraphNode; port: string }> = {};
   for (const e of edges) {
     if (e.target !== nodeId) continue;
@@ -59,7 +57,7 @@ function generateBash(doc: GraphDoc): string {
     "",
     `# ---- helper ----`,
     `extract_amount() {`,
-    `  echo "$1" | jq -r '.data.finalOutput // .data.amount // .data.recognizedIncome // .data.ratio // .data.qualified // .data.deduction // .data.payable // .data.shares // empty';`,
+    `  jq -r '.data.finalOutput // .data.amount // .data.recognizedIncome // .data.ratio // .data.qualified // .data.deduction // .data.payable // .data.shares // empty' <<< "$1";`,
     `}`,
     "",
   ];
@@ -86,49 +84,25 @@ function generateBash(doc: GraphDoc): string {
         }
         const meta = FORMULA_RULES[rule];
         lines.push(`# ${node.data.label} — ${meta.label}`);
-        lines.push(`body_${idx}=$(cat <<'JSON'`);
-        const body: Record<string, unknown> = { year: "${YEAR}" };
+
+        // JSON 필드를 printf 인자로 조립 (숫자값 가정, 빈값은 0 대체)
+        const jsonFields: string[] = [`"year": %s`];
+        const printfArgs: string[] = [`"\${YEAR:-0}"`];
         Object.entries(meta.inputMap).forEach(([port, varname]) => {
           const src = inputs[port];
           if (src) {
             const srcVar = nodeVarName(src.node);
-            body[varname] = `"'"'$'${srcVar}''"'"'`; // shell var reference
+            jsonFields.push(`"${varname}": %s`);
+            printfArgs.push(`"\${${srcVar}:-0}"`);
           }
         });
-        // Fix body generation for bash
-        lines.pop(); // remove heredoc start temporarily
-        const bodyEntries = Object.entries(body).map(([k, v]) => {
-          if (typeof v === "string" && v.startsWith('"\'"\'$\'')) {
-            return `  "${k}": ${v}`;
-          }
-          return `  "${k}": ${v}`;
-        });
-        // Reconstruct with proper variable references
-        const realBody: Record<string, string> = { year: "${YEAR}" };
-        Object.entries(meta.inputMap).forEach(([port, varname]) => {
-          const src = inputs[port];
-          if (src) {
-            realBody[varname] = `$${nodeVarName(src.node)}`;
-          }
-        });
-        const jsonBody = JSON.stringify(
-          Object.fromEntries(
-            Object.entries(realBody).map(([k, v]) => [k, v.startsWith("$") ? `__VAR__${v}__` : v])
-          )
-        ).replace(/"__VAR__\$(\w+)__"/g, '"' + "'" + '${$1}' + "'" + '"');
-        // Simpler approach: construct JSON manually
-        const jsonParts = Object.entries(realBody).map(([k, v]) => {
-          if (v.startsWith("$")) {
-            return `  "${k}": ${v}`;
-          }
-          return `  "${k}": ${JSON.stringify(v)}`;
-        });
-        lines.push(`body_${idx}='{`);
-        lines.push(jsonParts.join(",\n"));
-        lines.push(`}'`);
-        lines.push(`resp_${idx}=$(curl -s -X POST "\${BASE_URL}${meta.endpoint}" \\`);
-        lines.push(`  -H "Content-Type: application/json" \\`);
-        lines.push(`  -d "\${body_${idx}}")`);
+
+        lines.push(
+          `body_${idx}=$(printf '{${jsonFields.join(", ")}}' ${printfArgs.join(" ")})`,
+        );
+        lines.push(
+          `resp_${idx}=$(curl -s -X POST "\${BASE_URL}${meta.endpoint}" \\\n  -H "Content-Type: application/json" \\\n  -d "\${body_${idx}}")`,
+        );
         lines.push(`echo "\${resp_${idx}}" > node_${idx}.json`);
         lines.push(`${varName}=$(extract_amount "\${resp_${idx}}")`);
         lines.push("");
@@ -139,7 +113,9 @@ function generateBash(doc: GraphDoc): string {
         const src = inputs["v"];
         lines.push(`# ${node.data.label} — 최종 출력`);
         if (src) {
-          lines.push(`echo "${node.data.label}: $${nodeVarName(src.node)}"`);
+          lines.push(
+            `echo "${node.data.label}: \$${nodeVarName(src.node)}"`,
+          );
         }
         lines.push("");
         break;
@@ -147,12 +123,16 @@ function generateBash(doc: GraphDoc): string {
       case "threshold":
       case "conditional":
       case "lookup": {
-        lines.push(`# ${node.data.label} — ${node.data.kind} (프론트엔드 로직 — 스크립트에서는 수동 처리 필요)`);
+        lines.push(
+          `# ${node.data.label} — ${node.data.kind} (프론트엔드 로직 — 스크립트에서는 수동 처리 필요)`,
+        );
         lines.push("");
         break;
       }
       case "legal": {
-        lines.push(`# ${node.data.label} — 법령: ${node.data.citation ?? ""}`);
+        lines.push(
+          `# ${node.data.label} — 법령: ${node.data.citation ?? ""}`,
+        );
         lines.push("");
         break;
       }
@@ -204,13 +184,19 @@ function generatePowerShell(doc: GraphDoc): string {
             bodyEntries.push(`${varname} = $${nodeVarName(src.node)}`);
           }
         });
-        lines.push(`$body_${idx} = @{`);
-        lines.push(bodyEntries.join("; "));
-        lines.push(`} | ConvertTo-Json`);
-        lines.push(`$resp_${idx} = Invoke-RestMethod -Uri "$BASE_URL${meta.endpoint}" -Method Post -ContentType "application/json" -Body $body_${idx}`);
-        lines.push(`$resp_${idx} | ConvertTo-Json | Set-Content "node_${idx}.json"`);
+        lines.push(`$body_${idx} = @{
+${bodyEntries.join("\n")}
+} | ConvertTo-Json`);
+        lines.push(
+          `$resp_${idx} = Invoke-RestMethod -Uri "$BASE_URL${meta.endpoint}" -Method Post -ContentType "application/json" -Body $body_${idx}`,
+        );
+        lines.push(
+          `$resp_${idx} | ConvertTo-Json | Set-Content "node_${idx}.json"`,
+        );
         lines.push(`$${varName} = $resp_${idx}.data.finalOutput`);
-        lines.push("if (-not $${varName}) { $${varName} = $resp_${idx}.data.amount }");
+        lines.push(
+          `if (-not $${varName}) { $${varName} = $resp_${idx}.data.amount }`,
+        );
         lines.push("");
         break;
       }
@@ -219,7 +205,9 @@ function generatePowerShell(doc: GraphDoc): string {
         const src = inputs["v"];
         lines.push(`# ${node.data.label} — 최종 출력`);
         if (src) {
-          lines.push(`Write-Output "${node.data.label}: $($${nodeVarName(src.node)})"`);
+          lines.push(
+            `Write-Output "${node.data.label}: $($${nodeVarName(src.node)})"`,
+          );
         }
         lines.push("");
         break;
@@ -227,12 +215,16 @@ function generatePowerShell(doc: GraphDoc): string {
       case "threshold":
       case "conditional":
       case "lookup": {
-        lines.push(`# ${node.data.label} — ${node.data.kind} (프론트엔드 로직 — 스크립트에서는 수동 처리 필요)`);
+        lines.push(
+          `# ${node.data.label} — ${node.data.kind} (프론트엔드 로직 — 스크립트에서는 수동 처리 필요)`,
+        );
         lines.push("");
         break;
       }
       case "legal": {
-        lines.push(`# ${node.data.label} — 법령: ${node.data.citation ?? ""}`);
+        lines.push(
+          `# ${node.data.label} — 법령: ${node.data.citation ?? ""}`,
+        );
         lines.push("");
         break;
       }
@@ -245,17 +237,31 @@ function generatePowerShell(doc: GraphDoc): string {
 
 export function generateScript(doc: GraphDoc, shell: ShellType): string {
   if (shell === "powershell") return generatePowerShell(doc);
-  return generateBash(doc); // bash and zsh are similar
+  return generateBash(doc); // bash and zsh are identical
 }
 
-export function downloadScript(doc: GraphDoc, shell: ShellType) {
+export async function downloadScript(doc: GraphDoc, shell: ShellType) {
   const content = generateScript(doc, shell);
   const ext = shell === "powershell" ? "ps1" : shell === "zsh" ? "zsh" : "sh";
+  const filename = `${doc.name.replace(/\s+/g, "_")}_script.${ext}`;
+
+  // Electron 환경 감지
+  const electronApi =
+    typeof window !== "undefined"
+      ? (window as unknown as { opengov?: { saveFile?: (c: string, f: string) => Promise<void> } }).opengov
+      : undefined;
+
+  if (electronApi?.saveFile) {
+    await electronApi.saveFile(content, filename);
+    return;
+  }
+
+  // 웹 브라우저 환경
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${doc.name.replace(/\s+/g, "_")}_script.${ext}`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }

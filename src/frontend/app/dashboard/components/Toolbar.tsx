@@ -209,9 +209,9 @@ export default function Toolbar() {
       <select
         className="tpl"
         value=""
-        onChange={(e) => {
+        onChange={async (e) => {
           const v = e.target.value as ShellType;
-          if (v) downloadScript(doc, v);
+          if (v) await downloadScript(doc, v);
           e.currentTarget.value = "";
         }}
         title="스크립트 납품"
