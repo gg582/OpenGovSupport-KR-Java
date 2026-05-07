@@ -66,8 +66,9 @@ export function buildExplainHtml(doc: GraphDoc): string {
 <html lang="ko"><head><meta charset="utf-8">
 <title>실행 reasoning — ${escape(doc.name)}</title>
 <style>
+@import url("https://cdn.jsdelivr.net/gh/Joungkyun/font-d2coding/d2coding.css");
 @page { size: A4 portrait; margin: 16mm 12mm; }
-body { font-family: ui-monospace, Menlo, monospace; color:#111; margin:0; padding:18px; }
+body { font-family: "D2Coding", "D2 Coding", ui-monospace, Menlo, monospace; color:#111; margin:0; padding:18px; }
 h1 { font-size: 16pt; margin: 0 0 4px; color:#1a3258; }
 .sub { font-size: 10pt; color:#555; margin-bottom: 10px; }
 section { margin: 10px 0; border: 1px solid #888; }

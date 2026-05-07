@@ -8,7 +8,7 @@
     linear-gradient(to bottom, rgba(120, 130, 150, 0.08) 1px, transparent 1px);
   background-size: 32px 32px;
   color: #d8dde6;
-  font-family: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 /* ── Layout shell ────────────────────────────────────────────────── */
@@ -67,7 +67,7 @@
   color: #f1f5fb;
   padding: 4px 8px;
   font: inherit;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 .dash-toolbar .btn {
   background: #1d2330;
@@ -133,7 +133,7 @@
   text-align: left;
   padding: 6px 8px;
   font: inherit;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   cursor: pointer;
   font-size: 12px;
   display: grid;
@@ -189,7 +189,7 @@
   background: #161b24;
   border: 1px solid #2a313e;
   color: #d8dde6;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   width: 224px;
   display: grid;
@@ -264,7 +264,7 @@
   color: #f1f5fb;
   padding: 3px 6px;
   font: inherit;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 .stat-node .body .ports {
   display: grid;
@@ -370,7 +370,7 @@
   overflow-x: hidden;
   padding: 12px;
   color: #d8dde6;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   min-width: 0;
 }
@@ -437,6 +437,174 @@
   letter-spacing: -0.01em;
   word-break: break-all;
 }
+.dash-exec .raw-json {
+  background: #0e1116;
+  border: 1px solid #2a313e;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #b8c2d4;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* ── Result popover (NodeToolbar) ─────────────────────────────────── */
+.result-popover {
+  pointer-events: auto;
+}
+.result-popover .rp-card {
+  background: #161b24;
+  border: 1px solid #3a4252;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  color: #d8dde6;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  width: 360px;
+  max-height: 440px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.result-popover .rp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #1d2330;
+  border-bottom: 1px solid #2a313e;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+.result-popover .rp-head .rp-id {
+  color: #97a3b9;
+  text-transform: uppercase;
+}
+.result-popover .rp-head .rp-kind {
+  color: #f6c668;
+  font-weight: 600;
+}
+.result-popover .rp-head .rp-rule {
+  color: #91b7e2;
+  margin-left: auto;
+}
+.result-popover .rp-empty,
+.result-popover .rp-error {
+  padding: 12px;
+  color: #6e7a93;
+  font-style: italic;
+}
+.result-popover .rp-error { color: #ee7d7d; font-style: normal; }
+.result-popover .rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.result-popover .rp-table th,
+.result-popover .rp-table td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #1d2330;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.result-popover .rp-table th {
+  color: #97a3b9;
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.result-popover .rp-table td.mono {
+  font-family: var(--font-mono);
+  color: #f1f5fb;
+  font-size: 11px;
+}
+.result-popover .rp-section th {
+  background: #0e1116;
+  color: #d8dde6;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-top: 1px solid #2a313e;
+  border-bottom: 1px solid #2a313e;
+}
+.result-popover .rp-final th {
+  color: #f6c668;
+  text-transform: uppercase;
+}
+.result-popover .rp-final td {
+  color: #f6c668;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* output 이 객체일 때는 글자 크기/굵기를 줄여 중첩 표가 자연스레 들어가도록. */
+.result-popover .rp-final-block td {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #d8dde6;
+  padding: 4px 4px 4px 2px;
+}
+.result-popover .rp-ok td  { color: #7adf9b; }
+.result-popover .rp-no td  { color: #ee7d7d; }
+.result-popover .rp-dim th,
+.result-popover .rp-dim td { color: #6e7a93; font-style: italic; }
+
+/* ── StructuredValue (재귀 표) ───────────────────────────────────── */
+.sv-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  background: rgba(14, 17, 22, 0.4);
+  border: 1px solid #1d2330;
+}
+.sv-table th,
+.sv-table td {
+  padding: 3px 6px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #1d2330;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.sv-table th {
+  width: 38%;
+  color: #97a3b9;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  background: rgba(29, 35, 48, 0.5);
+}
+.sv-num   { color: #f6c668; font-variant-numeric: tabular-nums; }
+.sv-str   { color: #b8c2d4; }
+.sv-bool.ok { color: #7adf9b; }
+.sv-bool.no { color: #ee7d7d; }
+.sv-null,
+.sv-empty { color: #6e7a93; font-style: italic; }
+.sv-inline { display: inline; }
+.sv-inline-item:not(:last-child)::after {
+  content: ", ";
+  color: #6e7a93;
+}
+.sv-fallback {
+  display: block;
+  background: #0e1116;
+  padding: 4px 6px;
+  font-size: 10.5px;
+  color: #b8c2d4;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.dash-exec .out-struct {
+  background: #0e1116;
+  border: 1px solid #2a313e;
+  padding: 4px;
+}
 
 /* ── Log panel ───────────────────────────────────────────────────── */
 .dash-logs {
@@ -446,7 +614,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 12px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: #d8dde6;
   min-width: 0;

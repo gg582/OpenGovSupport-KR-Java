@@ -12,7 +12,8 @@ name: package
 #     - Windows: GitHub-hosted windows-latest (Azure Windows Server VM)
 #     - macOS:   GitHub-hosted macos-13 (x64) + macos-14 (arm64) 실 VM
 #     - Linux:   GitHub-hosted ubuntu-22.04 VM
-#     - FreeBSD: vmactions/freebsd-vm@v1 (release 14.2) — 실제 FreeBSD 14.2 VM
+#
+#   FreeBSD 빌드는 vmactions VM 안정성 문제로 제거됨 (추후 재도입 예정).
 #
 #   Mode A (Docker compose) 는 본 워크플로우의 영향을 전혀 받지 않습니다.
 
@@ -210,7 +211,16 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run package:mac
+        # 시크릿이 비어 있을 경우 GitHub Actions 는 env 를 빈 문자열로 주입한다.
+        # electron-builder 는 빈 CSC_LINK 를 cwd 에 resolve 해 "desktop not a file" 으로 죽으므로
+        # 시크릿이 없으면 CSC_* 를 통째로 unset 하고 keychain 자동 탐지도 끈 뒤 unsigned 빌드 진행.
+        run: |
+          if [ -z "${CSC_LINK:-}" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            echo "::notice::MAC_CSC_LINK 미설정 — unsigned 빌드 진행 (배포본은 Gatekeeper 경고 가능)."
+          fi
+          npm run package:mac
       - uses: actions/upload-artifact@v4
         with:
           name: tyutya-${{ matrix.tag }}-${{ matrix.runner }}
@@ -272,75 +282,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  freebsd:
-    name: freebsd-14.2 · ${{ matrix.tag }}
-    needs: scan
-    # anyvm.org VM 부팅 실패가 잦아 일시 비활성화. 안정화되면 'tag_count != 0' 으로 복귀.
-    if: false
-    strategy:
-      fail-fast: false
-      matrix:
-        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
-    # 외부 호스트(Ubuntu) 위에서 vmactions/freebsd-vm 이 실제 FreeBSD 14.2 VM 을 띄움.
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.tag }}
-          fetch-depth: 1
-      - name: build inside FreeBSD 14.2 VM
-        uses: vmactions/freebsd-vm@v1
-        with:
-          release: "14.2"
-          usesh: true
-          mem: 4096
-          cpu: 2
-          # FreeBSD 14.2 native build — pkg 가 제공하는 electron31 + node20 + openjdk21 사용.
-          prepare: |
-            ASSUME_ALWAYS_YES=YES pkg update
-            ASSUME_ALWAYS_YES=YES pkg install -y \
-              openjdk21 node20 npm-node20 maven \
-              electron31 desktop-file-utils gtk-update-icon-cache xdg-utils \
-              git bash gtar xz jq
-          run: |
-            set -e
-            export JAVA_HOME=/usr/local/openjdk21
-            export PATH="$JAVA_HOME/bin:/usr/local/bin:$PATH"
-
-            # 1) backend jar (FreeBSD 의 maven + JDK21 사용)
-            cd src/backend
-            mvn -B -DskipTests package
-
-            # 2) frontend (Next standalone)
-            cd ../frontend
-            npm ci --no-audit --no-fund
-            npm run build
-
-            # 3) desktop deps — pkg 의 electron 을 쓰므로 npm electron 다운로드는 스킵
-            cd ../../desktop
-            ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund
-
-            # 4) tsc + 자원 모음
-            npx tsc
-            node scripts/prepare-resources.mjs
-
-            # 5) jlink — FreeBSD 의 openjdk21 가 자기 플랫폼용 JRE 생성
-            node scripts/build-jre.mjs
-
-            # 6) FreeBSD native bundle — pkg 의 electron31 바이너리 사용
-            node scripts/build-freebsd-bundle.mjs
-
-            ls -la out/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tyutya-${{ matrix.tag }}-freebsd
-          path: desktop/out/*.txz
-          if-no-files-found: error
-          retention-days: 14
-
   release:
     name: release · ${{ matrix.tag }}
-    needs: [scan, windows, macos, linux, freebsd]
+    needs: [scan, windows, macos, linux]
     if: needs.scan.outputs.tag_count != '0'
     strategy:
       fail-fast: false
@@ -380,7 +324,6 @@ jobs:
             echo "- macOS (Intel): \`Tyutya-*-x64.dmg\` — DMG 열기 → Applications 드롭"
             echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` — 동일"
             echo "- Linux: \`Tyutya-*.AppImage\` — 더블클릭 → 자동 설치 마법사 (chmod 불필요)"
-            echo "- FreeBSD 14.2+: \`Tyutya-freebsd.txz\` — 풀고 register.sh 더블클릭"
             echo ""
             echo "### 면책"
             echo ""
@@ -399,5 +342,4 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.dmg
             artifacts/**/*.AppImage
-            artifacts/**/*.txz
           fail_on_unmatched_files: false

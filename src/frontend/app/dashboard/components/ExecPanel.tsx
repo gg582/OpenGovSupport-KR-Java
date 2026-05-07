@@ -1,6 +1,7 @@
 "use client";
 
 import { useGraphStore } from "../lib/store";
+import StructuredValue from "./StructuredValue";
 
 function fmt(v: unknown): string {
   if (v == null) return "—";
@@ -8,6 +9,10 @@ function fmt(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "object") return JSON.stringify(v, null, 2);
   return String(v);
+}
+
+function isPrimitive(v: unknown): boolean {
+  return v == null || typeof v !== "object";
 }
 
 export default function ExecPanel() {
@@ -81,7 +86,13 @@ export default function ExecPanel() {
           ERROR: {r.error}
         </div>
       ) : r ? (
-        <div className="out-amount">{fmt(r.output)}</div>
+        isPrimitive(r.output) ? (
+          <div className="out-amount">{fmt(r.output)}</div>
+        ) : (
+          <div className="out-struct">
+            <StructuredValue value={r.output} />
+          </div>
+        )
       ) : (
         <div className="empty">(미실행)</div>
       )}
@@ -128,6 +139,13 @@ export default function ExecPanel() {
         </dl>
       ) : (
         <div className="empty">없음</div>
+      )}
+
+      <h3>RAW JSON</h3>
+      {r ? (
+        <pre className="raw-json">{JSON.stringify(r, null, 2)}</pre>
+      ) : (
+        <div className="empty">(미실행)</div>
       )}
     </aside>
   );

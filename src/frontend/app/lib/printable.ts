@@ -18,8 +18,12 @@ export function buildPrintableHtml(feature: Feature, result: Result): string {
 <html lang="ko"><head><meta charset="utf-8">
 <title>${escape(title)}</title>
 <style>
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-gov.css");
+@import url("https://cdn.jsdelivr.net/gh/Joungkyun/font-d2coding/d2coding.css");
 @page { size: A4 portrait; margin: 18mm 14mm; }
-body { font-family: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; color:#111; margin:0; padding:24px; }
+body { font-family: "Pretendard GOV", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; color:#111; margin:0; padding:24px; }
+/* JSON / 숫자 / 코드 등 구조화 데이터는 D2Coding. 한글 산문은 Pretendard GOV 유지. */
+pre, code, td.num, th.num { font-family: "D2Coding", "D2 Coding", ui-monospace, monospace; }
 header { border-bottom: 2px solid #1a2747; padding-bottom: 10px; margin-bottom: 16px; }
 h1 { font-size: 18pt; margin: 0 0 4px; color:#1a2747; }
 .sub { font-size: 10pt; color:#555; }

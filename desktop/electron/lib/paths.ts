@@ -39,11 +39,36 @@ export function isDev(): boolean {
  * extraResources 로 함께 묶인 정적 자원의 절대경로.
  * 개발(dev) 모드에서는 desktop/build/{kind} 를 가리킨다.
  */
-export function resourcePath(kind: "backend" | "frontend" | "jre"): string {
+export function resourcePath(kind: "backend" | "frontend" | "jre" | "icons"): string {
   if (isDev()) {
     return path.join(__dirname, "..", "build", kind);
   }
   return path.join(process.resourcesPath, kind);
+}
+
+/** 트레이/창 아이콘 — 플랫폼별 적절한 사이즈 PNG 로 폴백 체인. */
+export function trayIconPath(): string {
+  const dir = resourcePath("icons");
+  // Windows/Linux 트레이는 16~32, macOS 메뉴바는 22 가 표준 — 32 가 양쪽 모두 큰 문제 없음.
+  // 작은 사이즈가 없으면 큰 쪽으로 폴백.
+  const candidates =
+    process.platform === "darwin"
+      ? ["32x32.png", "16x16.png", "64x64.png"]
+      : ["32x32.png", "64x64.png", "16x16.png"];
+  for (const c of candidates) {
+    const p = path.join(dir, c);
+    if (fs.existsSync(p)) return p;
+  }
+  return path.join(dir, "32x32.png");
+}
+
+export function windowIconPath(): string {
+  const dir = resourcePath("icons");
+  for (const c of ["128x128.png", "96x96.png", "64x64.png"]) {
+    const p = path.join(dir, c);
+    if (fs.existsSync(p)) return p;
+  }
+  return path.join(dir, "128x128.png");
 }
 
 /** 플랫폼별 java 실행 파일 경로 (jlink JRE 내부). */

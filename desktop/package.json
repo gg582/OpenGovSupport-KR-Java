@@ -12,9 +12,10 @@
   "scripts": {
     "tsc": "tsc",
     "tsc:watch": "tsc -w",
+    "prepare:icons": "node scripts/prepare-icons.mjs",
     "prepare:resources": "node scripts/prepare-resources.mjs",
     "prepare:jre": "node scripts/build-jre.mjs",
-    "build": "npm run tsc && npm run prepare:resources",
+    "build": "npm run tsc && npm run prepare:icons && npm run prepare:resources",
     "package": "npm run build && electron-builder --publish never",
     "package:win": "npm run build && electron-builder --win --publish never",
     "package:mac": "npm run build && electron-builder --mac --publish never",
@@ -30,7 +31,9 @@
     "@types/node": "20.12.7",
     "electron": "31.7.7",
     "electron-builder": "25.1.8",
+    "png2icons": "2.0.1",
     "rimraf": "6.0.1",
+    "sharp": "0.33.5",
     "typescript": "5.4.5"
   },
   "build": {
@@ -51,7 +54,8 @@
     "extraResources": [
       { "from": "build/backend", "to": "backend", "filter": ["**/*"] },
       { "from": "build/frontend", "to": "frontend", "filter": ["**/*"] },
-      { "from": "build/jre", "to": "jre", "filter": ["**/*"] }
+      { "from": "build/jre", "to": "jre", "filter": ["**/*"] },
+      { "from": "build/icons", "to": "icons", "filter": ["**/*"] }
     ],
     "asar": true,
     "asarUnpack": [

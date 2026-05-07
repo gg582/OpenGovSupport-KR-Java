@@ -35,7 +35,7 @@ const config: Config = {
           "\"Noto Sans KR\"",
           "sans-serif",
         ],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        mono: ["\"D2Coding\"", "\"D2 Coding\"", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       letterSpacing: {
         tighter: "-0.02em",

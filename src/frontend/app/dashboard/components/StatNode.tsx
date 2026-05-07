@@ -3,6 +3,7 @@
 import { Handle, Position, type NodeProps } from "reactflow";
 import { useGraphStore } from "../lib/store";
 import type { NodeData } from "../lib/types";
+import ResultPopover from "./ResultPopover";
 
 const KIND_LABEL: Record<string, string> = {
   input: "INPUT",
@@ -56,10 +57,12 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
   };
 
   return (
-    <div
-      className={`stat-node ${selected ? "selected" : ""} ${reverseMode ? "reverse" : ""}`}
-      data-kind={data.kind}
-    >
+    <>
+      <ResultPopover nodeId={id} data={data} isSelected={!!selected} />
+      <div
+        className={`stat-node ${selected ? "selected" : ""} ${reverseMode ? "reverse" : ""}`}
+        data-kind={data.kind}
+      >
       {/* head */}
       <div className="head">
         <span className="dot" />
@@ -264,7 +267,8 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
           }}
         />
       ))}
-    </div>
+      </div>
+    </>
   );
 }
 

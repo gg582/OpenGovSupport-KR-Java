@@ -1,4 +1,21 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-gov.css");
+@import url("https://cdn.jsdelivr.net/gh/Joungkyun/font-d2coding/d2coding.css");
+
+/*
+ * 폰트 정책:
+ *   --font-sans : 모든 UI 텍스트 — Pretendard GOV
+ *   --font-mono : JSON/산식/표/로그 등 구조화 데이터 — D2Coding
+ *
+ * Tailwind 의 font-mono 유틸은 tailwind.config.ts 에서 같은 스택을 가리킨다.
+ * 컴포넌트 CSS 에서는 ui-monospace 직접 쓰지 말고 var(--font-mono) 를 사용.
+ */
+:root {
+  --font-sans: "Pretendard GOV", "Pretendard Variable", "Pretendard",
+               -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
+               "Noto Sans KR", sans-serif;
+  --font-mono: "D2Coding", "D2 Coding", ui-monospace, SFMono-Regular,
+               "Roboto Mono", Menlo, monospace;
+}
 
 @tailwind base;
 @tailwind components;
@@ -9,11 +26,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: geometricPrecision;
-    font-family: "Pretendard GOV", sans-serif;
+    font-family: var(--font-sans);
   }
   body {
     @apply bg-page text-navy tracking-tight text-base;
-    font-family: "Pretendard GOV", sans-serif;
+    font-family: var(--font-sans);
+  }
+  /* 구조화 데이터 — pre/code/kbd/samp + .font-mono 유틸은 D2Coding 우선. */
+  pre, code, kbd, samp, .font-mono {
+    font-family: var(--font-mono);
   }
   h1, h2, h3, h4, h5 {
     @apply tracking-tighter font-semibold;

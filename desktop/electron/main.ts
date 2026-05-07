@@ -11,18 +11,21 @@
  * 사용자에게 터미널·예외 스택은 절대 노출하지 않는다.
  */
 
-import { app, BrowserWindow, dialog, Menu, shell, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, Menu, shell, ipcMain, Tray, nativeImage } from "electron";
 import * as path from "path";
 import { autoUpdater } from "electron-updater";
 import { Backend, Frontend, devEndpoint } from "./lib/processes";
 import { FileLogger } from "./lib/logger";
-import { logsDir, isDev } from "./lib/paths";
+import { logsDir, isDev, trayIconPath, windowIconPath } from "./lib/paths";
 import { runFirstRunInstallerIfNeeded } from "./installer/firstRun";
 
 const log = new FileLogger(logsDir(), "main");
 const backend = new Backend();
 const frontend = new Frontend();
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+/** 트레이 메뉴의 "종료" 또는 OS 가 정말 종료를 요청한 경우에만 true. */
+let isQuitting = false;
 
 // 동시 실행 방지 — 두 인스턴스가 같은 포트를 다투지 않도록.
 const gotLock = app.requestSingleInstanceLock();
@@ -58,12 +61,24 @@ app.whenReady().then(boot).catch((e) => {
 });
 
 app.on("window-all-closed", () => {
-  shutdown();
-  app.quit();
+  // 트레이가 살아있으면 백그라운드 동작 — 진짜 종료는 트레이의 '종료' 메뉴로만.
+  if (!tray || isQuitting) {
+    shutdown();
+    app.quit();
+  }
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
   shutdown();
+});
+
+app.on("activate", () => {
+  // macOS dock 클릭 시 창 복원.
+  if (mainWindow) {
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+  }
 });
 
 async function boot(): Promise<void> {
@@ -89,6 +104,7 @@ async function boot(): Promise<void> {
     show: true,
     backgroundColor: "#0e1116",
     title: "뜌땨 생활행정",
+    icon: tryLoadIcon(windowIconPath()),
     webPreferences: {
       contextIsolation: true,
       sandbox: false,
@@ -100,6 +116,17 @@ async function boot(): Promise<void> {
   if (process.platform !== "darwin") {
     mainWindow.setMenuBarVisibility(false);
   }
+
+  // 트레이 부팅 — 창보다 먼저 만들어 두면 창을 숨겨도 앱이 살아있다.
+  setupTray();
+
+  // 창 닫기(X) → 종료가 아니라 트레이로 숨김. 진짜 종료는 트레이/메뉴의 '종료'.
+  mainWindow.on("close", (e) => {
+    if (!isQuitting && tray) {
+      e.preventDefault();
+      mainWindow?.hide();
+    }
+  });
 
   // 외부 링크는 OS 기본 브라우저로.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -198,6 +225,94 @@ function shutdown(): void {
   log.info("shutdown");
   backend.stop();
   frontend.stop();
+  if (tray) {
+    try { tray.destroy(); } catch { /* already destroyed */ }
+    tray = null;
+  }
+}
+
+function tryLoadIcon(p: string): Electron.NativeImage | undefined {
+  try {
+    const img = nativeImage.createFromPath(p);
+    return img.isEmpty() ? undefined : img;
+  } catch {
+    return undefined;
+  }
+}
+
+function setupTray(): void {
+  const iconPath = trayIconPath();
+  const img = tryLoadIcon(iconPath);
+  if (!img) {
+    log.warn(`tray: icon not found at ${iconPath} — 트레이 비활성화`);
+    return;
+  }
+  // macOS 메뉴바는 템플릿 이미지(검정+알파)가 표준 — 없으면 컬러로 표시되어도 동작은 함.
+  if (process.platform === "darwin") img.setTemplateImage(true);
+
+  try {
+    tray = new Tray(img);
+  } catch (e) {
+    log.warn(`tray: 생성 실패 (${(e as Error).message}) — 일부 Linux DE(GNOME 등) 는 별도 확장 필요`);
+    return;
+  }
+
+  tray.setToolTip("뜌땨 생활행정");
+  tray.setContextMenu(buildTrayMenu());
+
+  // 트레이 클릭/더블클릭 → 창 토글 (Linux 의 일부 DE 는 click 이벤트가 없을 수 있어 둘 다 바인딩).
+  const toggle = (): void => {
+    if (!mainWindow) return;
+    if (mainWindow.isVisible() && mainWindow.isFocused()) {
+      mainWindow.hide();
+    } else {
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
+  };
+  tray.on("click", toggle);
+  tray.on("double-click", toggle);
+}
+
+function buildTrayMenu(): Menu {
+  return Menu.buildFromTemplate([
+    {
+      label: "창 보이기",
+      click: () => {
+        if (!mainWindow) return;
+        if (!mainWindow.isVisible()) mainWindow.show();
+        mainWindow.focus();
+      },
+    },
+    {
+      label: "창 숨기기",
+      click: () => mainWindow?.hide(),
+    },
+    { type: "separator" },
+    {
+      label: "로그 폴더 열기",
+      click: () => shell.openPath(logsDir()),
+    },
+    {
+      label: "버전 정보",
+      click: () => {
+        dialog.showMessageBox({
+          type: "info",
+          title: "버전 정보",
+          message: app.getName(),
+          detail: `버전 ${app.getVersion()}\nElectron ${process.versions.electron}\nNode ${process.versions.node}`,
+        });
+      },
+    },
+    { type: "separator" },
+    {
+      label: "종료",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
 }
 
 function buildMenu(): Menu {
@@ -222,7 +337,20 @@ function buildMenu(): Menu {
     {
       label: "파일",
       submenu: [
-        isMac ? { role: "close" as const } : { role: "quit" as const, label: "종료" },
+        {
+          label: "트레이로 숨기기",
+          accelerator: "CmdOrCtrl+H",
+          click: () => mainWindow?.hide(),
+        },
+        { type: "separator" as const },
+        {
+          label: "종료",
+          accelerator: "CmdOrCtrl+Q",
+          click: () => {
+            isQuitting = true;
+            app.quit();
+          },
+        },
       ],
     },
     {
