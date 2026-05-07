@@ -220,31 +220,37 @@ export default function AppShell({
         </div>
       )}
 
-      <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-4 md:py-6 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 md:gap-6">
-        <aside className="hidden md:block md:sticky md:top-6 md:self-start">
-          <LNB features={features} section={currentSection} />
-        </aside>
+      {isDashboard ? (
         <main className="min-w-0">{children}</main>
-      </div>
+      ) : (
+        <>
+          <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-4 md:py-6 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 md:gap-6">
+            <aside className="hidden md:block md:sticky md:top-6 md:self-start">
+              <LNB features={features} section={currentSection} />
+            </aside>
+            <main className="min-w-0">{children}</main>
+          </div>
 
-      <footer className="border-t border-line bg-white">
-        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-5 text-xs text-navy/60 space-y-2">
-          <div className="flex flex-wrap gap-x-6 gap-y-1">
-            <span>법령 기반 공개정보 산식</span>
-            <span className="md:ml-auto">© 행정업무 보조 도구 · 일반 배포용</span>
-          </div>
-          <div className="text-navy/65 leading-relaxed">
-            <strong>면책 고지.</strong> 본 사이트는 세무사·세무대리 행위를 수행하지 않으며,
-            산출 결과의 정확성·완전성·최신성을 보증하지 않습니다. 산식 자체는 「소득세법」
-            「법인세법」「상속세 및 증여세법」「부가가치세법」「국민기초생활보장법」「조세특례제한법」 등
-            공개 법령에 근거하나, 케이스별 적용 여부와 예외 처리는 사용자가 직접 확인해야 합니다.
-          </div>
-          <div className="text-navy/65 leading-relaxed">
-            산출 결과는 신고·납부·수급의 효력을 갖지 않습니다. 실제 신고는 반드시
-            홈택스(국세청) / 복지로(보건복지부) / 정부24 / 세무전문가를 통해 확정하시기 바랍니다.
-          </div>
-        </div>
-      </footer>
+          <footer className="border-t border-line bg-white">
+            <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-5 text-xs text-navy/60 space-y-2">
+              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                <span>법령 기반 공개정보 산식</span>
+                <span className="md:ml-auto">© 행정업무 보조 도구 · 일반 배포용</span>
+              </div>
+              <div className="text-navy/65 leading-relaxed">
+                <strong>면책 고지.</strong> 본 사이트는 세무사·세묘대리 행위를 수행하지 않으며,
+                산출 결과의 정확성·완전성·최신성을 보증하지 않습니다. 산식 자체는 「소득세법」
+                「법인세법」「상속세 및 증여세법」「부가가치세법」「국민기초생활보장법」「조세특례제한법」 등
+                공개 법령에 근거하나, 케이스별 적용 여부와 예외 처리는 사용자가 직접 확인해야 합니다.
+              </div>
+              <div className="text-navy/65 leading-relaxed">
+                산출 결과는 신고·납부·수급의 효력을 갖지 않습니다. 실제 신고는 반드시
+                홈택스(국세청) / 복지로(보걸복지부) / 정부24 / 세무전문가를 통해 확정하시기 바랍니다.
+              </div>
+            </div>
+          </footer>
+        </>
+      )}
     </>
   );
 }

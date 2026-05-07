@@ -28,7 +28,7 @@ export default function EasyCanvas() {
   const doc = useGraphStore((s) => s.doc);
   const setNodes = useGraphStore((s) => s.setNodes);
   const select = useGraphStore((s) => s.select);
-  const moveNode = useGraphStore((s) => s.moveNode);
+
   const connect = useGraphStore((s) => s.connect);
   const runAll = useGraphStore((s) => s.runAll);
 
@@ -99,10 +99,22 @@ export default function EasyCanvas() {
     (changes: NodeChange[]) => {
       const updated = applyNodeChanges(changes, rfNodes);
       let lastSelected: string | null | undefined;
+
+      // 드래그 종료 및 키보드 이동 시에만 store에 위치 반영 (snap 없이)
+      const positionChanges = changes.filter(
+        (c): c is Extract<NodeChange, { type: "position" }> =>
+          c.type === "position" && c.position != null && !c.dragging,
+      );
+      if (positionChanges.length > 0) {
+        setNodes((nodes) =>
+          nodes.map((n) => {
+            const change = positionChanges.find((c) => c.id === n.id);
+            return change ? { ...n, position: change.position! } : n;
+          }),
+        );
+      }
+
       changes.forEach((c) => {
-        if (c.type === "position" && c.position && !c.dragging) {
-          moveNode(c.id, c.position.x, c.position.y);
-        }
         if (c.type === "select") {
           if (c.selected) lastSelected = c.id;
         }
@@ -110,7 +122,7 @@ export default function EasyCanvas() {
       if (lastSelected !== undefined) select(lastSelected);
       void updated;
     },
-    [rfNodes, moveNode, select],
+    [rfNodes, setNodes, select],
   );
 
   const onEdgesChange = useCallback(
