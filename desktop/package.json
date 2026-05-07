@@ -1,7 +1,7 @@
 {
   "name": "tyutya-desktop",
   "productName": "뜌땨 생활행정",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "뜌땨 생활행정 — 결정적 산식 기반 세무·복지 계산 데스크톱. Java 백엔드 + Next.js 프런트엔드 + Electron 셸.",
   "author": {

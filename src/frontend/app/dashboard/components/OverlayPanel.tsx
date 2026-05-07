@@ -15,8 +15,9 @@ import { FORMULA_RULES } from "../lib/registry";
 function fmt(v: unknown): string {
   if (v == null) return "—";
   if (typeof v === "number") return v.toLocaleString("ko-KR");
-  if (typeof v === "object") return JSON.stringify(v).slice(0, 60);
-  return String(v).slice(0, 60);
+  if (typeof v === "object") return JSON.stringify(v).slice(0, 30) + "…";
+  const s = String(v);
+  return s.length > 40 ? s.slice(0, 40) + "…" : s;
 }
 
 /**
@@ -76,9 +77,9 @@ export default function OverlayPanel() {
       </div>
 
       {mode === "timeline" && (
-        <div style={{ display: "grid", gap: 6, fontSize: 11 }}>
+        <div style={{ display: "grid", gap: 6, fontSize: 11, minWidth: 0 }}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-            <span style={{ color: "#97a3b9" }}>연도 슬라이더:</span>
+            <span style={{ color: "#97a3b9", flexShrink: 0 }}>연도 슬라이더:</span>
             {years.map((y) => (
               <button
                 key={y}
@@ -101,12 +102,12 @@ export default function OverlayPanel() {
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ color: "#97a3b9" }}>다년 비교:</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
+            <span style={{ color: "#97a3b9", flexShrink: 0 }}>다년 비교:</span>
             <select
               value={tmRule}
               onChange={(e) => setTmRule(e.target.value)}
-              style={chipStyle()}
+              style={{ ...chipStyle(), maxWidth: 100 }}
             >
               {Object.keys(FORMULA_RULES).map((r) => (
                 <option key={r} value={r}>
@@ -117,7 +118,7 @@ export default function OverlayPanel() {
             <input
               value={tmInput}
               onChange={(e) => setTmInput(e.target.value)}
-              style={{ ...chipStyle(), flex: 1, fontFamily: "ui-monospace, monospace" }}
+              style={{ ...chipStyle(), flex: 1, minWidth: 60, fontFamily: "ui-monospace, monospace" }}
               placeholder='{"taxableIncome":88000000}'
             />
             <button
@@ -136,41 +137,43 @@ export default function OverlayPanel() {
                   deltaTable: res.deltaTable as unknown[],
                 });
               }}
-              style={{ ...chipStyle(), background: "#134075", borderColor: "#1f5da3", color: "#fff" }}
+              style={{ ...chipStyle(), background: "#134075", borderColor: "#1f5da3", color: "#fff", flexShrink: 0 }}
             >
-              ▶ 비교 실행
+              실행
             </button>
           </div>
           {tm.results.length > 0 && (
-            <table style={tableStyle()}>
-              <thead>
-                <tr>
-                  <th style={thStyle()}>year</th>
-                  <th style={thStyle()}>amount</th>
-                  <th style={thStyle()}>delta(prev)</th>
-                  <th style={thStyle()}>delta%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tm.results.map((r, i) => {
-                  const row = r as Record<string, unknown>;
-                  return (
-                    <tr key={i}>
-                      <td style={tdStyle()}>{fmt(row.year)}</td>
-                      <td style={tdStyle()}>{fmt(row.amount)}</td>
-                      <td style={tdStyle()}>{fmt(row.deltaFromPrevious)}</td>
-                      <td style={tdStyle()}>{fmt(row.deltaPct)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle()}>
+                <thead>
+                  <tr>
+                    <th style={thStyle()}>year</th>
+                    <th style={thStyle()}>amount</th>
+                    <th style={thStyle()}>delta(prev)</th>
+                    <th style={thStyle()}>delta%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tm.results.map((r, i) => {
+                    const row = r as Record<string, unknown>;
+                    return (
+                      <tr key={i}>
+                        <td style={tdStyle()}>{fmt(row.year)}</td>
+                        <td style={tdStyle()}>{fmt(row.amount)}</td>
+                        <td style={tdStyle()}>{fmt(row.deltaFromPrevious)}</td>
+                        <td style={tdStyle()}>{fmt(row.deltaPct)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
       {mode === "conflict" && (
-        <div style={{ display: "grid", gap: 6, fontSize: 11 }}>
+        <div style={{ display: "grid", gap: 6, fontSize: 11, minWidth: 0 }}>
           <div style={{ color: "#97a3b9" }}>
             활성화한 룰 → 강행 우선순위로 충돌 자동 해소.
           </div>
@@ -204,8 +207,12 @@ export default function OverlayPanel() {
                     cursor: "pointer",
                     font: "inherit",
                     fontFamily: "ui-monospace, monospace",
-                    fontSize: 11,
+                    fontSize: 10,
                     textDecoration: suppressed ? "line-through" : "none",
+                    maxWidth: 120,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                   title={String(meta?.legalBasis ?? "")}
                 >
@@ -227,58 +234,64 @@ export default function OverlayPanel() {
               }}
               style={{ ...chipStyle(), background: "#134075", borderColor: "#1f5da3", color: "#fff" }}
             >
-              ▶ 충돌 검출
+              ▶ 검출
             </button>
           </div>
           {conflicts.pairs.length > 0 && (
-            <table style={tableStyle()}>
-              <thead>
-                <tr>
-                  <th style={thStyle()}>a</th>
-                  <th style={thStyle()}>b</th>
-                  <th style={thStyle()}>winner</th>
-                  <th style={thStyle()}>reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {conflicts.pairs.map((p, i) => (
-                  <tr key={i}>
-                    <td style={{ ...tdStyle(), color: p.loser === p.a ? "#ee7d7d" : "#d8dde6" }}>{p.a}</td>
-                    <td style={{ ...tdStyle(), color: p.loser === p.b ? "#ee7d7d" : "#d8dde6" }}>{p.b}</td>
-                    <td style={{ ...tdStyle(), color: "#6fde8c" }}>{p.winner}</td>
-                    <td style={tdStyle()}>{p.reason}</td>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle()}>
+                <thead>
+                  <tr>
+                    <th style={thStyle()}>a</th>
+                    <th style={thStyle()}>b</th>
+                    <th style={thStyle()}>winner</th>
+                    <th style={thStyle()}>reason</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {conflicts.pairs.map((p, i) => (
+                    <tr key={i}>
+                      <td style={{ ...tdStyle(), color: p.loser === p.a ? "#ee7d7d" : "#d8dde6", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis" }}>{p.a}</td>
+                      <td style={{ ...tdStyle(), color: p.loser === p.b ? "#ee7d7d" : "#d8dde6", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis" }}>{p.b}</td>
+                      <td style={{ ...tdStyle(), color: "#6fde8c", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis" }}>{p.winner}</td>
+                      <td style={{ ...tdStyle(), maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis" }}>{p.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
       {mode === "reverse" && (
-        <div style={{ display: "grid", gap: 6, fontSize: 11 }}>
+        <div style={{ display: "grid", gap: 6, fontSize: 11, minWidth: 0 }}>
           <div style={{ color: "#97a3b9" }}>
-            노드별 [REV] 토글 → 목표 출력값 입력 → 자동 역산 (백엔드 이분탐색).
-            보라색 테두리 = Reverse 모드.
+            노드별 [REV] 토글 → 목표 출력값 입력 → 자동 역산.
           </div>
-          <div>
-            <span style={{ color: "#97a3b9", marginRight: 8 }}>현재 Reverse 노드:</span>
+          <div style={{ display: "grid", gap: 4 }}>
+            <span style={{ color: "#97a3b9" }}>현재 Reverse 노드:</span>
             {doc.nodes
               .filter((n) => n.data.direction === "reverse")
               .map((n) => (
-                <span
+                <div
                   key={n.id}
                   style={{
                     border: "1px solid #a883da",
                     background: "#2a1a3f",
                     color: "#d8c2f5",
-                    padding: "1px 8px",
-                    marginRight: 6,
+                    padding: "2px 8px",
                     fontSize: 10,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {n.data.label} → {fmt(n.data.runtime?.output)}
-                </span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{n.data.label}</span>
+                  <span style={{ marginLeft: 8, flexShrink: 0 }}>{fmt(n.data.runtime?.output)}</span>
+                </div>
               ))}
           </div>
         </div>

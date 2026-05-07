@@ -275,7 +275,8 @@ jobs:
   freebsd:
     name: freebsd-14.2 · ${{ matrix.tag }}
     needs: scan
-    if: needs.scan.outputs.tag_count != '0'
+    # anyvm.org VM 부팅 실패가 잦아 일시 비활성화. 안정화되면 'tag_count != 0' 으로 복귀.
+    if: false
     strategy:
       fail-fast: false
       matrix:

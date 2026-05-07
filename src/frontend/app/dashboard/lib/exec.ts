@@ -92,6 +92,7 @@ async function evaluateNode(
   node: GraphNode,
   inputs: Record<string, unknown>,
   slots: SlotMap,
+  year: number,
 ): Promise<NodeData["runtime"] & { logMessage: string; status: "ok" | "error" | "skipped" }> {
   const t0 = performance.now();
   const epoch = Date.now();
@@ -219,9 +220,6 @@ async function evaluateNode(
         const rule = node.data.rule as FormulaRule | undefined;
         if (!rule || !FORMULA_RULES[rule]) throw new Error(`formula rule 미설정`);
         const map = FORMULA_RULES[rule].inputMap;
-        const year = (typeof globalThis !== "undefined"
-          ? (globalThis as unknown as { __dashYear?: number }).__dashYear
-          : 0) ?? 0;
 
         // Reverse 모드 — 목표 출력 → 입력 역산.
         if (node.data.direction === "reverse" && node.data.targetOutput != null) {
@@ -264,9 +262,16 @@ async function evaluateNode(
           if (inputs[port] !== undefined) body[varname] = inputs[port];
         }
         const result = await evalFormula(rule, body);
-        // 출력 포트는 ruleId 별 첫 outputs 항목 — registry 정의 사용.
-        const outPort = FORMULA_RULES[rule].outputs[0]?.id ?? "amount";
-        slots.set(slot(node.id, outPort), result.amount);
+        // 다중 출력 매핑 — 각 outputs[i].id 를 result.raw[id] 에서 직접 추출.
+        // 매칭 안 되면 첫 포트는 result.amount 로 폴백.
+        const outs = FORMULA_RULES[rule].outputs;
+        const raw = (result.raw ?? {}) as Record<string, unknown>;
+        for (let i = 0; i < outs.length; i++) {
+          const o = outs[i];
+          let v = raw[o.id];
+          if (v === undefined && i === 0) v = result.amount;
+          if (v !== undefined) slots.set(slot(node.id, o.id), v);
+        }
         return {
           output: result.amount,
           rawFormula: result.rawFormula ?? FORMULA_RULES[rule].label,
@@ -320,6 +325,7 @@ export async function executeGraph(
   nodes: GraphNode[],
   edges: GraphEdge[],
   prevSlots: SlotMap | null,
+  year: number,
   onProgress?: (id: string, runtime: NodeData["runtime"], log: ExecLog) => void,
   onlyDownstreamOf?: string,
 ): Promise<SlotMap> {
@@ -346,7 +352,7 @@ export async function executeGraph(
   for (const node of sorted) {
     if (!dirty.has(node.id)) continue;
     const inputs = collectInputs(node.id, edges, slots);
-    const rt = await evaluateNode(node, inputs, slots);
+    const rt = await evaluateNode(node, inputs, slots, year);
     onProgress?.(node.id, rt, {
       ts: Date.now(),
       nodeId: node.id,

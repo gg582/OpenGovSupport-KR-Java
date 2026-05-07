@@ -14,11 +14,11 @@ import {
 import type { DashMode } from "../lib/types";
 
 const MODE_LABELS: Record<DashMode, string> = {
-  normal: "정상 실행",
-  reverse: "역산 (Reverse)",
-  conflict: "충돌 보기",
-  timeline: "연도 타임라인",
-  audit: "감사 모드",
+  normal: "정상",
+  reverse: "역산",
+  conflict: "충돌",
+  timeline: "연도",
+  audit: "감사",
 };
 
 export default function Toolbar() {
@@ -41,7 +41,13 @@ export default function Toolbar() {
   useEffect(() => {
     refreshSaved();
     timeMachineYears()
-      .then((r) => setYears(r.years))
+      .then((r) => {
+        setYears(r.years);
+        const cur = useGraphStore.getState().doc.year;
+        if (cur == null && r.currentYear) {
+          useGraphStore.getState().setYear(r.currentYear);
+        }
+      })
       .catch(() => setYears([]));
   }, []);
 
@@ -160,8 +166,8 @@ export default function Toolbar() {
       </select>
 
       <div className="sep" />
-      <button className="btn" onClick={onAutoLayout}>⌗ 자동 레이아웃 (ELK)</button>
-      <button className="btn btn-accent" onClick={() => runAll()}>▶ 전체 재실행</button>
+      <button className="btn" onClick={onAutoLayout}>⌗ 자동 정렬</button>
+      <button className="btn btn-accent" onClick={() => runAll()}>▶ 재실행</button>
 
       <div className="sep" />
       <select

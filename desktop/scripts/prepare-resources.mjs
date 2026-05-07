@@ -28,27 +28,43 @@ mkdirSync(frontendOut, { recursive: true });
 
 // ── backend ──────────────────────────────────────────────────────
 const backendJar = join(backendOut, "backend.jar");
+const backendTarget = join(repoRoot, "src", "backend", "target");
+
+function findFatJar() {
+  if (!existsSync(backendTarget)) return null;
+  return readdirSync(backendTarget).find(
+    (f) =>
+      f.endsWith(".jar") &&
+      !f.endsWith(".jar.original") &&
+      !f.includes("original-") &&
+      !f.endsWith("-sources.jar") &&
+      !f.endsWith("-javadoc.jar"),
+  ) ?? null;
+}
+
 if (!existsSync(backendJar)) {
-  console.log("[prepare] backend.jar 가 없음 → mvn package 실행");
-  const rc = spawnSync(
-    process.platform === "win32" ? "mvn.cmd" : "mvn",
-    ["-f", join(repoRoot, "src", "backend", "pom.xml"), "-DskipTests", "package"],
-    { stdio: "inherit" },
-  );
-  if (rc.status !== 0) {
-    console.error("[prepare] mvn package 실패");
-    process.exit(1);
-  }
-  const target = join(repoRoot, "src", "backend", "target");
-  const fat = readdirSync(target).find(
-    (f) => f.endsWith(".jar") && !f.includes("original-") && !f.endsWith("-sources.jar") && !f.endsWith("-javadoc.jar"),
-  );
+  let fat = findFatJar();
   if (!fat) {
-    console.error("[prepare] target/*.jar 못 찾음");
-    process.exit(1);
+    console.log("[prepare] target/*.jar 없음 → mvn package 실행");
+    // Node 20+ 는 보안상 .cmd 직접 실행을 막음 — Windows 에서는 shell:true 필수.
+    const isWin = process.platform === "win32";
+    const rc = spawnSync(
+      isWin ? "mvn.cmd" : "mvn",
+      ["-B", "-f", join(repoRoot, "src", "backend", "pom.xml"), "-DskipTests", "package"],
+      { stdio: "inherit", shell: isWin },
+    );
+    if (rc.status !== 0) {
+      console.error("[prepare] mvn package 실패");
+      process.exit(1);
+    }
+    fat = findFatJar();
+    if (!fat) {
+      console.error("[prepare] target/*.jar 못 찾음");
+      process.exit(1);
+    }
   }
-  copyFileSync(join(target, fat), backendJar);
-  console.log(`[prepare] backend → ${backendJar}`);
+  copyFileSync(join(backendTarget, fat), backendJar);
+  console.log(`[prepare] backend → ${backendJar} (from ${fat})`);
 }
 
 // ── frontend (Next standalone) ───────────────────────────────────

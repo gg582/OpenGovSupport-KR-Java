@@ -154,6 +154,24 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
             />
           </>
         )}
+        {data.kind === "lookup" && (
+          <select
+            value={data.lookup?.table ?? "custom"}
+            onChange={(e) => {
+              const table = e.target.value as NonNullable<NodeData["lookup"]>["table"];
+              const prev = data.lookup ?? { table, custom: {} };
+              updateNodeData(id, { lookup: { ...prev, table } });
+              queueMicrotask(() => runFrom(id));
+            }}
+            className="nodrag"
+            title="조회 테이블 — custom 외 테이블은 별도 patch API 로 채움"
+          >
+            <option value="custom">custom (수동 매핑)</option>
+            <option value="median-income">중위소득</option>
+            <option value="welfare-tier">복지 구간</option>
+            <option value="overseas-threshold">해외체류 임계</option>
+          </select>
+        )}
         {data.kind === "legal" && (
           <input
             type="text"

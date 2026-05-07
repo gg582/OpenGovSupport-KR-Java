@@ -85,6 +85,7 @@ function emptyDoc(): GraphDoc {
     kind: "custom",
     nodes: [],
     edges: [],
+    year: new Date().getFullYear(),
   };
 }
 
@@ -256,12 +257,13 @@ export const useGraphStore = create<State>((set, get) => ({
     const ticket = (get().pendingExec ?? 0) + 1;
     set({ pendingExec: ticket, execState: "running", logs: [] });
     const { doc } = get();
-    // 글로벌 연도 — exec.ts 가 백엔드 호출에 사용.
-    (globalThis as unknown as { __dashYear?: number }).__dashYear = doc.year ?? 0;
+    const year = doc.year ?? new Date().getFullYear();
+    if (doc.year == null) set((s) => ({ doc: { ...s.doc, year } }));
     const newSlots = await executeGraph(
       doc.nodes,
       doc.edges,
       null,
+      year,
       (id, runtime, log) => {
         if (get().pendingExec !== ticket) return;
         set((s) => {
@@ -285,7 +287,8 @@ export const useGraphStore = create<State>((set, get) => ({
     const ticket = (get().pendingExec ?? 0) + 1;
     set({ pendingExec: ticket, execState: "running" });
     const { doc, slots } = get();
-    (globalThis as unknown as { __dashYear?: number }).__dashYear = doc.year ?? 0;
+    const year = doc.year ?? new Date().getFullYear();
+    if (doc.year == null) set((s) => ({ doc: { ...s.doc, year } }));
     const dirty = downstreamOf(id, doc.edges);
     set((s) => {
       const entry: ExecLog = {
@@ -301,6 +304,7 @@ export const useGraphStore = create<State>((set, get) => ({
       doc.nodes,
       doc.edges,
       slots,
+      year,
       (nid, runtime, log) => {
         if (get().pendingExec !== ticket) return;
         set((s) => ({
