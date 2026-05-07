@@ -121,7 +121,6 @@
   .result-table tr {
     @apply border-b border-line;
   }
-}
   .lnb-section {
     @apply text-[11px] uppercase tracking-[0.08em] text-navy/60 font-semibold
            px-3 pt-4 pb-1.5;

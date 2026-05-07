@@ -24,7 +24,6 @@ export type Result = {
   title: string;
   text: string;
   data?: Record<string, any>;
-  html?: string;
   notes?: string[];
 };
 

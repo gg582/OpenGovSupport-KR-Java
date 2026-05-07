@@ -1,0 +1,121 @@
+{
+  "name": "tyutya-desktop",
+  "productName": "뜌땨 생활행정",
+  "version": "0.1.0",
+  "private": true,
+  "description": "뜌땨 생활행정 — 결정적 산식 기반 세무·복지 계산 데스크톱. Java 백엔드 + Next.js 프런트엔드 + Electron 셸.",
+  "author": {
+    "name": "Tyutya",
+    "email": "noreply@example.invalid"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "tsc": "tsc",
+    "tsc:watch": "tsc -w",
+    "prepare:resources": "node scripts/prepare-resources.mjs",
+    "prepare:jre": "node scripts/build-jre.mjs",
+    "build": "npm run tsc && npm run prepare:resources",
+    "package": "npm run build && electron-builder --publish never",
+    "package:win": "npm run build && electron-builder --win --publish never",
+    "package:mac": "npm run build && electron-builder --mac --publish never",
+    "package:linux": "npm run build && electron-builder --linux --publish never",
+    "package:freebsd": "npm run build && node scripts/build-freebsd-bundle.mjs",
+    "dev": "npm run tsc && OPENGOV_DESKTOP_DEV=1 electron .",
+    "clean": "rimraf dist out build/jre build/backend build/frontend"
+  },
+  "dependencies": {
+    "electron-updater": "6.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "20.12.7",
+    "electron": "31.7.7",
+    "electron-builder": "25.1.8",
+    "rimraf": "6.0.1",
+    "typescript": "5.4.5"
+  },
+  "build": {
+    "extends": null,
+    "appId": "kr.tyutya.saenghwalhaengjeong",
+    "productName": "뜌땨 생활행정",
+    "copyright": "© Tyutya",
+    "directories": {
+      "output": "out",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "splash/**/*",
+      "package.json",
+      "!**/{.DS_Store,*.map,tsconfig.json}"
+    ],
+    "extraResources": [
+      { "from": "build/backend", "to": "backend", "filter": ["**/*"] },
+      { "from": "build/frontend", "to": "frontend", "filter": ["**/*"] },
+      { "from": "build/jre", "to": "jre", "filter": ["**/*"] }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "splash/**"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico",
+      "publisherName": "Tyutya",
+      "artifactName": "Tyutya-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker",
+      "executableName": "tyutya"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "뜌땨 생활행정",
+      "include": "build/installer.nsh",
+      "uninstallDisplayName": "뜌땨 생활행정"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.business",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "artifactName": "Tyutya-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "뜌땨 생활행정 ${version}",
+      "icon": "build/icon.icns",
+      "iconSize": 96,
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ],
+      "window": { "width": 540, "height": 380 }
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "category": "Office;Finance",
+      "synopsis": "뜌땨 생활행정 — 세무·복지 계산",
+      "description": "뜌땨 생활행정. 「소득세법」·「국민기초생활 보장법」 등 공개 법령의 산식을 결정적으로 평가하는 데스크톱 도구. 모든 계산은 로컬에서 수행되며 외부 API 를 호출하지 않습니다.",
+      "artifactName": "Tyutya-${version}-${arch}.${ext}",
+      "executableName": "tyutya"
+    },
+    "appImage": {
+      "license": "build/LICENSE.txt"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "REPLACE_WITH_OWNER",
+        "repo": "REPLACE_WITH_REPO"
+      }
+    ]
+  }
+}

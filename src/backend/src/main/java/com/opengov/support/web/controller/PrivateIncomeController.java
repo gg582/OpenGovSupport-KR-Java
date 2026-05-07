@@ -4,7 +4,6 @@ import com.opengov.support.domain.DomainUtil;
 import com.opengov.support.domain.Standards;
 import com.opengov.support.web.ApiException;
 import com.opengov.support.web.JsonBody;
-import com.opengov.support.web.PrintableHtml;
 import com.opengov.support.web.Result;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-/** 01_사적이전소득 — 계산 / 상담기록 / PDF. */
+/** 01_사적이전소득 — 계산 / 상담기록. PDF 출력은 프런트엔드 공용 버튼이 처리. */
 @RestController
 @RequestMapping("/api/private-income")
 public class PrivateIncomeController {
@@ -207,67 +206,6 @@ public class PrivateIncomeController {
         data.put("monthlyIncome", monthlyIncome);
 
         return Result.of("사적이전소득 상담기록", b.toString(), data);
-    }
-
-    @PostMapping("/pdf")
-    public Result pdf(@RequestBody(required = false) Map<String, Object> body) {
-        if (body == null) body = Map.of();
-        List<Map<String, Object>> inputRows = JsonBody.rows(body, "rows");
-        if (inputRows.isEmpty()) {
-            throw ApiException.badRequest("출력 데이터(rows)가 비어 있습니다.");
-        }
-        String title = JsonBody.str(body, "title").trim();
-        if (title.isEmpty()) title = "사적이전소득 계산서";
-
-        record PdfRow(String household, String month, String depositor, double amount, double income) {}
-        List<PdfRow> rows = new ArrayList<>(inputRows.size());
-        for (Map<String, Object> raw : inputRows) {
-            rows.add(new PdfRow(
-                    JsonBody.str(raw, "household"),
-                    JsonBody.str(raw, "month"),
-                    JsonBody.str(raw, "depositor"),
-                    JsonBody.dbl(raw, "amount"),
-                    JsonBody.dbl(raw, "income")));
-        }
-
-        double totalAmount = 0;
-        double totalIncome = 0;
-        for (PdfRow r : rows) {
-            totalAmount += r.amount;
-            totalIncome += r.income;
-        }
-
-        StringBuilder bd = new StringBuilder();
-        bd.append("<table>");
-        bd.append("<thead><tr>")
-                .append("<th>가구구분</th><th>입금월</th><th>입금자</th>")
-                .append("<th class=\"num\">입금액</th><th class=\"num\">사적이전소득</th>")
-                .append("</tr></thead><tbody>");
-        for (PdfRow r : rows) {
-            bd.append("<tr><td>").append(PrintableHtml.escape(r.household)).append("</td>")
-                    .append("<td>").append(PrintableHtml.escape(r.month)).append("</td>")
-                    .append("<td>").append(PrintableHtml.escape(r.depositor)).append("</td>")
-                    .append("<td class=\"num\">").append(PrintableHtml.escape(DomainUtil.won(r.amount))).append("</td>")
-                    .append("<td class=\"num\">").append(PrintableHtml.escape(DomainUtil.won(r.income))).append("</td>")
-                    .append("</tr>");
-        }
-        bd.append("</tbody>");
-        bd.append("<tfoot><tr><td colspan=\"3\" class=\"total\">합계</td>")
-                .append("<td class=\"num total\">").append(PrintableHtml.escape(DomainUtil.won(totalAmount))).append("</td>")
-                .append("<td class=\"num total\">").append(PrintableHtml.escape(DomainUtil.won(totalIncome))).append("</td>")
-                .append("</tr></tfoot>");
-        bd.append("</table>");
-
-        String doc = PrintableHtml.privateIncome(title, bd.toString());
-        String summary = String.format("%s — 행 %d건, 입금합계 %s, 사적이전소득 %s",
-                title, rows.size(), DomainUtil.won(totalAmount), DomainUtil.won(totalIncome));
-
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("rows", rows);
-        data.put("totalAmount", totalAmount);
-        data.put("totalIncome", totalIncome);
-
-        return Result.html(title, summary, doc, data);
     }
 
     private static final class CalcRow {

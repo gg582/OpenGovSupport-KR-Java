@@ -86,6 +86,9 @@ export default function AppShell({
               );
             })}
             <span className="opacity-30">|</span>
+            <Link href="/dashboard" className="hover:text-white">
+              실행 대시보드
+            </Link>
             <Link href="/runtime" className="hover:text-white">
               런타임 상태
             </Link>

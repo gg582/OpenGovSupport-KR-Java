@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+// @ts-check
+/**
+ * electron-builder 가 사용할 정적 자원을 desktop/build/{backend,frontend,jre}/ 에 모은다.
+ *
+ *   - backend  : Spring Boot fat jar
+ *   - frontend : Next standalone 산출물 (server.js + .next/static + public)
+ *   - jre      : build-jre.mjs 가 만든 jlink 이미지
+ *
+ * 본 스크립트는 jlink 를 호출하지 않는다 (별도 npm run prepare:jre).
+ */
+
+import { existsSync, mkdirSync, cpSync, readdirSync, copyFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, "..");
+const repoRoot = resolve(root, "..");
+
+const backendOut = join(root, "build", "backend");
+const frontendOut = join(root, "build", "frontend");
+const jreOut = join(root, "build", "jre");
+
+mkdirSync(backendOut, { recursive: true });
+mkdirSync(frontendOut, { recursive: true });
+
+// ── backend ──────────────────────────────────────────────────────
+const backendJar = join(backendOut, "backend.jar");
+if (!existsSync(backendJar)) {
+  console.log("[prepare] backend.jar 가 없음 → mvn package 실행");
+  const rc = spawnSync(
+    process.platform === "win32" ? "mvn.cmd" : "mvn",
+    ["-f", join(repoRoot, "src", "backend", "pom.xml"), "-DskipTests", "package"],
+    { stdio: "inherit" },
+  );
+  if (rc.status !== 0) {
+    console.error("[prepare] mvn package 실패");
+    process.exit(1);
+  }
+  const target = join(repoRoot, "src", "backend", "target");
+  const fat = readdirSync(target).find(
+    (f) => f.endsWith(".jar") && !f.includes("original-") && !f.endsWith("-sources.jar") && !f.endsWith("-javadoc.jar"),
+  );
+  if (!fat) {
+    console.error("[prepare] target/*.jar 못 찾음");
+    process.exit(1);
+  }
+  copyFileSync(join(target, fat), backendJar);
+  console.log(`[prepare] backend → ${backendJar}`);
+}
+
+// ── frontend (Next standalone) ───────────────────────────────────
+const frontendSrc = join(repoRoot, "src", "frontend");
+const standaloneDir = join(frontendSrc, ".next", "standalone");
+const staticDir = join(frontendSrc, ".next", "static");
+const publicDir = join(frontendSrc, "public");
+
+if (!existsSync(standaloneDir)) {
+  console.log("[prepare] frontend standalone 빌드가 없음 → npm run build 실행");
+  // npm install (필요 시) + npm run build.
+  const installRc = spawnSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["ci", "--no-audit", "--no-fund", "--loglevel=error"],
+    { cwd: frontendSrc, stdio: "inherit" },
+  );
+  if (installRc.status !== 0) {
+    // ci 가 lockfile 미일치로 실패하면 install 로 폴백.
+    spawnSync(
+      process.platform === "win32" ? "npm.cmd" : "npm",
+      ["install", "--no-audit", "--no-fund", "--loglevel=error"],
+      { cwd: frontendSrc, stdio: "inherit" },
+    );
+  }
+  const buildRc = spawnSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build"],
+    { cwd: frontendSrc, stdio: "inherit" },
+  );
+  if (buildRc.status !== 0) {
+    console.error("[prepare] frontend build 실패");
+    process.exit(1);
+  }
+}
+
+// standalone 트리 통째로 복사.
+cpSync(standaloneDir, frontendOut, { recursive: true });
+// .next/static + public 은 standalone 안에 포함되지 않음 — 수동 복사.
+mkdirSync(join(frontendOut, ".next", "static"), { recursive: true });
+cpSync(staticDir, join(frontendOut, ".next", "static"), { recursive: true });
+if (existsSync(publicDir)) {
+  cpSync(publicDir, join(frontendOut, "public"), { recursive: true });
+}
+console.log(`[prepare] frontend → ${frontendOut}`);
+
+// ── jre 존재 확인 ────────────────────────────────────────────────
+if (!existsSync(jreOut)) {
+  console.warn("[prepare] WARN: jre 이미지가 없습니다. `npm run prepare:jre` 를 먼저 실행하세요.");
+} else {
+  console.log(`[prepare] jre 확인 → ${jreOut}`);
+}
+console.log("[prepare] done");

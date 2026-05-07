@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { callFeature, type Feature, type Input, type Result } from "../lib/api";
+import { openPrintable } from "../lib/printable";
 
 function emptyRow(columns: Input[]): Record<string, string> {
   const o: Record<string, string> = {};
@@ -85,12 +86,8 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
   }
 
   function openPreview() {
-    if (!result?.html) return;
-    const w = window.open("", "_blank");
-    if (w) {
-      w.document.write(result.html);
-      w.document.close();
-    }
+    if (!result) return;
+    openPrintable(feature, result);
   }
 
   // separate row-kind inputs (which render as full-width tables)
@@ -172,11 +169,9 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
               <button type="button" className="btn-secondary text-xs" onClick={copy}>
                 {copied ? "✓ 복사됨" : "텍스트 복사"}
               </button>
-              {result.html && (
-                <button type="button" className="btn-secondary text-xs" onClick={openPreview}>
-                  인쇄/PDF 미리보기
-                </button>
-              )}
+              <button type="button" className="btn-secondary text-xs" onClick={openPreview}>
+                PDF 출력본
+              </button>
             </span>
           </div>
           {result.notes && result.notes.length > 0 && (
@@ -216,6 +211,18 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
               </pre>
             </details>
           )}
+
+          <div className="px-4 py-3 border-t border-line flex flex-wrap items-center gap-2 bg-page">
+            <button type="button" className="btn-primary" onClick={openPreview}>
+              📄 PDF 출력본 열기
+            </button>
+            <button type="button" className="btn-secondary" onClick={copy}>
+              {copied ? "✓ 복사됨" : "텍스트 복사"}
+            </button>
+            <span className="ml-auto text-xs text-navy/55">
+              새 탭에서 인쇄·PDF 저장
+            </span>
+          </div>
         </section>
       )}
     </div>

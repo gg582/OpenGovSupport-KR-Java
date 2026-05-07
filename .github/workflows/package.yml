@@ -1,0 +1,402 @@
+name: package
+
+# 뜌땨 생활행정 — 데스크톱 매트릭스 빌드 + 누락 릴리스 자동 백필.
+#
+#   ▣ 트리거: 모든 푸시 (main / dev) + 수동 + 태그 푸시.
+#   ▣ scan : git tag 'v*' 를 모두 훑어 GitHub Release 가 없는 태그를 추출.
+#            누락 태그가 0 개면 매트릭스 잡 실행하지 않음.
+#   ▣ build: (tag × OS) 매트릭스 — 각 태그를 checkout 한 뒤 패키지 빌드.
+#   ▣ release: 태그별 산출물을 모아 Draft Release 생성/갱신.
+#
+#   각 OS 잡은 진짜 그 OS 의 VM 에서 동작:
+#     - Windows: GitHub-hosted windows-latest (Azure Windows Server VM)
+#     - macOS:   GitHub-hosted macos-13 (x64) + macos-14 (arm64) 실 VM
+#     - Linux:   GitHub-hosted ubuntu-22.04 VM
+#     - FreeBSD: vmactions/freebsd-vm@v1 (release 14.2) — 실제 FreeBSD 14.2 VM
+#
+#   Mode A (Docker compose) 는 본 워크플로우의 영향을 전혀 받지 않습니다.
+
+on:
+  push:
+    branches: [main, dev]
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      force_tag:
+        description: "특정 태그를 강제 빌드 (예: v0.2.0). 빈 값이면 누락 태그 자동 검색."
+        required: false
+        type: string
+
+permissions:
+  contents: write    # release 작성 + 자산 업로드
+  actions: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: scan tags missing releases
+    runs-on: ubuntu-22.04
+    outputs:
+      tags_json: ${{ steps.find.outputs.tags_json }}
+      tag_count: ${{ steps.find.outputs.tag_count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 모든 태그 필요
+      - name: install jq
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
+      - name: find tags missing release
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_TAG: ${{ github.event.inputs.force_tag }}
+        run: |
+          set -euo pipefail
+
+          # 강제 태그 모드 — 사용자가 dispatch input 으로 지정한 단일 태그만 빌드.
+          if [ -n "${FORCE_TAG:-}" ]; then
+            if ! git rev-parse "${FORCE_TAG}" >/dev/null 2>&1; then
+              echo "::error::요청 태그가 존재하지 않습니다: ${FORCE_TAG}"
+              exit 1
+            fi
+            echo "force mode: ${FORCE_TAG}"
+            echo "tags_json=[\"${FORCE_TAG}\"]" >> "$GITHUB_OUTPUT"
+            echo "tag_count=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 태그 푸시면 그 태그만.
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            t="${GITHUB_REF_NAME}"
+            echo "tag push: ${t}"
+            if gh release view "${t}" --json tagName -q .tagName >/dev/null 2>&1; then
+              echo "release already exists for ${t} — nothing to do"
+              echo "tags_json=[]" >> "$GITHUB_OUTPUT"
+              echo "tag_count=0" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "tags_json=[\"${t}\"]" >> "$GITHUB_OUTPUT"
+            echo "tag_count=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 일반 푸시 — 모든 'v*' 태그를 훑어 release 가 없는 것만 추출.
+          all_tags=$(git tag -l 'v*' | sort -V || true)
+          missing=()
+          for t in $all_tags; do
+            if gh release view "$t" --json tagName -q .tagName >/dev/null 2>&1; then
+              echo "skip: $t  (release exists)"
+            else
+              echo "miss: $t"
+              missing+=("$t")
+            fi
+          done
+
+          if [ ${#missing[@]} -eq 0 ]; then
+            echo "no missing-release tags — packaging skipped"
+            echo "tags_json=[]" >> "$GITHUB_OUTPUT"
+            echo "tag_count=0" >> "$GITHUB_OUTPUT"
+          else
+            json=$(printf '%s\n' "${missing[@]}" | jq -R . | jq -sc .)
+            echo "missing tags: $json"
+            echo "tags_json=$json" >> "$GITHUB_OUTPUT"
+            echo "tag_count=${#missing[@]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  windows:
+    name: windows · ${{ matrix.tag }}
+    needs: scan
+    if: needs.scan.outputs.tag_count != '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
+    # GitHub-hosted Windows Server VM (실 Azure VM, 컨테이너 아님).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: backend jar
+        shell: bash
+        run: cd src/backend && mvn -B -DskipTests package
+      - name: frontend build
+        shell: bash
+        run: |
+          cd src/frontend
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: desktop install
+        shell: bash
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: prepare resources + jlink
+        shell: bash
+        working-directory: desktop
+        run: |
+          npm run prepare:resources
+          npm run prepare:jre
+      - name: electron-builder (win)
+        shell: bash
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: npm run package:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tyutya-${{ matrix.tag }}-windows
+          path: desktop/out/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    name: macos-${{ matrix.runner }} · ${{ matrix.tag }}
+    needs: scan
+    if: needs.scan.outputs.tag_count != '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
+        # macos-13 = Intel x64 VM, macos-14 = Apple Silicon VM (모두 실 VM).
+        runner: [macos-13, macos-14]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: backend jar
+        run: cd src/backend && mvn -B -DskipTests package
+      - name: frontend build
+        run: |
+          cd src/frontend
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: desktop install
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: prepare resources + jlink
+        working-directory: desktop
+        run: |
+          npm run prepare:resources
+          npm run prepare:jre
+      - name: electron-builder (mac)
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run package:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tyutya-${{ matrix.tag }}-${{ matrix.runner }}
+          path: desktop/out/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    name: linux · ${{ matrix.tag }}
+    needs: scan
+    if: needs.scan.outputs.tag_count != '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
+    # GitHub-hosted Ubuntu VM (실 VM).
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: AppImage tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fuse libfuse2 desktop-file-utils
+      - name: backend jar
+        run: cd src/backend && mvn -B -DskipTests package
+      - name: frontend build
+        run: |
+          cd src/frontend
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: desktop install
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: prepare resources + jlink
+        working-directory: desktop
+        run: |
+          npm run prepare:resources
+          npm run prepare:jre
+      - name: electron-builder (linux)
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USE_HARD_LINKS: "false"
+        run: npm run package:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tyutya-${{ matrix.tag }}-linux
+          path: desktop/out/*.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+  freebsd:
+    name: freebsd-14.2 · ${{ matrix.tag }}
+    needs: scan
+    if: needs.scan.outputs.tag_count != '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
+    # 외부 호스트(Ubuntu) 위에서 vmactions/freebsd-vm 이 실제 FreeBSD 14.2 VM 을 띄움.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 1
+      - name: build inside FreeBSD 14.2 VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.2"
+          usesh: true
+          mem: 4096
+          cpu: 2
+          # FreeBSD 14.2 native build — pkg 가 제공하는 electron31 + node20 + openjdk21 사용.
+          prepare: |
+            ASSUME_ALWAYS_YES=YES pkg update
+            ASSUME_ALWAYS_YES=YES pkg install -y \
+              openjdk21 node20 npm-node20 maven \
+              electron31 desktop-file-utils gtk-update-icon-cache xdg-utils \
+              git bash gtar xz jq
+          run: |
+            set -e
+            export JAVA_HOME=/usr/local/openjdk21
+            export PATH="$JAVA_HOME/bin:/usr/local/bin:$PATH"
+
+            # 1) backend jar (FreeBSD 의 maven + JDK21 사용)
+            cd src/backend
+            mvn -B -DskipTests package
+
+            # 2) frontend (Next standalone)
+            cd ../frontend
+            npm ci --no-audit --no-fund
+            npm run build
+
+            # 3) desktop deps — pkg 의 electron 을 쓰므로 npm electron 다운로드는 스킵
+            cd ../../desktop
+            ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund
+
+            # 4) tsc + 자원 모음
+            npx tsc
+            node scripts/prepare-resources.mjs
+
+            # 5) jlink — FreeBSD 의 openjdk21 가 자기 플랫폼용 JRE 생성
+            node scripts/build-jre.mjs
+
+            # 6) FreeBSD native bundle — pkg 의 electron31 바이너리 사용
+            node scripts/build-freebsd-bundle.mjs
+
+            ls -la out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tyutya-${{ matrix.tag }}-freebsd
+          path: desktop/out/*.txz
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: release · ${{ matrix.tag }}
+    needs: [scan, windows, macos, linux, freebsd]
+    if: needs.scan.outputs.tag_count != '0'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 0
+      - name: download artifacts for ${{ matrix.tag }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tyutya-${{ matrix.tag }}-*
+          merge-multiple: true
+          path: artifacts
+      - name: list artifacts
+        run: |
+          mkdir -p artifacts
+          find artifacts -type f -printf '%p (%s bytes)\n' || true
+      - name: release notes
+        id: notes
+        run: |
+          {
+            echo 'notes<<EOF'
+            echo "## 뜌땨 생활행정 ${{ matrix.tag }}"
+            echo ""
+            echo "결정적 산식 기반 세무·복지 계산 데스크톱 앱."
+            echo ""
+            echo "### 다운로드"
+            echo ""
+            echo "- Windows: \`Tyutya-Setup-*.exe\` — 더블클릭 → 설치"
+            echo "- macOS (Intel): \`Tyutya-*-x64.dmg\` — DMG 열기 → Applications 드롭"
+            echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` — 동일"
+            echo "- Linux: \`Tyutya-*.AppImage\` — 더블클릭 → 자동 설치 마법사 (chmod 불필요)"
+            echo "- FreeBSD 14.2+: \`Tyutya-freebsd.txz\` — 풀고 register.sh 더블클릭"
+            echo ""
+            echo "### 면책"
+            echo ""
+            echo "본 산출은 공개 법령의 산식을 결정적으로 평가한 참고 자료이며 신고·납부·수급의 효력을 갖지 않습니다."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ matrix.tag }}
+          name: 뜌땨 생활행정 ${{ matrix.tag }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(matrix.tag, '-') }}
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.AppImage
+            artifacts/**/*.txz
+          fail_on_unmatched_files: false

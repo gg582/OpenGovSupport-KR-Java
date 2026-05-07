@@ -239,3 +239,126 @@ make compose-down
 
 서드파티 비즈니스 라이브러리는 사용하지 않습니다 — Spring Boot `spring-boot-starter-web` 만 사용하며,
 도메인 계산 로직은 표준 라이브러리(`java.time`, `java.util`, `java.math.BigDecimal`)로만 작성되어 있습니다.
+
+## 데스크톱 배포 (Mode B) — 뜌땨 생활행정
+
+서버 배포(`docker compose up -d`, **Mode A**) 는 그대로 유지됩니다. 별도로 일반 사용자가
+**더블클릭으로 설치**하는 데스크톱 빌드(브랜드명 **「뜌땨 생활행정」**, ASCII 코드명 `tyutya`)
+를 함께 제공합니다.
+
+```
+desktop/                       ← Electron 셸 + 빌드 스크립트 (단일 코드베이스 공유)
+├── electron/                  ← TS — main · preload · 자식 프로세스 매니저 · 첫 실행 마법사
+├── splash/                    ← 부팅 진행 표시 (한국어)
+├── scripts/                   ← jlink JRE · 자원 모음 · FreeBSD 번들
+├── build/                     ← 아이콘 · NSIS 커스텀 · macOS entitlements
+└── package.json               ← electron-builder 설정 일체
+```
+
+배포 산출물:
+
+| OS       | 산출물                                  | 설치 방식                    |
+|----------|-----------------------------------------|------------------------------|
+| Windows  | `Tyutya-Setup-x.y.z.exe` (NSIS)         | 더블클릭 → 다음·설치        |
+| macOS    | `Tyutya-x.y.z-arm64.dmg` / `-x64.dmg`   | DMG 열기 → Applications 드롭 |
+| Linux    | `Tyutya-x.y.z-x64.AppImage`             | 더블클릭 → 자동 설치 마법사 |
+| FreeBSD  | `Tyutya-freebsd.txz`                    | 풀고 `register.sh` 더블클릭 |
+
+### 사용자 경험
+
+모든 OS 동일:
+
+```
+다운로드 → 더블클릭 → 설치 → 응용프로그램 / 시작 메뉴에 등록 → 실행
+```
+
+사용자가 **터미널·chmod·docker·java·node 를 절대 다루지 않습니다**.
+설치 위치는 항상 사용자 영역(per-user):
+
+| OS       | 설치 경로                                                   |
+|----------|-------------------------------------------------------------|
+| Windows  | `%LOCALAPPDATA%\Tyutya`                                    |
+| macOS    | `/Applications/뜌땨 생활행정.app` (사용자 권한만 필요)      |
+| Linux    | `~/.local/share/tyutya/`                                   |
+| FreeBSD  | `~/.local/share/tyutya/`                                   |
+
+### Linux 첫 실행 마법사
+
+다운로드 받은 AppImage 를 더블클릭하면 — `chmod` 없이 — 본 앱이 자동으로:
+
+1. 자기 자신을 `~/.local/share/tyutya/` 로 복사
+2. 아이콘을 `~/.local/share/icons/hicolor/512x512/apps/tyutya.png` 에 등록
+3. `tyutya.desktop` 항목을 `~/.local/share/applications/` 에 작성
+4. `update-desktop-database` / `xdg-desktop-menu` / `gtk-update-icon-cache` 자동 실행
+5. 설치본을 새로 띄우고 원본 인스턴스 종료
+
+KDE Plasma · GNOME · XFCE · Cinnamon · MATE · LXQt 모두 별도 작업 없이 메뉴/검색에 등록.
+**root 권한 / `/opt` / `/usr` 설치 절대 없음.**
+
+### 데스크톱 부팅 시퀀스
+
+```
+splash 표시
+  → "내부 계산 엔진을 시작하는 중…"
+  → jlink JRE 가 backend.jar 를 임의 포트에서 기동
+  → "사용자 인터페이스를 준비하는 중…"
+  → Next standalone server.js 가 BACKEND_URL=내부 포트 로 기동
+  → /api/health 통과 후 splash → 대시보드 로 전환
+```
+
+자식 프로세스의 stdout/stderr 는 사용자 데이터 폴더 `logs/` 에만 누적되며 콘솔 창은
+열리지 않습니다.
+
+### 고급 모드
+
+메뉴 [고급 → 로그 폴더 열기 / 버전 정보 / 업데이트 확인 / 개발자 도구]. 평소 사용자에게는
+숨겨진 영역이며, 기술자가 진단할 때만 사용.
+
+### 빌드 명령어
+
+```bash
+make desktop-install       # desktop/ npm install
+make desktop-prepare       # backend.jar + Next standalone 을 desktop/build 로 모음
+make desktop-jre           # jlink — desktop/build/jre 에 최소 JRE 생성
+make desktop-dev           # 로컬 Electron 개발 모드 (외부 dev 서버 사용 가능)
+
+make package-windows       # NSIS 설치본 → desktop/out/*.exe
+make package-macos         # DMG → desktop/out/*.dmg
+make package-linux         # AppImage → desktop/out/*.AppImage
+make package-freebsd       # FreeBSD .txz → desktop/out/*.txz
+```
+
+각 패키지 빌드는 **해당 OS 호스트** 에서 실행해야 합니다. 운영자는 `.github/workflows/package.yml`
+의 매트릭스(Windows / macOS / Ubuntu / FreeBSD VM)로 4종 모두 자동화할 수 있습니다.
+
+### 코드 서명
+
+| OS       | 환경 변수 / Secrets                                                         |
+|----------|-----------------------------------------------------------------------------|
+| Windows  | `CSC_LINK` (PFX base64), `CSC_KEY_PASSWORD`                                |
+| macOS    | `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` |
+| Linux    | (서명 생략 — AppImage 는 GPG 서명 옵션은 별도)                              |
+| FreeBSD  | (해당 없음)                                                                 |
+
+서명 secrets 가 없으면 자동으로 unsigned 빌드 — 소규모 배포에서는 그대로 사용 가능.
+
+### CI — 누락 릴리스 자동 백필
+
+`.github/workflows/package.yml` 은 다음과 같이 동작합니다:
+
+1. **모든 푸시(main / dev) 마다** `git tag -l 'v*'` 를 훑어 GitHub Release 가 없는 태그를 자동 추출.
+2. 누락 태그가 0 개면 매트릭스 잡을 실행하지 않음 (CI 비용 0).
+3. 누락 태그가 있으면 (tag × OS) 매트릭스로 빌드 — 실 VM:
+   - **Windows**: `windows-latest` (Azure Windows Server VM)
+   - **macOS**:   `macos-13` (Intel) + `macos-14` (Apple Silicon) 실 VM
+   - **Linux**:   `ubuntu-22.04` 실 VM
+   - **FreeBSD**: `vmactions/freebsd-vm@v1` (release **14.2**) — 진짜 FreeBSD 14.2 VM 위에서 `pkg` 의 electron31 + openjdk21 + node20 으로 네이티브 빌드.
+4. `release` 잡이 태그별로 GitHub Release 를 생성하고 4종 산출물을 부착.
+
+수동 빌드도 가능 — Actions 탭의 `Run workflow` → `force_tag: v0.2.0` 을 입력하면 그 태그만 강제 백필.
+
+### Mode A (서버) vs Mode B (데스크톱)
+
+- 두 모드는 **동일한 Java 백엔드 + 동일한 Next.js 프런트엔드** 를 공유합니다.
+- 비즈니스 로직은 어디에도 중복되지 않습니다 — 데스크톱은 단지 Electron 셸 + jlink JRE 를 추가로 묶을 뿐입니다.
+- 기존 `docker compose up -d` 흐름은 **그대로 유지** 되며 본 패키징 시스템의 영향을 받지 않습니다.

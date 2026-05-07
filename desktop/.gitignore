@@ -1,0 +1,8 @@
+node_modules/
+dist/
+out/
+build/jre/
+build/backend/
+build/frontend/
+.next/
+*.log

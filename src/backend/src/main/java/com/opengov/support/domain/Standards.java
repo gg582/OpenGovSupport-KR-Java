@@ -135,6 +135,81 @@ public final class Standards {
     /** 부양의무자 기본재산공제액 (지역별, 만원). 별도가구 한도와 동일. */
     public static final Map<String, Integer> SUPPORTER_BASE_DEDUCTION = SEPARATE_HOUSEHOLD_LIMIT;
 
+    // ── 「국민기초생활보장사업안내」소득인정액 산정 — 재산공제·환산율 ──────────
+    // 보건복지부 고시 「국민기초생활보장사업안내」 별표 기본재산액·재산의 소득환산율.
+    // 단위: 원. 환산율은 월(月) 환산 비율 (소수).
+
+    /** 일반재산 기본공제 (지역별 — 「사업안내」 표 기준 전국 단일치 사용). */
+    public static final long BASIC_PROPERTY_DEDUCTION_DEFAULT = 99_000_000L; // 9,900만원
+
+    /** 일반재산 기본공제(지역별, 단위: 원). */
+    public static final Map<String, Long> BASIC_PROPERTY_DEDUCTION = basicPropertyDeduction();
+
+    private static Map<String, Long> basicPropertyDeduction() {
+        LinkedHashMap<String, Long> m = new LinkedHashMap<>();
+        m.put("서울",          99_000_000L);
+        m.put("경기",          80_000_000L);
+        m.put("광역세종창원",  77_000_000L);
+        m.put("그외도시",      63_000_000L);
+        m.put("농어촌",        53_000_000L);
+        return m;
+    }
+
+    /** 금융재산 기본공제 (전 가구 동일, 「사업안내」기준). */
+    public static final long FINANCIAL_DEDUCTION = 5_000_000L; // 500만원
+
+    /** 일반재산 월 환산율 (1.04% / 월) — 주거용. */
+    public static final double PROPERTY_CONVERSION_RATE_HOUSING = 0.0104;
+
+    /** 일반재산 월 환산율 (4.17% / 월) — 일반(주거 외). */
+    public static final double PROPERTY_CONVERSION_RATE_GENERAL = 0.0417;
+
+    /** 금융재산 월 환산율 (6.26% / 월). */
+    public static final double FINANCIAL_CONVERSION_RATE = 0.0626;
+
+    /** 자동차 월 환산율 (100% / 월) — 생계용·장애인 자동차 등 예외 별도. */
+    public static final double VEHICLE_CONVERSION_RATE = 1.00;
+
+    // ── 맞춤형 급여 자격 — 기준 중위소득 대비 비율 ──────────
+    // 「국민기초생활 보장법」 제8조의2·시행령 — 급여별 선정기준.
+
+    /** 급여종류 → 기준 중위소득 대비 % (소수). 표 갱신은 이 맵만 수정. */
+    public static final Map<String, Double> WELFARE_TIER_RATIO = welfareTierRatio();
+
+    private static Map<String, Double> welfareTierRatio() {
+        LinkedHashMap<String, Double> m = new LinkedHashMap<>();
+        m.put("생계급여", 0.32);
+        m.put("의료급여", 0.40);
+        m.put("주거급여", 0.48);
+        m.put("교육급여", 0.50);
+        return m;
+    }
+
+    // ── 해외체류 정지 임계 (구성가능) ──────────
+    // 「국민기초생활보장사업안내」: 신규 신청자 60일 / 기존 수급자 누적 30일·연속 60일,
+    // 「기초연금법 시행령」제18조: 60일 (연금 정지),
+    // 「의료급여법 시행령」: 30일 (본인부담경감 정지 = 3개월).
+    // 이 맵은 룰 종류별 임계(일)을 한 곳에서 관리해 신규 룰이 추가될 때 변경 부담을 최소화한다.
+    public static final Map<String, Integer> OVERSEAS_THRESHOLD_DAYS = overseasThresholdDays();
+
+    private static Map<String, Integer> overseasThresholdDays() {
+        LinkedHashMap<String, Integer> m = new LinkedHashMap<>();
+        m.put("기초생활_신규",     60);   // 신규 신청 — 출국일+61일째 자격 정지
+        m.put("기초생활_기존",     60);   // 기존 수급 — 연속 60일 초과 시 정지
+        m.put("기초생활_누적",     180);  // 6개월 누적 30일 — 「사업안내」 별표
+        m.put("기초연금",          60);   // 「기초연금법 시행령」제18조
+        m.put("장애인연금",        60);   // 「장애인연금법 시행령」제20조
+        m.put("차상위_본인부담경감", 90); // 3개월
+        return m;
+    }
+
+    /** 룰 종류별 해외체류 임계(일) 조회. 미지정 룰은 기본 60일. */
+    public static int overseasThreshold(String ruleKey) {
+        if (ruleKey == null) return 60;
+        Integer v = OVERSEAS_THRESHOLD_DAYS.get(ruleKey.trim());
+        return v == null ? 60 : v;
+    }
+
     /** 임차가구 주거급여 가구원수·급지별 월 상한액 (원). HousingBenefitLimit[년도][가구원수][급지]. */
     public static final Map<Integer, Map<Integer, Map<Integer, Integer>>> HOUSING_BENEFIT_LIMIT = Map.of(
             2026, housing2026(),

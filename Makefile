@@ -1,4 +1,6 @@
-.PHONY: run run-backend run-frontend install install-backend install-frontend build test bench clean compose-up compose-down compose-build compose-logs loadtest
+.PHONY: run run-backend run-frontend install install-backend install-frontend build test bench clean compose-up compose-down compose-build compose-logs loadtest \
+        desktop-install desktop-prepare desktop-jre desktop-dev \
+        package-windows package-macos package-linux package-freebsd package-all
 
 BACKEND_PORT ?= 8080
 FRONTEND_PORT ?= 3000
@@ -54,4 +56,42 @@ compose-logs:
 	docker compose logs -f --tail=200
 
 clean:
-	rm -rf src/backend/target src/frontend/node_modules src/frontend/.next
+	rm -rf src/backend/target src/frontend/node_modules src/frontend/.next desktop/dist desktop/out desktop/build/jre desktop/build/backend desktop/build/frontend
+
+# ── desktop packaging (Mode B) ─────────────────────────────────────────
+# 모든 데스크톱 빌드는 desktop/ 디렉터리에서 실행. Docker compose (Mode A) 와 무관.
+
+desktop-install:
+	cd desktop && npm install --no-audit --no-fund
+
+desktop-prepare:
+	cd desktop && npm run prepare:resources
+
+desktop-jre:
+	cd desktop && npm run prepare:jre
+
+desktop-dev: desktop-install
+	cd desktop && npm run dev
+
+# 각 OS 의 패키지는 해당 OS 위에서 실행해야 함 (CI 매트릭스 권장).
+package-windows: desktop-install desktop-prepare desktop-jre
+	cd desktop && npm run package:win
+
+package-macos: desktop-install desktop-prepare desktop-jre
+	cd desktop && npm run package:mac
+
+package-linux: desktop-install desktop-prepare desktop-jre
+	cd desktop && npm run package:linux
+
+package-freebsd: desktop-install desktop-prepare desktop-jre
+	cd desktop && npm run package:freebsd
+
+package-all:
+	@echo "▶ 현재 OS 에서 가능한 패키지를 모두 빌드합니다."
+	@case "$$(uname -s)" in \
+	  Linux*)   $(MAKE) package-linux ;; \
+	  Darwin*)  $(MAKE) package-macos ;; \
+	  MINGW*|MSYS*|CYGWIN*) $(MAKE) package-windows ;; \
+	  FreeBSD*) $(MAKE) package-freebsd ;; \
+	  *) echo "지원되지 않는 OS — CI 매트릭스(.github/workflows/package.yml)를 사용하세요." ;; \
+	esac

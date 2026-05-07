@@ -67,22 +67,6 @@ public final class Features {
                                                 Input.of("income", "사적이전소득", "number").build()
                                         )).build()
                         )),
-                new Feature(
-                        "private-income/pdf", w,
-                        "01_사적이전소득", "사적이전소득",
-                        "출력본 (PDF용 HTML)", "브라우저 인쇄/PDF 저장용 페이지를 생성합니다.",
-                        List.of(
-                                Input.of("title", "문서 제목", "text").defaultValue("사적이전소득 계산서").build(),
-                                Input.of("rows", "출력 데이터", "rows")
-                                        .columns(List.of(
-                                                Input.of("household", "가구구분", "text").build(),
-                                                Input.of("month", "입금월", "text").build(),
-                                                Input.of("depositor", "입금자", "text").build(),
-                                                Input.of("amount", "입금액", "number").build(),
-                                                Input.of("income", "사적이전소득", "number").build()
-                                        )).build()
-                        )),
-
                 // ── 02 이자소득 ──
                 new Feature(
                         "interest-income/calc", w,
@@ -120,21 +104,6 @@ public final class Features {
                                                 Input.of("amount", "이자", "number").build()
                                         )).build()
                         )),
-                new Feature(
-                        "interest-income/pdf", w,
-                        "02_이자소득", "이자소득",
-                        "출력본", "브라우저 인쇄/PDF 저장용 페이지를 생성합니다.",
-                        List.of(
-                                Input.of("title", "문서 제목", "text").defaultValue("이자소득 공제 상담서").build(),
-                                Input.of("rows", "출력 데이터", "rows")
-                                        .columns(List.of(
-                                                Input.of("account", "계좌", "text").build(),
-                                                Input.of("month", "월", "text").build(),
-                                                Input.of("amount", "이자", "number").build(),
-                                                Input.of("deducted", "차감 후", "number").build()
-                                        )).build()
-                        )),
-
                 // ── 03 재산상담 ──
                 new Feature(
                         "property/consult", w,
@@ -170,6 +139,108 @@ public final class Features {
                                 Input.of("childCount", "자녀 수", "number").defaultValue("0")
                                         .help("자녀가 1인 이상이면 부모는 후순위로 0이 됩니다.").build(),
                                 Input.of("parentCount", "부모 수", "number").defaultValue("0").build()
+                        )),
+                new Feature(
+                        "statutory/inheritance-priority", w,
+                        "04_상속상담", "상속분상담",
+                        "상속 우선순위 트리 (대습·유류분)",
+                        "「민법」 제1000조 (순위) · 제1001조 (대습) · 제1003조 (배우자) · 제1009조 (분) · 제1112조 (유류분) — 1~4순위 트리 + 유류분 1/2·1/3 자동 적용.",
+                        List.of(
+                                Input.of("totalEstate", "상속재산 총액 (원)", "number").defaultValue("0").required(true).build(),
+                                Input.of("spouseCount", "배우자 수", "number").defaultValue("0").build(),
+                                Input.of("childCount", "자녀(직접) 수", "number").defaultValue("0").build(),
+                                Input.of("parentCount", "부모 수", "number").defaultValue("0").build(),
+                                Input.of("siblingCount", "형제자매 수", "number").defaultValue("0").build(),
+                                Input.of("fourthDegreeCount", "4촌 이내 방계혈족 수", "number").defaultValue("0").build(),
+                                Input.of("substitute", "대습상속 발생 (true/false)", "select")
+                                        .options(List.of("false", "true")).defaultValue("false")
+                                        .help("자녀가 상속개시 전 사망·결격 시 그 자녀(손자녀)가 대습. 「민법」 제1001조.").build(),
+                                Input.of("substituteCount", "대습상속인 수", "number").defaultValue("0").build()
+                        )),
+
+                // ── 04-2 정통 산식 (8 primitive) ──
+                new Feature(
+                        "statutory/recognized-income", w,
+                        "04-2_정통산식", "정통 산식",
+                        "소득인정액 산출 (primitive 6)",
+                        "「국민기초생활 보장법」제2조 — 소득평가액 + 재산의 소득환산. 일반/금융/자동차 환산율 + 지역별 기본공제 자동 적용.",
+                        List.of(
+                                Input.of("salary", "근로소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("businessIncome", "사업소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("financialIncome", "재산소득(이자·배당) (원/월)", "number").defaultValue("0").build(),
+                                Input.of("rentalIncome", "임대소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("transferIncome", "이전소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("generalProperty", "일반재산 (원)", "number").defaultValue("0").build(),
+                                Input.of("financialAssets", "금융재산 (원)", "number").defaultValue("0").build(),
+                                Input.of("vehicleAssets", "자동차 (원)", "number").defaultValue("0")
+                                        .help("생계용·장애인용 차량 예외는 호출자가 미리 차감해 입력.").build(),
+                                Input.of("debt", "부채 (원)", "number").defaultValue("0").build(),
+                                Input.of("region", "거주 지역", "select")
+                                        .options(List.of("서울", "경기", "광역세종창원", "그외도시", "농어촌"))
+                                        .defaultValue("그외도시")
+                                        .help("「사업안내」 별표 — 일반재산 기본공제 지역별 차등.").build(),
+                                Input.of("propertyMode", "일반재산 환산율 모드", "select")
+                                        .options(List.of("일반", "주거"))
+                                        .defaultValue("일반")
+                                        .help("주거용 1.04%/월 · 일반(주거외) 4.17%/월.").build()
+                        )),
+                new Feature(
+                        "statutory/median-ratio", w,
+                        "04-2_정통산식", "정통 산식",
+                        "중위소득 비율 자격 분기 (primitive 7)",
+                        "「국민기초생활 보장법」제8조의2 — 소득인정액 ÷ 가구원수별 기준중위소득 → 생계 32% / 의료 40% / 주거 48% / 교육 50%.",
+                        List.of(
+                                Input.of("year", "기준 연도", "select")
+                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                Input.of("householdSize", "가구원 수", "number").defaultValue("1").required(true).build(),
+                                Input.of("recognizedIncome", "소득인정액 (원/월)", "number").defaultValue("0").required(true)
+                                        .help("위 [소득인정액 산출]의 결과를 그대로 입력.").build()
+                        )),
+                new Feature(
+                        "statutory/eligibility-flow", w,
+                        "04-2_정통산식", "정통 산식",
+                        "통합 자격 평가 (소득인정액 → 비율 → 해외체류)",
+                        "primitive 6 + 7 을 한 번에 평가 + 해외체류 정지 임계 검토.",
+                        List.of(
+                                Input.of("year", "기준 연도", "select")
+                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                Input.of("householdSize", "가구원 수", "number").defaultValue("1").required(true).build(),
+                                Input.of("salary", "근로소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("businessIncome", "사업소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("financialIncome", "재산소득(이자·배당) (원/월)", "number").defaultValue("0").build(),
+                                Input.of("rentalIncome", "임대소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("transferIncome", "이전소득 (원/월)", "number").defaultValue("0").build(),
+                                Input.of("generalProperty", "일반재산 (원)", "number").defaultValue("0").build(),
+                                Input.of("financialAssets", "금융재산 (원)", "number").defaultValue("0").build(),
+                                Input.of("vehicleAssets", "자동차 (원)", "number").defaultValue("0").build(),
+                                Input.of("debt", "부채 (원)", "number").defaultValue("0").build(),
+                                Input.of("region", "거주 지역", "select")
+                                        .options(List.of("서울", "경기", "광역세종창원", "그외도시", "농어촌"))
+                                        .defaultValue("그외도시").build(),
+                                Input.of("propertyMode", "일반재산 환산율", "select")
+                                        .options(List.of("일반", "주거")).defaultValue("일반").build(),
+                                Input.of("overseasDays", "해외체류 누적 일수", "number").defaultValue("0").build(),
+                                Input.of("overseasRuleKey", "해외체류 임계 룰", "select")
+                                        .options(List.of("기초생활_신규", "기초생활_기존", "기초생활_누적",
+                                                "기초연금", "장애인연금", "차상위_본인부담경감"))
+                                        .defaultValue("기초생활_기존").build()
+                        )),
+                new Feature(
+                        "statutory/deduction-ladder/earned-income", w,
+                        "04-2_정통산식", "정통 산식",
+                        "근로소득공제 사다리 (primitive 2)",
+                        "「소득세법」제47조 — 5단계 piecewise-linear (≤500만 70%·≤1500만 47.5%·≤4500만 15%·≤1억 5%·>1억 2%).",
+                        List.of(
+                                Input.of("salary", "총급여 (원, 연간)", "number").defaultValue("0").required(true).build()
+                        )),
+                new Feature(
+                        "statutory/vat-delta", w,
+                        "04-2_정통산식", "정통 산식",
+                        "부가가치세 차분 (primitive 5)",
+                        "「부가가치세법」제30·37·38조 — payable = (sales − purchase) × 10%. 음수 결과는 환급세액.",
+                        List.of(
+                                Input.of("salesSupplyAmount", "매출 공급가액 (원)", "number").defaultValue("0").required(true).build(),
+                                Input.of("purchaseSupplyAmount", "매입 공급가액 (원)", "number").defaultValue("0").build()
                         )),
 
                 // ── 05 긴급공제설명 ──

@@ -4,7 +4,6 @@ import com.opengov.support.domain.DomainUtil;
 import com.opengov.support.domain.Standards;
 import com.opengov.support.web.ApiException;
 import com.opengov.support.web.JsonBody;
-import com.opengov.support.web.PrintableHtml;
 import com.opengov.support.web.Result;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,7 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 02_이자소득 — 계산 / 상담기록 / PDF. */
+/** 02_이자소득 — 계산 / 상담기록. PDF 출력은 프런트엔드 공용 버튼이 처리. */
 @RestController
 @RequestMapping("/api/interest-income")
 public class InterestIncomeController {
@@ -259,65 +258,6 @@ public class InterestIncomeController {
         String text = b.toString();
         while (text.endsWith("\n")) text = text.substring(0, text.length() - 1);
         return Result.of("이자소득 상담기록", text, data);
-    }
-
-    @PostMapping("/pdf")
-    public Result pdf(@RequestBody(required = false) Map<String, Object> body) {
-        if (body == null) body = Map.of();
-        List<Map<String, Object>> inputRows = JsonBody.rows(body, "rows");
-        if (inputRows.isEmpty()) {
-            throw ApiException.badRequest("출력 데이터(rows)가 비어 있습니다.");
-        }
-        String title = JsonBody.str(body, "title").trim();
-        if (title.isEmpty()) title = "이자소득 공제 상담서";
-
-        record PdfRow(String account, String month, double amount, double deducted) {}
-        List<PdfRow> rows = new ArrayList<>(inputRows.size());
-        for (Map<String, Object> raw : inputRows) {
-            rows.add(new PdfRow(
-                    JsonBody.str(raw, "account"),
-                    JsonBody.str(raw, "month"),
-                    JsonBody.dbl(raw, "amount"),
-                    JsonBody.dbl(raw, "deducted")));
-        }
-
-        double totalAmount = 0;
-        double totalDeducted = 0;
-        for (PdfRow r : rows) {
-            totalAmount += r.amount;
-            totalDeducted += r.deducted;
-        }
-
-        StringBuilder bd = new StringBuilder();
-        bd.append("<table>");
-        bd.append("<thead><tr>")
-                .append("<th>계좌</th><th>월</th>")
-                .append("<th class=\"num\">이자</th><th class=\"num\">차감 후</th>")
-                .append("</tr></thead><tbody>");
-        for (PdfRow r : rows) {
-            bd.append("<tr><td>").append(PrintableHtml.escape(r.account)).append("</td>")
-                    .append("<td>").append(PrintableHtml.escape(r.month)).append("</td>")
-                    .append("<td class=\"num\">").append(PrintableHtml.escape(DomainUtil.won(r.amount))).append("</td>")
-                    .append("<td class=\"num\">").append(PrintableHtml.escape(DomainUtil.won(r.deducted))).append("</td>")
-                    .append("</tr>");
-        }
-        bd.append("</tbody>");
-        bd.append("<tfoot><tr><td colspan=\"2\" class=\"total\">합계</td>")
-                .append("<td class=\"num total\">").append(PrintableHtml.escape(DomainUtil.won(totalAmount))).append("</td>")
-                .append("<td class=\"num total\">").append(PrintableHtml.escape(DomainUtil.won(totalDeducted))).append("</td>")
-                .append("</tr></tfoot>");
-        bd.append("</table>");
-
-        String doc = PrintableHtml.interestIncome(title, bd.toString());
-        String summary = String.format("%s — 행 %d건, 이자합계 %s, 차감 후 합계 %s",
-                title, rows.size(), DomainUtil.won(totalAmount), DomainUtil.won(totalDeducted));
-
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("rows", rows);
-        data.put("totalAmount", totalAmount);
-        data.put("totalDeducted", totalDeducted);
-
-        return Result.html(title, summary, doc, data);
     }
 
     /** Accepts "YYYY-MM", "YYYY/MM", "YYYY.MM", "YYYY-MM-DD", "YYYYMM" — returns [year, month] or null. */

@@ -1,0 +1,100 @@
+{
+  "version": "2026.05",
+  "description": "법령간 적용 충돌 매트릭스. precedence 가 낮을수록 우선 적용.",
+  "rules": [
+    {
+      "id": "foreign_flat_tax",
+      "label": "외국인 단일세율 19% 선택 (조특법 §18-2)",
+      "legalBasis": "「조세특례제한법」 제18조의2 — 외국인근로자 단일세율 특례",
+      "precedence": 2,
+      "conflictsWith": ["domestic_deductions", "child_credit", "earned_income_credit"],
+      "reason": "단일세율 선택 시 종합소득공제·세액공제 일체 적용 불가 (강행 배제)"
+    },
+    {
+      "id": "domestic_deductions",
+      "label": "거주자 종합소득공제·특별세액공제",
+      "legalBasis": "「소득세법」 제50조~제59조의5",
+      "precedence": 4,
+      "conflictsWith": [],
+      "reason": "표준 적용 — foreign_flat_tax 선택 시 자동 배제"
+    },
+    {
+      "id": "welfare_eligibility",
+      "label": "기초생활보장 수급",
+      "legalBasis": "「국민기초생활 보장법」 제8조의2",
+      "precedence": 3,
+      "conflictsWith": ["overseas_long_stay"],
+      "reason": "해외체류 60일 초과 시 자격 정지 — 「사업안내」 별표"
+    },
+    {
+      "id": "overseas_long_stay",
+      "label": "해외체류 60일 이상",
+      "legalBasis": "「국민기초생활보장사업안내」",
+      "precedence": 1,
+      "conflictsWith": ["welfare_eligibility", "basic_pension", "disability_pension"],
+      "reason": "강행 정지 사유 — 모든 복지 급여 일시 정지"
+    },
+    {
+      "id": "basic_pension",
+      "label": "기초연금 수급",
+      "legalBasis": "「기초연금법」",
+      "precedence": 3,
+      "conflictsWith": ["overseas_long_stay"],
+      "reason": "60일 연속 출국 시 정지 (시행령 §18)"
+    },
+    {
+      "id": "disability_pension",
+      "label": "장애인연금 수급",
+      "legalBasis": "「장애인연금법」",
+      "precedence": 3,
+      "conflictsWith": ["overseas_long_stay"],
+      "reason": "60일 연속 출국 시 일시 정지"
+    },
+    {
+      "id": "child_credit",
+      "label": "자녀 세액공제",
+      "legalBasis": "「소득세법」 제59조의2",
+      "precedence": 4,
+      "conflictsWith": ["foreign_flat_tax"],
+      "reason": "단일세율 선택 시 적용 불가"
+    },
+    {
+      "id": "earned_income_credit",
+      "label": "근로장려금",
+      "legalBasis": "「조세특례제한법」 제100조의3",
+      "precedence": 4,
+      "conflictsWith": ["foreign_flat_tax", "high_property"],
+      "reason": "재산 2.4억원 초과 또는 외국인 단일세율 선택 시 부적격"
+    },
+    {
+      "id": "high_property",
+      "label": "재산 2.4억원 초과",
+      "legalBasis": "「조세특례제한법 시행령」 제100조의5",
+      "precedence": 1,
+      "conflictsWith": ["earned_income_credit"],
+      "reason": "근로장려금 재산기준 초과 — 강행 배제"
+    },
+    {
+      "id": "vat_general",
+      "label": "일반과세자",
+      "legalBasis": "「부가가치세법」 제30조",
+      "precedence": 4,
+      "conflictsWith": ["vat_simple"],
+      "reason": "간이과세 대상이 아닌 사업자"
+    },
+    {
+      "id": "vat_simple",
+      "label": "간이과세자",
+      "legalBasis": "「부가가치세법」 제61조",
+      "precedence": 4,
+      "conflictsWith": ["vat_general"],
+      "reason": "직전연도 공급대가 1억400만원 미만"
+    }
+  ],
+  "precedenceOrder": [
+    {"level": 1, "label": "강행 배제 (statutory exclusion)"},
+    {"level": 2, "label": "강행 우선 (mandatory override)"},
+    {"level": 3, "label": "복지 정지 사유 (welfare suspension)"},
+    {"level": 4, "label": "선택적 최적화 (optional optimization)"}
+  ]
+}

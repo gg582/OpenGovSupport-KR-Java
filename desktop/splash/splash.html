@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>뜌땨 생활행정</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #0e1116;
+    color: #d8dde6;
+    font-family: -apple-system, "Pretendard GOV", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  body {
+    display: grid;
+    place-content: center;
+    background-image:
+      linear-gradient(to right, rgba(120, 130, 150, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(120, 130, 150, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .card {
+    width: 480px;
+    padding: 36px 36px 28px;
+    text-align: center;
+    border: 1px solid #2a313e;
+    background: #161b24;
+  }
+  h1 {
+    font-size: 16pt;
+    margin: 0 0 4px;
+    letter-spacing: -0.02em;
+    color: #f1f5fb;
+  }
+  .sub {
+    color: #97a3b9;
+    font-size: 11pt;
+    letter-spacing: 0.04em;
+    margin-bottom: 28px;
+  }
+  .stage {
+    font-family: ui-monospace, "Roboto Mono", Menlo, monospace;
+    font-size: 11pt;
+    color: #97a3b9;
+    min-height: 22px;
+  }
+  .bar {
+    margin: 18px auto 6px;
+    width: 320px;
+    height: 4px;
+    background: #1d2330;
+    border: 1px solid #2a313e;
+    overflow: hidden;
+  }
+  .bar > i {
+    display: block;
+    width: 30%;
+    height: 100%;
+    background: #f6c668;
+    animation: slide 1.6s linear infinite;
+  }
+  @keyframes slide {
+    0%   { transform: translateX(-110%); }
+    100% { transform: translateX(380%); }
+  }
+  .meta {
+    font-family: ui-monospace, monospace;
+    font-size: 9pt;
+    color: #6e7a93;
+    margin-top: 18px;
+    letter-spacing: 0.06em;
+  }
+  .ok    { color: #6fde8c; }
+  .fail  { color: #ee7d7d; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>뜌땨 생활행정</h1>
+    <div class="sub">로컬에서 안전하게 — 외부 전송 없음</div>
+    <div class="bar"><i></i></div>
+    <div class="stage" id="stage">앱을 준비하는 중…</div>
+    <div class="meta">결정적 산식 · Java 백엔드 · 오프라인 평가</div>
+  </div>
+<script>
+  const STAGES = {
+    "preparing":           "앱을 준비하는 중…",
+    "starting-engine":     "내부 계산 엔진을 시작하는 중…",
+    "starting-ui":         "사용자 인터페이스를 준비하는 중…",
+    "launching-dashboard": "대시보드를 여는 중…",
+    "installing":          "처음 실행 — 프로그램을 설치하는 중…",
+    "registering":         "바탕화면 바로가기를 등록하는 중…",
+    "done":                "준비 완료",
+    "error":               "오류가 발생했습니다",
+  };
+  window.setStage = function(key, detail) {
+    var el = document.getElementById("stage");
+    if (!el) return;
+    var msg = STAGES[key] || key;
+    if (detail) msg += " — " + detail;
+    el.textContent = msg;
+    if (key === "error") el.classList.add("fail");
+    if (key === "done")  el.classList.add("ok");
+  };
+</script>
+</body>
+</html>
