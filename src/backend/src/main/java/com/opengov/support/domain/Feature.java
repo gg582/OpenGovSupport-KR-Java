@@ -7,11 +7,15 @@ import java.util.List;
 /** Feature describes one user-facing calculator. */
 public record Feature(
         String id,
+        String section,
         String domainKey,
         String domainTitle,
         String title,
         String summary,
         List<Input> inputs) {
+
+    public static final String SECTION_WELFARE = "welfare";
+    public static final String SECTION_TAX = "tax";
 
     /** Input describes a single form field rendered by the frontend. */
     public record Input(

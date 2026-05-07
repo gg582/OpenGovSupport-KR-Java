@@ -4,28 +4,39 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Feature } from "../lib/api";
 
-export default function LNB({ features }: { features: Feature[] }) {
+export default function LNB({
+  features,
+  section,
+}: {
+  features: Feature[];
+  section: "welfare" | "tax";
+}) {
   const pathname = usePathname();
+  const filtered = features.filter((f) => f.section === section);
   const grouped = new Map<string, { title: string; items: Feature[] }>();
-  for (const f of features) {
+  for (const f of filtered) {
     if (!grouped.has(f.domainKey)) {
       grouped.set(f.domainKey, { title: f.domainTitle, items: [] });
     }
     grouped.get(f.domainKey)!.items.push(f);
   }
 
+  const sectionLabel = section === "tax" ? "개인세무" : "사회복지";
+  const sectionHref = section === "tax" ? "/tax" : "/welfare";
+  const homeActive = pathname === sectionHref;
+
   return (
-    <nav className="panel" aria-label="기능 분류">
-      <div className="panel-header">기능 색인</div>
+    <nav className="panel" aria-label={`${sectionLabel} 기능 분류`}>
+      <div className="panel-header">{sectionLabel} 기능 색인</div>
       <ul className="py-1">
         <li>
           <Link
-            href="/"
+            href={sectionHref}
             className="lnb-link"
-            aria-current={pathname === "/" ? "page" : undefined}
+            aria-current={homeActive ? "page" : undefined}
           >
-            <span>▣ 전체 기능 보기</span>
-            <span className="text-[11px] font-mono text-navy/50">{features.length}</span>
+            <span>▣ {sectionLabel} 전체 보기</span>
+            <span className="text-[11px] font-mono text-navy/50">{filtered.length}</span>
           </Link>
         </li>
         {Array.from(grouped.entries()).map(([key, { title, items }]) => (
@@ -56,6 +67,11 @@ export default function LNB({ features }: { features: Feature[] }) {
             </ul>
           </li>
         ))}
+        {filtered.length === 0 && (
+          <li className="px-3 py-3 text-xs text-navy/55">
+            등록된 기능이 없습니다.
+          </li>
+        )}
       </ul>
     </nav>
   );

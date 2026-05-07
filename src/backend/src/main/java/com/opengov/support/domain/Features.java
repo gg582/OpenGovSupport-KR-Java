@@ -1,11 +1,13 @@
 package com.opengov.support.domain;
 
 import com.opengov.support.domain.Feature.Input;
+import com.opengov.support.tax.TaxFeatures;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Feature 매니페스트 (UI 폼 자동 생성용). Go의 domain/features.go 와 동일. */
+/** Feature 매니페스트 (UI 폼 자동 생성용). */
 public final class Features {
 
     private Features() {}
@@ -17,13 +19,22 @@ public final class Features {
 
     /** 모든 기능 정의. UI 네비게이션이 이 매니페스트로 자동 생성된다. */
     public static List<Feature> all() {
+        List<Feature> all = new ArrayList<>();
+        all.addAll(welfareFeatures());
+        all.addAll(TaxFeatures.all());
+        return List.copyOf(all);
+    }
+
+    /** 사회복지 섹션 — 기존 16종. */
+    public static List<Feature> welfareFeatures() {
         int year = Standards.currentYear();
         String yearStr = Integer.toString(year);
+        String w = Feature.SECTION_WELFARE;
 
         return List.of(
                 // ── 01 사적이전소득 ──
                 new Feature(
-                        "private-income/calc",
+                        "private-income/calc", w,
                         "01_사적이전소득", "사적이전소득",
                         "계산", "월별 입금 내역에서 사적이전소득을 산출합니다.",
                         List.of(
@@ -43,7 +54,7 @@ public final class Features {
                                         )).build()
                         )),
                 new Feature(
-                        "private-income/record",
+                        "private-income/record", w,
                         "01_사적이전소득", "사적이전소득",
                         "상담기록 텍스트", "계산 결과를 상담일지용 텍스트로 변환합니다.",
                         List.of(
@@ -57,7 +68,7 @@ public final class Features {
                                         )).build()
                         )),
                 new Feature(
-                        "private-income/pdf",
+                        "private-income/pdf", w,
                         "01_사적이전소득", "사적이전소득",
                         "출력본 (PDF용 HTML)", "브라우저 인쇄/PDF 저장용 페이지를 생성합니다.",
                         List.of(
@@ -74,7 +85,7 @@ public final class Features {
 
                 // ── 02 이자소득 ──
                 new Feature(
-                        "interest-income/calc",
+                        "interest-income/calc", w,
                         "02_이자소득", "이자소득",
                         "계산", "계좌별 이자소득의 누적 차감 후 잔액을 계산합니다.",
                         List.of(
@@ -93,7 +104,7 @@ public final class Features {
                                         )).build()
                         )),
                 new Feature(
-                        "interest-income/record",
+                        "interest-income/record", w,
                         "02_이자소득", "이자소득",
                         "상담기록 텍스트", "이자소득 결과를 상담일지 텍스트로 변환합니다.",
                         List.of(
@@ -110,7 +121,7 @@ public final class Features {
                                         )).build()
                         )),
                 new Feature(
-                        "interest-income/pdf",
+                        "interest-income/pdf", w,
                         "02_이자소득", "이자소득",
                         "출력본", "브라우저 인쇄/PDF 저장용 페이지를 생성합니다.",
                         List.of(
@@ -126,7 +137,7 @@ public final class Features {
 
                 // ── 03 재산상담 ──
                 new Feature(
-                        "property/consult",
+                        "property/consult", w,
                         "03_재산상담", "재산변동상담",
                         "상담생성", "재산 변동(금융/일반/주택조사)에 대한 상담 메시지를 만듭니다.",
                         List.of(
@@ -149,7 +160,7 @@ public final class Features {
 
                 // ── 04 상속상담 ──
                 new Feature(
-                        "inheritance/consult",
+                        "inheritance/consult", w,
                         "04_상속상담", "상속분상담",
                         "상담생성", "「민법」 제1009조 법정 상속분에 따라 배우자/자녀/부모 분배를 자동 계산합니다.",
                         List.of(
@@ -163,7 +174,7 @@ public final class Features {
 
                 // ── 05 긴급공제설명 ──
                 new Feature(
-                        "emergency/explain",
+                        "emergency/explain", w,
                         "05_긴급공제설명", "긴급공제설명",
                         "공제 설명 생성", "긴급 지원 대상자의 기간별 공제표와 안내문을 생성합니다.",
                         List.of(
@@ -182,7 +193,7 @@ public final class Features {
 
                 // ── 06 해외체류 ──
                 new Feature(
-                        "overseas/new",
+                        "overseas/new", w,
                         "06_해외체류", "해외체류",
                         "신규 신청자", "신청일 기준 출입국 내역으로 61일 룰을 검토합니다.",
                         List.of(
@@ -194,7 +205,7 @@ public final class Features {
                                         )).build()
                         )),
                 new Feature(
-                        "overseas/existing",
+                        "overseas/existing", w,
                         "06_해외체류", "해외체류",
                         "기존 수급자", "기준일(180일 전) 이후 해외체류일을 합산합니다.",
                         List.of(
@@ -206,7 +217,7 @@ public final class Features {
                                         )).build()
                         )),
                 new Feature(
-                        "overseas/pension",
+                        "overseas/pension", w,
                         "06_해외체류", "해외체류",
                         "기초/장애인 연금 수급자", "출국 후 60일 초과 시점의 안내문을 생성합니다.",
                         List.of(
@@ -216,7 +227,7 @@ public final class Features {
                                         .required(true).build()
                         )),
                 new Feature(
-                        "overseas/care",
+                        "overseas/care", w,
                         "06_해외체류", "해외체류",
                         "차상위 본인부담경감", "출국 후 3개월 초과 시 자격 정지 안내를 생성합니다.",
                         List.of(
@@ -225,7 +236,7 @@ public final class Features {
 
                 // ── 99 공용 ──
                 new Feature(
-                        "shared/months",
+                        "shared/months", w,
                         "99_공용", "공용 유틸",
                         "개월수 계산", "두 날짜 사이의 개월 수를 계산합니다 (종료월 포함).",
                         List.of(
@@ -233,7 +244,7 @@ public final class Features {
                                 Input.of("endDate", "종료일", "date").required(true).build()
                         )),
                 new Feature(
-                        "shared/initial-deduction",
+                        "shared/initial-deduction", w,
                         "99_공용", "공용 유틸",
                         "초기 차감금액 계산",
                         "기준일~조사일 사이의 누적 차감 금액을 항목별·연도별 법정 비율로 계산합니다.",
@@ -254,7 +265,7 @@ public final class Features {
 
                 // ── 00 통합문서 이벤트 ──
                 new Feature(
-                        "events/property-sheet",
+                        "events/property-sheet", w,
                         "00_workbook_events", "이벤트 핸들러",
                         "재산변동 시트 변경 시뮬레이션",
                         "재산변동상담생성 화면의 행 숨김 + 차액 자동계산을 시뮬레이션합니다.",

@@ -12,6 +12,7 @@ export type Input = {
 
 export type Feature = {
   id: string;
+  section: "welfare" | "tax" | string;
   domainKey: string;
   domainTitle: string;
   title: string;
@@ -52,4 +53,14 @@ export async function callFeature(id: string, body: Record<string, unknown>): Pr
     throw new Error((err as { error?: string }).error || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export const SECTIONS: { key: "welfare" | "tax"; label: string; href: string }[] = [
+  { key: "welfare", label: "사회복지", href: "/welfare" },
+  { key: "tax",     label: "개인세무", href: "/tax" },
+];
+
+export function sectionOf(pathname: string): "welfare" | "tax" {
+  if (pathname.startsWith("/tax")) return "tax";
+  return "welfare";
 }

@@ -1,0 +1,45 @@
+{
+  "rule_id": "rent-credit",
+  "category": "특별세액공제",
+  "title": "월세 세액공제",
+  "formula_type": "B",
+  "formula_expression": "공제 = min(연 월세지출액, 1,000만원) × {총급여 5,500만원 이하 17%, 그 외 15%}",
+  "params": {
+    "variable": "rentPaid",
+    "cap": 10000000,
+    "rateBands": [
+      { "ifVar": "salary", "op": "lte", "value": 55000000, "rate": 0.17 },
+      { "default": true, "rate": 0.15 }
+    ]
+  },
+  "eligibility": [
+    { "variable": "salary", "op": "gt", "value": 0, "message": "근로소득(총급여)이 있어야 합니다." },
+    { "variable": "salary", "op": "lte", "value": 80000000, "message": "총급여 8,000만원 이하 무주택 세대주 요건." },
+    { "variable": "rentPaid", "op": "gt", "value": 0, "message": "연간 월세 지출액이 있어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "임대차계약서 사본",
+      "issuer": "임대인 / 본인 보관",
+      "online_issuance": false,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "확정일자(주민센터·등기소) 받은 사본 권장"
+    },
+    {
+      "name": "주민등록등본",
+      "issuer": "정부24",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "전입일자 및 무주택 세대주 확인용"
+    },
+    {
+      "name": "월세 이체내역서",
+      "issuer": "은행",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "본인 계좌→임대인 계좌 이체 증빙 (현금영수증 발급분 가능)"
+    }
+  ],
+  "submission_channels": ["회사 연말정산 시스템", "홈택스 종합소득세 신고"],
+  "legal_source": "「조세특례제한법」제95조의2 (월세액에 대한 세액공제) — 무주택 세대주, 총급여 8천만원 이하"
+}

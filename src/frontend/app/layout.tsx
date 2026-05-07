@@ -4,8 +4,8 @@ import { listFeatures, type Feature } from "./lib/api";
 import AppShell from "./components/AppShell";
 
 export const metadata: Metadata = {
-  title: "사회복지 계산식 포털",
-  description: "사적이전소득 / 이자소득 / 재산상담 / 상속분 / 긴급공제 / 해외체류 등 자주 쓰이는 사회복지 계산을 웹에서 직접 실행합니다.",
+  title: "정부지원·세무 계산",
+  description: "사회복지(중위소득·기초연금·재산변동·해외체류 등)와 개인세무(연말정산·종합소득세·세액공제) 산식을 법령 그대로 코드로 평가합니다.",
 };
 
 export const viewport: Viewport = {

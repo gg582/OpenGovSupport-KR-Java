@@ -1,0 +1,43 @@
+{
+  "rule_id": "earned-income-deduction",
+  "category": "근로소득",
+  "title": "근로소득공제",
+  "formula_type": "A",
+  "formula_expression": "공제액 = 총급여 × 공제율 − 누진보정액 (총급여 구간별)",
+  "params": {
+    "variable": "grossSalary",
+    "brackets": [
+      { "max": 5000000,   "rate": 0.70, "qd": 0 },
+      { "max": 15000000,  "rate": 0.40, "qd": -1500000 },
+      { "max": 45000000,  "rate": 0.15, "qd": -5250000 },
+      { "max": 100000000, "rate": 0.05, "qd": -9750000 },
+      { "max": 0,         "rate": 0.02, "qd": -12750000 }
+    ]
+  },
+  "eligibility": [
+    {
+      "variable": "grossSalary",
+      "op": "gt",
+      "value": 0,
+      "message": "총급여(연간)가 0원 초과여야 합니다."
+    }
+  ],
+  "required_documents": [
+    {
+      "name": "근로소득 원천징수영수증",
+      "issuer": "근무처(회사)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "회사가 다음해 3월 10일까지 국세청에 제출, 본인은 홈택스에서 조회 가능"
+    },
+    {
+      "name": "급여명세서",
+      "issuer": "근무처(회사)",
+      "online_issuance": false,
+      "submit_to": "본인 보관",
+      "note": "원천징수영수증 검증용"
+    }
+  ],
+  "submission_channels": ["회사 연말정산", "홈택스 종합소득세 합산신고"],
+  "legal_source": "「소득세법」제47조 (근로소득공제) — 총급여 5단계 누진율표"
+}

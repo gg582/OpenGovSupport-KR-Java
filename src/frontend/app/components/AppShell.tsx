@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import LNB from "./LNB";
-import type { Feature } from "../lib/api";
+import { SECTIONS, sectionOf, type Feature } from "../lib/api";
 
 export default function AppShell({
   features,
@@ -15,6 +15,7 @@ export default function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const currentSection = sectionOf(pathname);
 
   useEffect(() => {
     setOpen(false);
@@ -56,22 +57,31 @@ export default function AppShell({
               </svg>
             </button>
             <Link href="/" className="font-semibold tracking-tighter text-base truncate">
-              사회복지 계산식 포털
+              정부지원·세무 계산
             </Link>
-            <span className="hidden md:inline text-[11px] text-white/60 font-mono">
-              v1.0
-            </span>
           </div>
           <nav className="hidden md:flex items-center gap-5 text-sm text-white/85">
-            <Link href="/" className="hover:text-white">
-              전체 기능
-            </Link>
+            {SECTIONS.map((s) => {
+              const active = currentSection === s.key;
+              return (
+                <Link
+                  key={s.key}
+                  href={s.href}
+                  className={
+                    active
+                      ? "text-white border-b-2 border-white pb-3 -mb-3"
+                      : "hover:text-white"
+                  }
+                  aria-current={active ? "page" : undefined}
+                >
+                  {s.label}
+                </Link>
+              );
+            })}
+            <span className="opacity-30">|</span>
             <Link href="/runtime" className="hover:text-white">
               런타임 상태
             </Link>
-            <span className="opacity-50 cursor-not-allowed select-none" aria-disabled="true">
-              도움말
-            </span>
           </nav>
         </div>
       </header>
@@ -104,7 +114,23 @@ export default function AppShell({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              <LNB features={features} />
+              <nav className="panel" aria-label="섹션 전환">
+                <div className="panel-header">섹션</div>
+                <ul className="py-1">
+                  {SECTIONS.map((s) => (
+                    <li key={s.key}>
+                      <Link
+                        href={s.href}
+                        className="lnb-link"
+                        aria-current={currentSection === s.key ? "page" : undefined}
+                      >
+                        <span>▣ {s.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <LNB features={features} section={currentSection} />
               <nav className="panel" aria-label="보조 메뉴">
                 <div className="panel-header">기타</div>
                 <ul className="py-1">
@@ -126,15 +152,27 @@ export default function AppShell({
 
       <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-4 md:py-6 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 md:gap-6">
         <aside className="hidden md:block md:sticky md:top-6 md:self-start">
-          <LNB features={features} />
+          <LNB features={features} section={currentSection} />
         </aside>
         <main className="min-w-0">{children}</main>
       </div>
 
       <footer className="border-t border-line bg-white">
-        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-5 text-xs text-navy/60 flex flex-wrap gap-x-6 gap-y-1">
-          <span>법령 기반 공개정보 산식</span>
-          <span className="md:ml-auto">© 행정업무 보조 도구 · 일반 배포용</span>
+        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-5 text-xs text-navy/60 space-y-2">
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <span>법령 기반 공개정보 산식</span>
+            <span className="md:ml-auto">© 행정업무 보조 도구 · 일반 배포용</span>
+          </div>
+          <div className="text-navy/65 leading-relaxed">
+            <strong>면책 고지.</strong> 본 사이트는 세무사·세무대리 행위를 수행하지 않으며,
+            산출 결과의 정확성·완전성·최신성을 보증하지 않습니다. 산식 자체는 「소득세법」
+            「법인세법」「상속세 및 증여세법」「부가가치세법」「국민기초생활보장법」「조세특례제한법」 등
+            공개 법령에 근거하나, 케이스별 적용 여부와 예외 처리는 사용자가 직접 확인해야 합니다.
+          </div>
+          <div className="text-navy/65 leading-relaxed">
+            산출 결과는 신고·납부·수급의 효력을 갖지 않습니다. 실제 신고는 반드시
+            홈택스(국세청) / 복지로(보건복지부) / 정부24 / 세무전문가를 통해 확정하시기 바랍니다.
+          </div>
         </div>
       </footer>
     </>

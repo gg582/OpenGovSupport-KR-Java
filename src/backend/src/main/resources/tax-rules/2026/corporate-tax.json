@@ -1,0 +1,44 @@
+{
+  "rule_id": "corporate-tax",
+  "category": "법인세",
+  "title": "법인세 산출세액",
+  "formula_type": "A",
+  "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액 (4단계 누진)",
+  "params": {
+    "variable": "taxableIncome",
+    "brackets": [
+      { "max": 200000000,      "rate": 0.09, "qd": 0 },
+      { "max": 20000000000,    "rate": 0.19, "qd": 20000000 },
+      { "max": 300000000000,   "rate": 0.21, "qd": 420000000 },
+      { "max": 0,              "rate": 0.24, "qd": 9420000000 }
+    ]
+  },
+  "eligibility": [
+    { "variable": "taxableIncome", "op": "gt", "value": 0, "message": "과세표준이 0원 초과여야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "법인세 과세표준 및 세액신고서",
+      "issuer": "국세청 (홈택스 작성)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "「법인세법 시행규칙」별지 제1호 서식. 사업연도 종료 후 3개월 내 신고."
+    },
+    {
+      "name": "재무상태표·손익계산서·이익잉여금처분계산서",
+      "issuer": "법인 자체 (외부감사 대상은 감사보고서)",
+      "online_issuance": false,
+      "submit_to": "홈택스 (전자신고 시 첨부)",
+      "note": "법정 결산서류"
+    },
+    {
+      "name": "세무조정계산서",
+      "issuer": "세무대리인 또는 법인 세무팀",
+      "online_issuance": false,
+      "submit_to": "홈택스",
+      "note": "기업회계 ↔ 세무회계 차이 조정"
+    }
+  ],
+  "submission_channels": ["홈택스 전자신고", "관할세무서 방문 접수"],
+  "legal_source": "「법인세법」제55조 (세율) — 4단계 누진 (9% / 19% / 21% / 24%)"
+}

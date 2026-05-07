@@ -1,0 +1,45 @@
+{
+  "rule_id": "inheritance-tax",
+  "category": "상속세",
+  "title": "상속세 산출세액",
+  "formula_type": "A",
+  "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액 (5단계 누진)",
+  "params": {
+    "variable": "inheritanceBase",
+    "brackets": [
+      { "max": 100000000,    "rate": 0.10, "qd": 0 },
+      { "max": 500000000,    "rate": 0.20, "qd": 10000000 },
+      { "max": 1000000000,   "rate": 0.30, "qd": 60000000 },
+      { "max": 3000000000,   "rate": 0.40, "qd": 160000000 },
+      { "max": 0,            "rate": 0.50, "qd": 460000000 }
+    ]
+  },
+  "eligibility": [
+    { "variable": "inheritanceBase", "op": "gt", "value": 0, "message": "상속세 과세표준(상속세과세가액 − 상속공제)이 0원 초과여야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "상속세 과세표준신고 및 자진납부계산서",
+      "issuer": "국세청 (홈택스 작성)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "「상속세 및 증여세법 시행규칙」별지 제9호 서식. 상속개시일이 속하는 달 말일부터 6개월 이내 신고."
+    },
+    {
+      "name": "사망진단서 / 가족관계증명서",
+      "issuer": "병원 / 대법원 전자가족관계등록시스템",
+      "online_issuance": true,
+      "submit_to": "홈택스 또는 관할세무서",
+      "note": "상속개시 사실 및 상속인 확인"
+    },
+    {
+      "name": "상속재산 명세서 + 평가자료",
+      "issuer": "본인 작성 + 등기부·금융기관 잔액증명서 등",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "부동산 시가·금융재산·유가증권·동산 평가"
+    }
+  ],
+  "submission_channels": ["홈택스 전자신고", "관할세무서 방문 접수"],
+  "legal_source": "「상속세 및 증여세법」제26조 (세율) — 5단계 누진 (10% ~ 50%)"
+}

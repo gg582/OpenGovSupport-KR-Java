@@ -1,0 +1,47 @@
+{
+  "rule_id": "education-credit",
+  "category": "특별세액공제",
+  "title": "교육비 세액공제",
+  "formula_type": "B",
+  "formula_expression": "공제 = min(교육비, 단계별 한도) × 15% (미취학·초중고 1인 300만원 / 대학·본인 1인 900만원)",
+  "params": {
+    "variable": "educationExpense",
+    "rate": 0.15,
+    "capMap": {
+      "key": "stage",
+      "values": {
+        "미취학·초중고": 3000000,
+        "대학·대학원": 9000000,
+        "본인(직장인 재교육)": 9000000
+      }
+    }
+  },
+  "eligibility": [
+    { "variable": "educationExpense", "op": "gt", "value": 0, "message": "교육비 지출액이 있어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "교육비 납입증명서",
+      "issuer": "교육기관 (학교·어린이집·유치원)",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "연말정산 간소화 자료에 자동 수집"
+    },
+    {
+      "name": "재학증명서",
+      "issuer": "교육기관",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "기본공제대상 부양가족 교육비 신청 시"
+    },
+    {
+      "name": "장애인 특수교육비 영수증",
+      "issuer": "특수교육기관",
+      "online_issuance": false,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "장애인 특수교육비는 한도 제외 적용"
+    }
+  ],
+  "submission_channels": ["회사 연말정산 시스템", "홈택스 종합소득세 신고"],
+  "legal_source": "「소득세법」제59조의4 ② — 교육비 세액공제 (공제율 15%, 단계별 1인당 한도)"
+}
