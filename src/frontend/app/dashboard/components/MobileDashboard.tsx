@@ -42,6 +42,7 @@ import { TEMPLATES } from "../lib/templates";
 import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
 import OverlayPanel from "./OverlayPanel";
+import { clearReactFlowSelection } from "../lib/clearSelection";
 
 const nodeTypes = { stat: StatNode } as const;
 const edgeTypes = { ortho: OrthoEdge } as const;
@@ -291,8 +292,7 @@ function MobileBody() {
   const clearAllSelection = useCallback(() => {
     select(null);
     setTab(null);
-    rf.setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
-    rf.setEdges((eds) => eds.map((e) => (e.selected ? { ...e, selected: false } : e)));
+    clearReactFlowSelection(rf);
   }, [rf, select]);
 
   return (

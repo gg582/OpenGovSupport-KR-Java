@@ -21,6 +21,7 @@ import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
 import { useGraphStore } from "../lib/store";
 import { GRID } from "../lib/types";
+import { clearReactFlowSelection } from "../lib/clearSelection";
 
 const nodeTypes = { stat: StatNode } as const;
 const edgeTypes = { ortho: OrthoEdge } as const;
@@ -133,8 +134,7 @@ export default function Canvas({ mobile = false }: Props) {
   const interactionProps = mobile ? mobileProps : desktopProps;
   const clearAllSelection = useCallback(() => {
     select(null);
-    rf.setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
-    rf.setEdges((eds) => eds.map((e) => (e.selected ? { ...e, selected: false } : e)));
+    clearReactFlowSelection(rf);
   }, [rf, select]);
 
   return (
