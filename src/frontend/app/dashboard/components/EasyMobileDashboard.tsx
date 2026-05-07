@@ -13,15 +13,21 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   useReactFlow,
+  type Connection,
   type Edge,
   type Node,
   type NodeChange,
   type EdgeChange,
+  type OnConnect,
+  applyNodeChanges,
+  applyEdgeChanges,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
 import { useGraphStore } from "../lib/store";
 import { GRID, type GraphDoc } from "../lib/types";
+import { ALL_TEMPLATES, type NodeTemplate } from "../lib/registry";
+import { SUBGRAPH_TEMPLATES, type SubgraphTemplate } from "../lib/subgraphTemplates";
 import {
   listGraphs,
   loadGraph,
@@ -32,6 +38,8 @@ import {
 import { autoLayoutEasy } from "../lib/elk";
 import { TEMPLATES } from "../lib/templates";
 import EasyStatNode from "./EasyStatNode";
+import EasyConnectionLine from "./EasyConnectionLine";
+
 const nodeTypes = { easyStat: EasyStatNode } as const;
 const defaultEdgeOptions = { type: "smoothstep" } as const;
 
@@ -39,7 +47,7 @@ const DOUBLE_TAP_MS = 280;
 const DOUBLE_TAP_TOLERANCE_PX = 30;
 const DOUBLE_TAP_ZOOM_FACTOR = 1.6;
 
-type Tab = "info" | "exec" | "menu";
+type Tab = "info" | "exec" | "menu" | "add";
 
 export default function EasyMobileDashboard() {
   return (
@@ -55,11 +63,15 @@ function EasyMobileBody() {
   const setDoc = useGraphStore((s) => s.setDoc);
   const setNodes = useGraphStore((s) => s.setNodes);
   const select = useGraphStore((s) => s.select);
+  const moveNode = useGraphStore((s) => s.moveNode);
+  const connect = useGraphStore((s) => s.connect);
   const runAll = useGraphStore((s) => s.runAll);
   const execState = useGraphStore((s) => s.execState);
   const selectedId = useGraphStore((s) => s.selectedId);
   const logs = useGraphStore((s) => s.logs);
   const setYear = useGraphStore((s) => s.setYear);
+  const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
+  const addSubgraph = useGraphStore((s) => s.addSubgraph);
 
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -77,6 +89,21 @@ function EasyMobileBody() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const isValidConnection = useCallback(
+    (connection: Connection | Edge) => {
+      const sourceNode = doc.nodes.find((n) => n.id === connection.source);
+      const targetNode = doc.nodes.find((n) => n.id === connection.target);
+      if (!sourceNode || !targetNode) return false;
+      const invalidSources = ["legal", "output", "pdf"];
+      const invalidTargets = ["input", "manual", "legal"];
+      return (
+        !invalidSources.includes(sourceNode.data.kind) &&
+        !invalidTargets.includes(targetNode.data.kind)
+      );
+    },
+    [doc.nodes],
+  );
+
   const rfNodes: Node[] = useMemo(
     () =>
       doc.nodes.map((n) => ({
@@ -84,7 +111,6 @@ function EasyMobileBody() {
         type: "easyStat",
         position: n.position,
         data: n.data,
-        draggable: false,
         selectable: true,
       })),
     [doc.nodes],
@@ -92,36 +118,69 @@ function EasyMobileBody() {
 
   const rfEdges: Edge[] = useMemo(
     () =>
-      doc.edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        sourceHandle: e.sourceHandle ?? undefined,
-        targetHandle: e.targetHandle ?? undefined,
-        type: "ortho",
-        selectable: false,
-      })),
-    [doc.edges],
+      doc.edges.map((e) => {
+        const sNode = doc.nodes.find((n) => n.id === e.source);
+        const tNode = doc.nodes.find((n) => n.id === e.target);
+        const valid =
+          sNode &&
+          tNode &&
+          !["legal", "output", "pdf"].includes(sNode.data.kind) &&
+          !["input", "manual", "legal"].includes(tNode.data.kind);
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle ?? undefined,
+          targetHandle: e.targetHandle ?? undefined,
+          type: "smoothstep",
+          selectable: false,
+          style: {
+            stroke: valid ? "#10b981" : "#ef4444",
+            strokeWidth: 2.5,
+          },
+        };
+      }),
+    [doc.edges, doc.nodes],
   );
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      const updated = applyNodeChanges(changes, rfNodes);
       let lastSelected: string | null | undefined;
       changes.forEach((c) => {
+        if (c.type === "position" && c.position && !c.dragging) {
+          moveNode(c.id, c.position.x, c.position.y);
+        }
         if (c.type === "select") {
           if (c.selected) lastSelected = c.id;
         }
       });
       if (lastSelected !== undefined) select(lastSelected);
+      void updated;
     },
-    [select],
+    [rfNodes, select, moveNode],
   );
 
   const onEdgesChange = useCallback(
-    (_changes: EdgeChange[]) => {
-      // edge 수정 불가 — 아무것도 하지 않음
+    (changes: EdgeChange[]) => {
+      const updated = applyEdgeChanges(changes, rfEdges);
+      void updated;
     },
-    [],
+    [rfEdges],
+  );
+
+  const onConnect: OnConnect = useCallback(
+    (params: Connection) => {
+      if (!params.source || !params.target) return;
+      connect({
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+      });
+      queueMicrotask(() => runAll());
+    },
+    [connect, runAll],
   );
 
   // 더블탭 줌
@@ -202,10 +261,13 @@ function EasyMobileBody() {
           edges={rfEdges}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
+          connectionLineComponent={EasyConnectionLine}
           snapToGrid
           snapGrid={[GRID.size, GRID.size]}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          isValidConnection={isValidConnection}
           onNodeClick={onNodeClick}
           onPaneClick={() => {
             select(null);
@@ -220,8 +282,6 @@ function EasyMobileBody() {
           deleteKeyCode={null}
           selectionOnDrag={false}
           multiSelectionKeyCode={null}
-          nodesDraggable={false}
-          nodesConnectable={false}
           edgesFocusable={false}
         >
           <Background
@@ -240,6 +300,7 @@ function EasyMobileBody() {
           <div className="m-sheet-head easy-m-sheet-head">
             <span className="m-sheet-title">
               {tab === "info" && "노드 정보"}
+              {tab === "add" && "노드 추가"}
               {tab === "exec" && "실행 결과"}
               {tab === "menu" && "메뉴"}
             </span>
@@ -253,6 +314,20 @@ function EasyMobileBody() {
           </div>
           <div className="m-sheet-body">
             {tab === "info" && <EasyInfoSheet selectedId={selectedId} />}
+            {tab === "add" && (
+              <AddSheet
+                onAddTemplate={(tpl) => {
+                  addNodeFromTemplate(tpl, { x: 3 * GRID.size, y: 3 * GRID.size });
+                  queueMicrotask(() => runAll());
+                  setTab(null);
+                }}
+                onAddSubgraph={(tpl) => {
+                  addSubgraph(tpl);
+                  queueMicrotask(() => runAll());
+                  setTab(null);
+                }}
+              />
+            )}
             {tab === "exec" && <ExecSheet />}
             {tab === "menu" && (
               <EasyMenuSheet
@@ -331,6 +406,7 @@ function EasyMobileBody() {
 
       <nav className="m-tabs easy-m-tabs" aria-label="대시보드 탭">
         <TabButton label="ⓘ정보" id="info" cur={tab} onSelect={setTab} />
+        <TabButton label="＋추가" id="add" cur={tab} onSelect={setTab} />
         <TabButton label="▶실행" id="exec" cur={tab} onSelect={setTab} />
         <TabButton label="☰메뉴" id="menu" cur={tab} onSelect={setTab} />
       </nav>
@@ -631,6 +707,49 @@ function ExecSheet() {
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function AddSheet({
+  onAddTemplate,
+  onAddSubgraph,
+}: {
+  onAddTemplate: (t: NodeTemplate) => void;
+  onAddSubgraph: (t: SubgraphTemplate) => void;
+}) {
+  return (
+    <div className="m-add">
+      <div className="m-add-section">정형 패턴</div>
+      <div className="m-chip-grid">
+        {SUBGRAPH_TEMPLATES.map((t) => (
+          <button
+            key={t.id}
+            className="m-chip subgraph"
+            onClick={() => onAddSubgraph(t)}
+          >
+            <span className="m-chip-lbl">{t.name}</span>
+            <span className="m-chip-hint">{t.description}</span>
+          </button>
+        ))}
+      </div>
+      <div className="m-add-section">단일 노드</div>
+      <div className="m-chip-grid">
+        {ALL_TEMPLATES.map((t) => {
+          const k = t.kind === "formula" ? `formula:${t.rule}` : t.kind;
+          return (
+            <button
+              key={k}
+              className="m-chip"
+              data-kind={t.kind}
+              onClick={() => onAddTemplate(t)}
+            >
+              <span className="m-chip-lbl">{t.label}</span>
+              {t.hint && <span className="m-chip-hint">{t.hint}</span>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useGraphStore } from "../lib/store";
 import { TEMPLATES } from "../lib/templates";
-import { autoLayout } from "../lib/elk";
+import { ALL_TEMPLATES } from "../lib/registry";
+import { autoLayoutEasy } from "../lib/elk";
 import { listGraphs, loadGraph, saveGraph, deleteGraph, timeMachineYears } from "../lib/api";
 
 export default function EasyToolbar() {
@@ -14,6 +15,7 @@ export default function EasyToolbar() {
   const runAll = useGraphStore((s) => s.runAll);
   const execState = useGraphStore((s) => s.execState);
   const setYear = useGraphStore((s) => s.setYear);
+  const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
 
   const [saved, setSaved] = useState<Array<{ id: string; name: string; kind: string; updatedAt: string }>>([]);
   const [savingHint, setSavingHint] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export default function EasyToolbar() {
   }
 
   async function onAutoLayout() {
-    const laid = await autoLayout(doc.nodes, doc.edges);
+    const laid = await autoLayoutEasy(doc.nodes, doc.edges);
     setNodes(() => laid);
   }
 
@@ -122,6 +124,31 @@ export default function EasyToolbar() {
             [{t.kind}] {t.name}
           </option>
         ))}
+      </select>
+
+      <select
+        className="tpl"
+        value=""
+        onChange={(e) => {
+          const tpl = ALL_TEMPLATES.find(
+            (t) => (t.kind === "formula" ? `formula:${t.rule}` : t.kind) === e.target.value,
+          );
+          if (tpl) {
+            addNodeFromTemplate(tpl, { x: 300, y: 200 });
+            queueMicrotask(() => runAll());
+          }
+          e.currentTarget.value = "";
+        }}
+      >
+        <option value="">＋ 노드 추가</option>
+        {ALL_TEMPLATES.map((t) => {
+          const k = t.kind === "formula" ? `formula:${t.rule}` : t.kind;
+          return (
+            <option key={k} value={k}>
+              {t.label}
+            </option>
+          );
+        })}
       </select>
 
       <select

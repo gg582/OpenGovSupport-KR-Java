@@ -12,6 +12,7 @@ import {
   timeMachineYears,
 } from "../lib/api";
 import type { DashMode } from "../lib/types";
+import { downloadScript, type ShellType } from "../lib/exportScript";
 
 const MODE_LABELS: Record<DashMode, string> = {
   normal: "정상",
@@ -203,6 +204,23 @@ export default function Toolbar() {
           </button>
         ),
       )}
+
+      <div className="sep" />
+      <select
+        className="tpl"
+        value=""
+        onChange={(e) => {
+          const v = e.target.value as ShellType;
+          if (v) downloadScript(doc, v);
+          e.currentTarget.value = "";
+        }}
+        title="스크립트 납품"
+      >
+        <option value="">▼ 스크립트</option>
+        <option value="bash">Bash (.sh)</option>
+        <option value="zsh">Zsh (.zsh)</option>
+        <option value="powershell">PowerShell (.ps1)</option>
+      </select>
 
       <div className="grow" />
       <span className={`pill ${execState === "ok" ? "ok" : execState === "error" ? "error" : execState === "running" ? "run" : ""}`}>
