@@ -1,6 +1,14 @@
 "use client";
 
-import { getSmoothStepPath, type ConnectionLineComponentProps } from "reactflow";
+import { getSmoothStepPath } from "@reactflow/core";
+
+type Props = {
+  connectionStatus: "valid" | "invalid" | null;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+};
 
 export default function EasyConnectionLine({
   connectionStatus,
@@ -8,7 +16,7 @@ export default function EasyConnectionLine({
   fromY,
   toX,
   toY,
-}: ConnectionLineComponentProps) {
+}: Props) {
   const [edgePath] = getSmoothStepPath({
     sourceX: fromX,
     sourceY: fromY,
@@ -20,12 +28,7 @@ export default function EasyConnectionLine({
 
   return (
     <g>
-      <path
-        fill="none"
-        stroke={color}
-        strokeWidth={2.5}
-        d={edgePath}
-      />
+      <path fill="none" stroke={color} strokeWidth={2.5} d={edgePath} />
       <circle cx={toX} cy={toY} r={4} fill={color} />
     </g>
   );
