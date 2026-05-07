@@ -203,7 +203,7 @@ function EasyMobileBody() {
     (_: unknown, node: Node) => {
       setNodes((nodes) =>
         nodes.map((n) =>
-          n.id === node.id ? { ...n, position: { x: node.position.x, y: node.position.y } } : n,
+          n.id === node.id ? { ...n, position: node.position } : n,
         ),
       );
     },
