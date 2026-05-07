@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
+  SelectionMode,
   type Node,
   type Edge,
   type NodeChange,
@@ -28,6 +29,7 @@ export default function EasyCanvas() {
   const doc = useGraphStore((s) => s.doc);
   const setNodes = useGraphStore((s) => s.setNodes);
   const select = useGraphStore((s) => s.select);
+  const selectedId = useGraphStore((s) => s.selectedId);
 
   const connect = useGraphStore((s) => s.connect);
   const runAll = useGraphStore((s) => s.runAll);
@@ -64,8 +66,10 @@ export default function EasyCanvas() {
         position: n.position,
         data: n.data,
         selectable: true,
+        draggable: true,
+        selected: n.id === selectedId,
       })),
-    [doc.nodes],
+    [doc.nodes, selectedId],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -98,7 +102,7 @@ export default function EasyCanvas() {
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       const updated = applyNodeChanges(changes, rfNodes);
-      let lastSelected: string | null | undefined;
+      let lastSelected: string | null = null;
 
       // 드래그 종료 및 키보드 이동 시에만 store에 위치 반영 (snap 없이)
       const positionChanges = changes.filter(
@@ -114,12 +118,14 @@ export default function EasyCanvas() {
         );
       }
 
+      let hasSelectChange = false;
       changes.forEach((c) => {
         if (c.type === "select") {
+          hasSelectChange = true;
           if (c.selected) lastSelected = c.id;
         }
       });
-      if (lastSelected !== undefined) select(lastSelected);
+      if (hasSelectChange) select(lastSelected);
       void updated;
     },
     [rfNodes, setNodes, select],
@@ -169,8 +175,10 @@ export default function EasyCanvas() {
         maxZoom={1.2}
         edgesFocusable={false}
         deleteKeyCode={null}
-        selectionOnDrag={false}
+        selectionOnDrag={true}
+        selectionMode={SelectionMode.Partial}
         panOnDrag={[1, 2]}
+        multiSelectionKeyCode={["Control", "Meta"]}
         zoomOnDoubleClick={false}
       >
         <Background
