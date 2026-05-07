@@ -200,7 +200,7 @@ export const FORMULA_RULES: Record<
       p("overseasDays", "해외체류"),
     ],
     outputs: [p("qualified", "자격여부")],
-    legalBasis: "primitive 6 + 7 + 해외체류 임계",
+    legalBasis: "복지 자격 + 해외체류 기준",
     inputMap: {
       salary: "salary",
       householdSize: "householdSize",
@@ -226,7 +226,7 @@ export const FORMULA_RULES: Record<
     },
   },
   "vat-delta": {
-    label: "부가가치세 차분 (primitive 5)",
+    label: "부가가치세 차분",
     endpoint: "/api/statutory/vat-delta",
     inputs: [
       p("salesSupplyAmount", "매출"),
@@ -240,7 +240,7 @@ export const FORMULA_RULES: Record<
     },
   },
   "deduction-ladder/earned-income": {
-    label: "근로소득공제 사다리 (primitive 2)",
+    label: "근로소득공제 사다리",
     endpoint: "/api/statutory/deduction-ladder/earned-income",
     inputs: [p("salary", "총급여")],
     outputs: [p("deduction", "공제액")],
