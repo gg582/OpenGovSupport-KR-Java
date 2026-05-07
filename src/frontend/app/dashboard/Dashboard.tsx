@@ -9,6 +9,7 @@ import ExecPanel from "./components/ExecPanel";
 import LogPanel from "./components/LogPanel";
 import OverlayPanel from "./components/OverlayPanel";
 import MobileDashboard from "./components/MobileDashboard";
+import EasyMobileDashboard from "./components/EasyMobileDashboard";
 import EasyCanvas from "./components/EasyCanvas";
 import EasyToolbar from "./components/EasyToolbar";
 import EasyExecPanel from "./components/EasyExecPanel";
@@ -39,7 +40,7 @@ export default function Dashboard() {
   }, []);
 
   if (isMobile) {
-    return <MobileDashboard />;
+    return uiMode === "easy" ? <EasyMobileDashboard /> : <MobileDashboard />;
   }
 
   if (uiMode === "easy") {

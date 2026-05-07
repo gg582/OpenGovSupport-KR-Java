@@ -16,7 +16,10 @@ export default function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  
+  const uiMode = useGraphStore((s) => s.uiMode);
+  const setUIMode = useGraphStore((s) => s.setUIMode);
+  const isDashboard = pathname === "/dashboard";
+
   // Initialize section based on URL, but allow it to persist across feature navigations
   const [currentSection, setCurrentSection] = useState<"welfare" | "tax">(sectionOf(pathname));
 
@@ -93,6 +96,25 @@ export default function AppShell({
             <Link href="/runtime" className="hover:text-white">
               런타임 상태
             </Link>
+            {isDashboard && (
+              <>
+                <span className="opacity-30">|</span>
+                <button
+                  type="button"
+                  onClick={() => setUIMode("easy")}
+                  className={uiMode === "easy" ? "text-white border-b-2 border-white pb-3 -mb-3" : "hover:text-white"}
+                >
+                  쉬운 모드
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUIMode("expert")}
+                  className={uiMode === "expert" ? "text-white border-b-2 border-white pb-3 -mb-3" : "hover:text-white"}
+                >
+                  전문가 모드
+                </button>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -166,6 +188,33 @@ export default function AppShell({
                   </li>
                 </ul>
               </nav>
+              {pathname === "/dashboard" && (
+                <nav className="panel" aria-label="UI 모드 전환">
+                  <div className="panel-header">모드</div>
+                  <ul className="py-1">
+                    <li>
+                      <button
+                        type="button"
+                        className="lnb-link w-full text-left"
+                        onClick={() => setUIMode("easy")}
+                        aria-current={uiMode === "easy" ? "page" : undefined}
+                      >
+                        <span>{uiMode === "easy" ? "▣ 쉬운 모드" : "쉬운 모드"}</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        className="lnb-link w-full text-left"
+                        onClick={() => setUIMode("expert")}
+                        aria-current={uiMode === "expert" ? "page" : undefined}
+                      >
+                        <span>{uiMode === "expert" ? "▣ 전문가 모드" : "전문가 모드"}</span>
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              )}
             </div>
           </div>
         </div>

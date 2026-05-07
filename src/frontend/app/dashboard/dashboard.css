@@ -1548,3 +1548,198 @@
 .easy-canvas .ortho-edge-arrow {
   fill: #94a3b8;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   EASY MOBILE — 모바일 쉬운 모드 전용 스타일
+   ════════════════════════════════════════════════════════════════════ */
+
+.easy-mobile {
+  background: #f8fafc;
+  color: #334155;
+  font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+/* Header */
+.easy-mobile .easy-m-head {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+.easy-mobile .easy-m-title {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-family: inherit;
+  font-weight: 600;
+}
+.easy-mobile .easy-m-run {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+.easy-mobile .easy-m-run:active {
+  background: #115e59;
+}
+
+/* Canvas */
+.easy-mobile .easy-m-canvas {
+  background-color: #f1f5f9;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+}
+
+/* Bottom sheet */
+.easy-mobile .easy-m-sheet {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+.easy-mobile .easy-m-sheet-head {
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Tabs */
+.easy-mobile .easy-m-tabs {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+.easy-mobile .easy-m-tab {
+  color: #64748b;
+  font-family: inherit;
+  border-right: 1px solid #e2e8f0;
+}
+.easy-mobile .easy-m-tab.active {
+  background: #f8fafc;
+  color: #0f766e;
+  border-top: 2px solid #0f766e;
+}
+.easy-mobile .easy-m-tab:active {
+  background: #f1f5f9;
+}
+
+/* Toast */
+.easy-mobile .easy-m-toast {
+  background: #ffffff;
+  border: 1px solid #0f766e;
+  color: #0f766e;
+}
+
+/* Zoom buttons */
+.easy-mobile .easy-m-zoom-btn {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  backdrop-filter: blur(6px);
+}
+.easy-mobile .easy-m-zoom-btn:active {
+  background: #f1f5f9;
+  color: #0f766e;
+}
+
+/* Info sheet */
+.easy-mobile .easy-m-empty {
+  color: #94a3b8;
+}
+.easy-mobile .easy-m-info {
+  row-gap: 10px;
+}
+.easy-mobile .easy-m-info-row {
+  padding: 6px 0;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 14px;
+}
+.easy-mobile .easy-m-info-key {
+  color: #64748b;
+  font-family: inherit;
+}
+.easy-mobile .easy-m-info-val {
+  color: #0f172a;
+  font-weight: 600;
+}
+.easy-mobile .easy-m-info-basis {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+/* Menu sheet */
+.easy-mobile .easy-m-menu-label {
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  font-family: inherit;
+}
+.easy-mobile .easy-m-menu-btn {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #334155;
+  font-family: inherit;
+  border-radius: 6px;
+}
+.easy-mobile .easy-m-menu-btn-accent {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+.easy-mobile .easy-m-menu-btn-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.easy-mobile .easy-m-menu-select {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+  font-family: inherit;
+  border-radius: 6px;
+}
+.easy-mobile .easy-m-year {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #334155;
+  font-family: inherit;
+  border-radius: 6px;
+}
+.easy-mobile .easy-m-year.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+
+/* Exec sheet */
+.easy-mobile .easy-m-exec-btn {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+  font-family: inherit;
+  border-radius: 8px;
+}
+
+/* Hint */
+.easy-mobile .easy-m-hint {
+  background: #ffffff;
+  border: 1px solid #0f766e;
+  color: #334155;
+}
+.easy-mobile .easy-m-hint b {
+  color: #0f766e;
+}
+.easy-mobile .easy-m-hint-x {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+  font-family: inherit;
+}
+
+/* Mobile easy stat-node tweaks */
+.easy-mobile .easy-stat-node {
+  width: 260px;
+  font-size: 13px;
+}
+.easy-mobile .easy-stat-node .easy-field input {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.easy-mobile .easy-stat-node .easy-result-value {
+  font-size: 16px;
+}
