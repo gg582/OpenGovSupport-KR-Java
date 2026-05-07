@@ -220,11 +220,18 @@ jobs:
             export CSC_IDENTITY_AUTO_DISCOVERY=false
             echo "::notice::MAC_CSC_LINK 미설정 — unsigned 빌드 진행 (배포본은 Gatekeeper 경고 가능)."
           fi
-          npm run package:mac
+          # DMG 빌드는 간헐적으로 hdiutil 오류(mount 실패)나 인코딩 문제로 실패할 수 있음.
+          # 실패 시 ZIP 빌드로 fallback 하여 최소한의 실행 파일은 제공하도록 함.
+          npm run package:mac || {
+            echo "::warning::DMG packaging failed. Falling back to ZIP-only build."
+            npx electron-builder --mac zip --publish never
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: tyutya-${{ matrix.tag }}-${{ matrix.runner }}
-          path: desktop/out/*.dmg
+          path: |
+            desktop/out/*.dmg
+            desktop/out/*.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -321,8 +328,8 @@ jobs:
             echo "### 다운로드"
             echo ""
             echo "- Windows: \`Tyutya-Setup-*.exe\` — 더블클릭 → 설치"
-            echo "- macOS (Intel): \`Tyutya-*-x64.dmg\` — DMG 열기 → Applications 드롭"
-            echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` — 동일"
+            echo "- macOS (Intel): \`Tyutya-*-x64.dmg\` (또는 \`.zip\`) — DMG 열기 → Applications 드롭"
+            echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` (또는 \`.zip\`) — 동일"
             echo "- Linux: \`Tyutya-*.AppImage\` — 더블클릭 → 자동 설치 마법사 (chmod 불필요)"
             echo ""
             echo "### 면책"
@@ -341,5 +348,6 @@ jobs:
           files: |
             artifacts/**/*.exe
             artifacts/**/*.dmg
+            artifacts/**/*.zip
             artifacts/**/*.AppImage
           fail_on_unmatched_files: false

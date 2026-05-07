@@ -82,7 +82,8 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
       ],
       "icon": "build/icon.icns",
       "category": "public.app-category.business",
@@ -93,7 +94,7 @@
       "artifactName": "Tyutya-${version}-${arch}.${ext}"
     },
     "dmg": {
-      "title": "뜌땨 생활행정 ${version}",
+      "title": "Tyutya ${version}",
       "icon": "build/icon.icns",
       "iconSize": 96,
       "contents": [
