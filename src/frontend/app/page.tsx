@@ -20,10 +20,8 @@ export default async function HomePage() {
       <section className="panel">
         <div className="panel-header">안내</div>
         <div className="px-4 py-4 text-sm text-navy/85 leading-relaxed">
-          법령에 명시된 산식만 코드로 평가합니다. 사회복지(중위소득·기초연금·재산변동 등)와
-          개인세무(연말정산·종합소득세·법인세·상속세·증여세·부가가치세·세액공제) 두 섹션으로
-          분리되어 있으며, 각 산식의 근거 법령·자격 판정·필요서류·제출 채널을 함께 제공합니다.
-          모든 내부 산술은 임의정밀(BigDecimal) 으로 수행되어 부동소수점 오차가 없습니다.
+          법령에 명시된 산식만 코드로 평가합니다. 개인세무(연말정산·종합소득세·법인세·상속세·증여세·부가가치세·세액공제)와
+          사회복지(중위소득·기초연금·재산변동 등) 두 섹션으로 분리되어 있습니다.
         </div>
       </section>
 
@@ -52,18 +50,18 @@ export default async function HomePage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <SectionCard
-          title="사회복지"
-          href="/welfare"
-          count={welfare.length}
-          summary="국민기초생활보장법·기초연금법 등 사회복지 행정에서 자주 쓰이는 산식 — 사적이전소득, 이자소득 공제, 재산변동, 상속분, 긴급공제, 해외체류 검토 등."
-          legal="「국민기초생활보장법」, 「기초연금법」, 「민법」 제1009조 외"
-        />
-        <SectionCard
           title="개인세무"
           href="/tax"
           count={tax.length}
           summary="법령 정규화 산식 — 종합소득세·근로소득공제·연말정산 합성, 의료비·월세·교육비·연금·기부금·자녀 세액공제, 근로장려금, 단순경비율, 법인세·상속세·증여세·부가가치세 산출."
           legal="「소득세법」「법인세법」「상속세 및 증여세법」「부가가치세법」「조세특례제한법」 등"
+        />
+        <SectionCard
+          title="사회복지"
+          href="/welfare"
+          count={welfare.length}
+          summary="국민기초생활보장법·기초연금법 등 사회복지 행정에서 자주 쓰이는 산식 — 사적이전소득, 이자소득 공제, 재산변동, 상속분, 긴급공제, 해외체류 검토 등."
+          legal="「국민기초생활보장법」, 「기초연금법」, 「민법」 제1009조 외"
         />
       </div>
     </div>

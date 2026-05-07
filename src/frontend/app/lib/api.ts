@@ -56,11 +56,11 @@ export async function callFeature(id: string, body: Record<string, unknown>): Pr
 }
 
 export const SECTIONS: { key: "welfare" | "tax"; label: string; href: string }[] = [
-  { key: "welfare", label: "사회복지", href: "/welfare" },
   { key: "tax",     label: "개인세무", href: "/tax" },
+  { key: "welfare", label: "사회복지", href: "/welfare" },
 ];
 
 export function sectionOf(pathname: string): "welfare" | "tax" {
-  if (pathname.startsWith("/tax")) return "tax";
-  return "welfare";
+  if (pathname.startsWith("/welfare") || pathname.includes("/welfare/")) return "welfare";
+  return "tax";
 }

@@ -15,10 +15,16 @@ export default function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const currentSection = sectionOf(pathname);
+  
+  // Initialize section based on URL, but allow it to persist across feature navigations
+  const [currentSection, setCurrentSection] = useState<"welfare" | "tax">(sectionOf(pathname));
 
   useEffect(() => {
     setOpen(false);
+    // Only update section state if we explicitly navigated to a section root
+    if (pathname === "/tax") setCurrentSection("tax");
+    else if (pathname === "/welfare") setCurrentSection("welfare");
+    else if (pathname === "/") setCurrentSection("tax"); // default
   }, [pathname]);
 
   useEffect(() => {
@@ -67,6 +73,7 @@ export default function AppShell({
                 <Link
                   key={s.key}
                   href={s.href}
+                  onClick={() => setCurrentSection(s.key)}
                   className={
                     active
                       ? "text-white border-b-2 border-white pb-3 -mb-3"
@@ -121,6 +128,7 @@ export default function AppShell({
                     <li key={s.key}>
                       <Link
                         href={s.href}
+                        onClick={() => setCurrentSection(s.key)}
                         className="lnb-link"
                         aria-current={currentSection === s.key ? "page" : undefined}
                       >
