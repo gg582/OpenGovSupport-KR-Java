@@ -16,7 +16,7 @@ public final class TaxStandards {
     private TaxStandards() {}
 
     /** 세무 룰이 보유한 연도 (최신연도가 앞). */
-    public static final List<Integer> SUPPORTED_YEARS = List.of(2026, 2025);
+    public static final List<Integer> SUPPORTED_YEARS = List.of(2026, 2025, 2024, 2023);
 
     public static int currentYear() {
         return SUPPORTED_YEARS.get(0);
@@ -26,8 +26,14 @@ public final class TaxStandards {
      * 「소득세법」제55조 종합소득세 기본세율 (8단계 누진).
      * 정규화 형태: {@code tax = x * rate − quickDeduction}.
      * 단위: 원 / 비율은 소수.
+     *
+     * <p>연도별 적용:
+     * <ul>
+     *   <li>2021~2022년 귀속: 1,200만/4,600만/8,800만 구간 (누진공제 108만/522만/1,490만...)</li>
+     *   <li>2023년 귀속 이후~: 1,400만/5,000만/8,800만 구간 (누진공제 126만/576만/1,544만...)</li>
+     * </ul>
      */
-    public static final List<Map<String, Object>> COMPREHENSIVE_INCOME_BRACKETS_2026 = List.of(
+    public static final List<Map<String, Object>> COMPREHENSIVE_INCOME_BRACKETS_2023_2026 = List.of(
             Map.of("max", 14_000_000L,    "rate", 0.06, "qd", 0L),
             Map.of("max", 50_000_000L,    "rate", 0.15, "qd", 1_260_000L),
             Map.of("max", 88_000_000L,    "rate", 0.24, "qd", 5_760_000L),
@@ -36,6 +42,18 @@ public final class TaxStandards {
             Map.of("max", 500_000_000L,   "rate", 0.40, "qd", 25_940_000L),
             Map.of("max", 1_000_000_000L, "rate", 0.42, "qd", 35_940_000L),
             Map.of("max", 0L,             "rate", 0.45, "qd", 65_940_000L) // 10억 초과 (max=0 = 무한구간)
+    );
+
+    /** 2021~2022년 귀속 종합소득세 세율표 (구간 하한이 낮았던 시기). */
+    public static final List<Map<String, Object>> COMPREHENSIVE_INCOME_BRACKETS_2021_2022 = List.of(
+            Map.of("max", 12_000_000L,    "rate", 0.06, "qd", 0L),
+            Map.of("max", 46_000_000L,    "rate", 0.15, "qd", 1_080_000L),
+            Map.of("max", 88_000_000L,    "rate", 0.24, "qd", 5_220_000L),
+            Map.of("max", 150_000_000L,   "rate", 0.35, "qd", 14_900_000L),
+            Map.of("max", 300_000_000L,   "rate", 0.38, "qd", 19_400_000L),
+            Map.of("max", 500_000_000L,   "rate", 0.40, "qd", 25_400_000L),
+            Map.of("max", 1_000_000_000L, "rate", 0.42, "qd", 35_400_000L),
+            Map.of("max", 0L,             "rate", 0.45, "qd", 65_400_000L)
     );
 
     /** 산술 정밀도. */
@@ -114,13 +132,87 @@ public final class TaxStandards {
     public static final double DONATION_CREDIT_RATE_HIGH = 0.30;
     public static final double DONATION_THRESHOLD = 10_000_000;
 
-    /** 「소득세법」제59조의2 자녀 세액공제 단가. */
-    public static final long CHILD_CREDIT_FIRST = 250_000;
-    public static final long CHILD_CREDIT_SECOND = 250_000;
-    public static final long CHILD_CREDIT_THIRD_PLUS = 400_000;
+    /** 「소득세법」제59조의2 자녀 세액공제 단가 (2025년~). */
+    public static final long CHILD_CREDIT_FIRST_2025 = 250_000;
+    public static final long CHILD_CREDIT_SECOND_2025 = 250_000;
+    public static final long CHILD_CREDIT_THIRD_PLUS_2025 = 400_000;
+
+    /** 2024년 이전 자녀 세액공제 단가. */
+    public static final long CHILD_CREDIT_FIRST_2024 = 150_000;
+    public static final long CHILD_CREDIT_SECOND_2024 = 150_000;
+    public static final long CHILD_CREDIT_THIRD_PLUS_2024 = 300_000;
+
+    /** 연도별 자녀 세액공제 단가 선택. */
+    public static long childCreditFirst(int year) {
+        return year >= 2025 ? CHILD_CREDIT_FIRST_2025 : CHILD_CREDIT_FIRST_2024;
+    }
+    public static long childCreditSecond(int year) {
+        return year >= 2025 ? CHILD_CREDIT_SECOND_2025 : CHILD_CREDIT_SECOND_2024;
+    }
+    public static long childCreditThirdPlus(int year) {
+        return year >= 2025 ? CHILD_CREDIT_THIRD_PLUS_2025 : CHILD_CREDIT_THIRD_PLUS_2024;
+    }
 
     /** 「소득세법」제59조의4 ⑨ 표준세액공제 (특별세액공제 미신청 시). */
     public static final long STANDARD_TAX_CREDIT = 130_000;
+
+    /** 「법인세법」제55조 법인세 세율표 (2026년 이후). */
+    public static final List<Map<String, Object>> CORPORATE_TAX_BRACKETS_2026 = List.of(
+            Map.of("max", 200_000_000L,      "rate", 0.10, "qd", 0L),
+            Map.of("max", 20_000_000_000L,   "rate", 0.20, "qd", 20_000_000L),
+            Map.of("max", 300_000_000_000L,  "rate", 0.22, "qd", 420_000_000L),
+            Map.of("max", 0L,                "rate", 0.25, "qd", 9_420_000_000L)
+    );
+
+    /** 「법인세법」제55조 법인세 세율표 (2023년~2025년). */
+    public static final List<Map<String, Object>> CORPORATE_TAX_BRACKETS_2023_2025 = List.of(
+            Map.of("max", 200_000_000L,      "rate", 0.09, "qd", 0L),
+            Map.of("max", 20_000_000_000L,   "rate", 0.19, "qd", 20_000_000L),
+            Map.of("max", 300_000_000_000L,  "rate", 0.21, "qd", 420_000_000L),
+            Map.of("max", 0L,                "rate", 0.24, "qd", 9_420_000_000L)
+    );
+
+    /** 「법인세법」제55조 법인세 세율표 (2022년 이전). */
+    public static final List<Map<String, Object>> CORPORATE_TAX_BRACKETS_2022_AND_BEFORE = List.of(
+            Map.of("max", 200_000_000L,      "rate", 0.10, "qd", 0L),
+            Map.of("max", 20_000_000_000L,   "rate", 0.20, "qd", 20_000_000L),
+            Map.of("max", 300_000_000_000L,  "rate", 0.22, "qd", 420_000_000L),
+            Map.of("max", 0L,                "rate", 0.25, "qd", 9_420_000_000L)
+    );
+
+    /** 「상속세 및 증여세법」제26조 상속세 세율표 (2026년 이후). */
+    public static final List<Map<String, Object>> INHERITANCE_TAX_BRACKETS_2026 = List.of(
+            Map.of("max", 200_000_000L,    "rate", 0.10, "qd", 0L),
+            Map.of("max", 500_000_000L,    "rate", 0.20, "qd", 20_000_000L),
+            Map.of("max", 1_000_000_000L,  "rate", 0.30, "qd", 70_000_000L),
+            Map.of("max", 0L,              "rate", 0.40, "qd", 170_000_000L)
+    );
+
+    /** 「상속세 및 증여세법」제26조 상속세 세율표 (2023년~2025년). */
+    public static final List<Map<String, Object>> INHERITANCE_TAX_BRACKETS_2023_2025 = List.of(
+            Map.of("max", 100_000_000L,    "rate", 0.10, "qd", 0L),
+            Map.of("max", 500_000_000L,    "rate", 0.20, "qd", 10_000_000L),
+            Map.of("max", 1_000_000_000L,  "rate", 0.30, "qd", 60_000_000L),
+            Map.of("max", 3_000_000_000L,  "rate", 0.40, "qd", 160_000_000L),
+            Map.of("max", 0L,              "rate", 0.50, "qd", 460_000_000L)
+    );
+
+    /** 「상속세 및 증여세법」제56조 증여세 세율표 (2026년 이후) — 제26조 준용. */
+    public static final List<Map<String, Object>> GIFT_TAX_BRACKETS_2026 = List.of(
+            Map.of("max", 200_000_000L,    "rate", 0.10, "qd", 0L),
+            Map.of("max", 500_000_000L,    "rate", 0.20, "qd", 20_000_000L),
+            Map.of("max", 1_000_000_000L,  "rate", 0.30, "qd", 70_000_000L),
+            Map.of("max", 0L,              "rate", 0.40, "qd", 170_000_000L)
+    );
+
+    /** 「상속세 및 증여세법」제56조 증여세 세율표 (2023년~2025년). */
+    public static final List<Map<String, Object>> GIFT_TAX_BRACKETS_2023_2025 = List.of(
+            Map.of("max", 100_000_000L,    "rate", 0.10, "qd", 0L),
+            Map.of("max", 500_000_000L,    "rate", 0.20, "qd", 10_000_000L),
+            Map.of("max", 1_000_000_000L,  "rate", 0.30, "qd", 60_000_000L),
+            Map.of("max", 3_000_000_000L,  "rate", 0.40, "qd", 160_000_000L),
+            Map.of("max", 0L,              "rate", 0.50, "qd", 460_000_000L)
+    );
 
     /** 「조세특례제한법」시행령 제143조 단순경비율 (대표 업종). */
     public static final Map<String, Double> SIMPLE_EXPENSE_RATE = Map.of(

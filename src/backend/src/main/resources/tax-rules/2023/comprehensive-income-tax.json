@@ -1,0 +1,53 @@
+{
+  "rule_id": "comprehensive-income-tax",
+  "category": "종합소득세",
+  "title": "종합소득세 산출세액",
+  "formula_type": "A",
+  "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액",
+  "params": {
+    "variable": "taxableIncome",
+    "brackets": [
+      { "max": 14000000,    "rate": 0.06, "qd": 0 },
+      { "max": 50000000,    "rate": 0.15, "qd": 1260000 },
+      { "max": 88000000,    "rate": 0.24, "qd": 5760000 },
+      { "max": 150000000,   "rate": 0.35, "qd": 15440000 },
+      { "max": 300000000,   "rate": 0.38, "qd": 19940000 },
+      { "max": 500000000,   "rate": 0.40, "qd": 25940000 },
+      { "max": 1000000000,  "rate": 0.42, "qd": 35940000 },
+      { "max": 0,           "rate": 0.45, "qd": 65940000 }
+    ]
+  },
+  "eligibility": [
+    {
+      "variable": "taxableIncome",
+      "op": "gt",
+      "value": 0,
+      "message": "과세표준이 0원 초과여야 합니다."
+    }
+  ],
+  "required_documents": [
+    {
+      "name": "종합소득세 신고서",
+      "issuer": "국세청 (홈택스 작성)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "「소득세법 시행규칙」별지 제40호 서식"
+    },
+    {
+      "name": "소득금액증명원",
+      "issuer": "국세청",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "Government24·홈택스에서 즉시 발급"
+    },
+    {
+      "name": "원천징수영수증·지급명세서",
+      "issuer": "지급자(회사·금융기관 등)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "근로·사업·이자·배당·기타소득 합산용"
+    }
+  ],
+  "submission_channels": ["홈택스 전자신고", "관할세무서 방문 접수", "우편 신고"],
+  "legal_source": "「소득세법」제55조 (세율) — 종합소득 과세표준 8단계 누진세율"
+}
