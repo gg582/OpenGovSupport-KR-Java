@@ -188,7 +188,7 @@ async function boot(): Promise<void> {
 
   // 3) 실제 UI 로 전환.
   await stage("launching-dashboard");
-  await mainWindow.loadURL(`http://127.0.0.1:${frontendPort}/dashboard`);
+  await mainWindow.loadURL(`http://localhost:${frontendPort}/dashboard`);
 
   // 자동 업데이트 — 패키징된 모드에서만 시도.
   if (!isDev()) {

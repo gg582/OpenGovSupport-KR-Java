@@ -105,7 +105,7 @@ const FALLBACK_MODULES = [
   "jdk.zipfs",
 ].join(",");
 
-const modules = modulesCsv && modulesCsv.length > 4
+const modules = (modulesCsv && modulesCsv.length > 4 && modulesCsv !== "java.base")
   ? modulesCsv
   : FALLBACK_MODULES;
 

@@ -15,7 +15,7 @@
     "prepare:icons": "node scripts/prepare-icons.mjs",
     "prepare:resources": "node scripts/prepare-resources.mjs",
     "prepare:jre": "node scripts/build-jre.mjs",
-    "build": "npm run tsc && npm run prepare:icons && npm run prepare:resources",
+    "build": "npm run tsc && npm run prepare:icons && npm run prepare:jre && npm run prepare:resources",
     "package": "npm run build && electron-builder --publish never",
     "package:win": "npm run build && electron-builder --win --publish never",
     "package:mac": "npm run build && electron-builder --mac --publish never",

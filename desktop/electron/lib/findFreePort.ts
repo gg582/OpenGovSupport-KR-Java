@@ -9,7 +9,7 @@ export function findFreePort(): Promise<number> {
     const srv = net.createServer();
     srv.unref();
     srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
+    srv.listen(0, "localhost", () => {
       const addr = srv.address();
       if (addr && typeof addr === "object") {
         const port = addr.port;
