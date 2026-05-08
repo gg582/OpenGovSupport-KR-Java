@@ -5,6 +5,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   SelectionMode,
+  useReactFlow,
   type Node,
   type Edge,
   type NodeChange,
@@ -26,6 +27,7 @@ const nodeTypes = { easyStat: EasyStatNode } as const;
 const defaultEdgeOptions = { type: "smoothstep" } as const;
 
 export default function EasyCanvas() {
+  const rf = useReactFlow();
   const doc = useGraphStore((s) => s.doc);
   const setNodes = useGraphStore((s) => s.setNodes);
   const select = useGraphStore((s) => s.select);
@@ -33,6 +35,13 @@ export default function EasyCanvas() {
 
   const connect = useGraphStore((s) => s.connect);
   const runAll = useGraphStore((s) => s.runAll);
+  const fitViewTrigger = useGraphStore((s) => s.fitViewTrigger);
+
+  useEffect(() => {
+    if (fitViewTrigger > 0) {
+      rf.fitView({ padding: 0.18, duration: 240 });
+    }
+  }, [fitViewTrigger, rf]);
 
   // 쉬운 모드 진입 시 자동 레이아웃 1회 적용 (n8n 스타일 프리폼)
   useEffect(() => {

@@ -1741,3 +1741,307 @@
 .easy-mobile .easy-stat-node .easy-result-value {
   font-size: 16px;
 }
+
+/* ── 모바일 헤더 도움말 버튼 ─────────────────────────────────────── */
+.dash-mobile .m-help-btn {
+  background: #161b24;
+  border: 1px solid #2a313e;
+  color: #97a3b9;
+  padding: 2px 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.dash-mobile .m-help-btn:active { background: #283044; }
+
+/* ── 모바일 도움말 시트 ─────────────────────────────────────────── */
+.dash-mobile .m-help-sheet {
+  display: grid;
+  row-gap: 14px;
+}
+.dash-mobile .m-help-section {
+  display: grid;
+  row-gap: 6px;
+}
+.dash-mobile .m-help-list {
+  display: grid;
+  row-gap: 4px;
+  font-size: 12px;
+  color: #d8dde6;
+  line-height: 1.6;
+}
+.dash-mobile .m-help-list p { margin: 0; }
+
+/* ── 계산 결과 목록 ────────────────────────────────────────────── */
+.dash-mobile .m-result-list {
+  display: grid;
+  row-gap: 6px;
+}
+.dash-mobile .m-result-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  column-gap: 6px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px dashed #2a313e;
+  font-size: 12px;
+}
+.dash-mobile .m-result-name {
+  color: #f1f5fb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-mobile .m-result-date {
+  color: #6e7a93;
+  font-size: 11px;
+}
+
+/* ── 모바일 메뉴 입력 필드 ──────────────────────────────────────── */
+.dash-mobile .m-menu-input {
+  background: #0e1116;
+  border: 1px solid #2a313e;
+  color: #f1f5fb;
+  padding: 8px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── 데스크톱 도움말 패널 ───────────────────────────────────────── */
+.dash-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.dash-help-panel {
+  background: #161b24;
+  border-top: 1px solid #2a313e;
+  max-width: 640px;
+  width: 100%;
+  max-height: 60vh;
+  overflow-y: auto;
+  animation: dash-help-up 0.2s ease-out;
+}
+@keyframes dash-help-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.dash-help-head {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  align-items: center;
+  padding: 0 0 0 14px;
+  border-bottom: 1px solid #2a313e;
+  background: #1d2330;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #97a3b9;
+  min-height: 40px;
+}
+.dash-help-head button {
+  background: transparent;
+  border: none;
+  border-left: 1px solid #2a313e;
+  color: #97a3b9;
+  font-size: 20px;
+  cursor: pointer;
+  height: 40px;
+}
+.dash-help-body {
+  padding: 12px 14px 18px;
+  display: grid;
+  row-gap: 18px;
+}
+.dash-help-section {
+  display: grid;
+  row-gap: 8px;
+}
+.dash-help-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6e7a93;
+  border-bottom: 1px solid #2a313e;
+  padding-bottom: 3px;
+}
+.dash-help-list {
+  display: grid;
+  row-gap: 4px;
+  font-size: 12px;
+  color: #d8dde6;
+  line-height: 1.6;
+  font-family: var(--font-mono);
+}
+.dash-help-list p { margin: 0; }
+
+/* ════════════════════════════════════════════════════════════════════
+   MOBILE EDIT MODE & SUMMARY additions
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Header grid needs 5 columns now (title, status, help, edit, run) */
+.dash-mobile .m-head {
+  grid-template-columns: 1fr auto auto auto auto;
+}
+
+/* Edit toggle button */
+.dash-mobile .m-edit-toggle {
+  background: #1d2330;
+  border: 1px solid #2a313e;
+  color: #97a3b9;
+  padding: 2px 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 32px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-mobile .m-edit-toggle.active {
+  background: #134075;
+  border-color: #1f5da3;
+  color: #fff;
+}
+.dash-mobile .m-edit-toggle:active { background: #283044; }
+
+/* Edit / View mode badge colors */
+.dash-mobile .m-mode-badge.m-mode-view {
+  border-color: #6fde8c;
+  color: #6fde8c;
+}
+.dash-mobile .m-mode-badge.m-mode-edit {
+  border-color: #f6c668;
+  color: #f6c668;
+}
+
+/* Summary table in exec sheet */
+.dash-mobile .m-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.dash-mobile .m-summary-table th,
+.dash-mobile .m-summary-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #2a313e;
+  word-break: break-all;
+}
+.dash-mobile .m-summary-table th {
+  color: #6e7a93;
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: #1d2330;
+}
+.dash-mobile .m-summary-table td {
+  color: #d8dde6;
+}
+.dash-mobile .m-summary-table .m-summary-val {
+  color: #f6c668;
+  font-weight: 600;
+}
+
+/* Template quick-load grid in menu */
+.dash-mobile .m-template-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.dash-mobile .m-template-chip {
+  background: #1d2330;
+  border: 1px solid #2a313e;
+  color: #d8dde6;
+  text-align: left;
+  padding: 8px 10px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 40px;
+  display: grid;
+  row-gap: 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dash-mobile .m-template-chip:active { background: #283044; }
+.dash-mobile .m-template-name {
+  color: #f1f5fb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-mobile .m-template-kind {
+  color: #6e7a93;
+  font-size: 10px;
+}
+
+/* ── EASY MODE variants ─────────────────────────────────────────── */
+
+.easy-mobile .easy-m-edit-toggle {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #64748b;
+  font-family: inherit;
+  border-radius: 6px;
+}
+.easy-mobile .easy-m-edit-toggle.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+.easy-mobile .easy-m-edit-toggle:active {
+  background: #e2e8f0;
+}
+
+.easy-mobile .m-mode-badge.m-mode-view {
+  border-color: #10b981;
+  color: #047857;
+  background: rgba(255, 255, 255, 0.92);
+}
+.easy-mobile .m-mode-badge.m-mode-edit {
+  border-color: #f59e0b;
+  color: #b45309;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.easy-mobile .m-summary-table th {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+  color: #64748b;
+  font-family: inherit;
+}
+.easy-mobile .m-summary-table td {
+  color: #334155;
+  border-bottom-color: #e2e8f0;
+  font-family: inherit;
+}
+.easy-mobile .m-summary-table .m-summary-val {
+  color: #0f766e;
+}
+
+.easy-mobile .m-template-chip {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #334155;
+  font-family: inherit;
+  border-radius: 6px;
+}
+.easy-mobile .m-template-chip:active {
+  background: #e2e8f0;
+}
+.easy-mobile .m-template-name {
+  color: #0f172a;
+  font-weight: 600;
+}
+.easy-mobile .m-template-kind {
+  color: #64748b;
+}

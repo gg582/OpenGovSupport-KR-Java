@@ -350,4 +350,308 @@ export const TEMPLATES: GraphDoc[] = [
       { id: "e3", source: "n3", sourceHandle: "payable", target: "n4", targetHandle: "v" },
     ],
   },
+  {
+    id: "tpl_year_end",
+    name: "연말정산 통합 시뮬레이터",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 2),
+        data: {
+          kind: "input",
+          label: "총급여",
+          value: 60000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(14, 2),
+        data: {
+          kind: "formula",
+          label: "근로소득공제",
+          rule: "earned-income-deduction",
+          inputs: [{ id: "grossSalary", name: "grossSalary", label: "총급여" }],
+          outputs: [{ id: "deduction", name: "deduction", label: "공제액" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(2, 8),
+        data: {
+          kind: "input",
+          label: "인적공제대상수",
+          value: 2,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(2, 14),
+        data: {
+          kind: "input",
+          label: "연금계좌납입액",
+          value: 3000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n5",
+        type: "stat",
+        position: cell(2, 20),
+        data: {
+          kind: "input",
+          label: "의료비지출액",
+          value: 5000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n6",
+        type: "stat",
+        position: cell(2, 26),
+        data: {
+          kind: "input",
+          label: "월세연간액",
+          value: 6000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n7",
+        type: "stat",
+        position: cell(2, 32),
+        data: {
+          kind: "input",
+          label: "자녀수",
+          value: 1,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n8",
+        type: "stat",
+        position: cell(14, 32),
+        data: {
+          kind: "formula",
+          label: "자녀세액공제",
+          rule: "child-credit",
+          inputs: [{ id: "childCount", name: "childCount", label: "자녀수" }],
+          outputs: [{ id: "amount", name: "amount", label: "공제액" }],
+        },
+      },
+      {
+        id: "n9",
+        type: "stat",
+        position: cell(30, 16),
+        data: {
+          kind: "output",
+          label: "결정세액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n10",
+        type: "stat",
+        position: cell(30, 24),
+        data: {
+          kind: "legal",
+          label: "「소득세법」§47·§55·§59조의2~4",
+          citation: "「소득세법」 제47조, 제55조, 제59조의2~4 (근로소득공제·종합소득세·세액공제)",
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n2", targetHandle: "grossSalary" },
+      { id: "e2", source: "n7", sourceHandle: "v", target: "n8", targetHandle: "childCount" },
+    ],
+  },
+  {
+    id: "tpl_corporate",
+    name: "법인세 산출",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 8),
+        data: {
+          kind: "input",
+          label: "과세표준",
+          value: 500000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(16, 8),
+        data: {
+          kind: "formula",
+          label: "법인세",
+          rule: "corporate-tax",
+          inputs: [{ id: "taxableIncome", name: "taxableIncome", label: "과세표준" }],
+          outputs: [{ id: "amount", name: "amount", label: "산출세액" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(32, 8),
+        data: {
+          kind: "output",
+          label: "납부세액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(32, 14),
+        data: {
+          kind: "legal",
+          label: "「법인세법」§55",
+          citation: "「법인세법」 제55조 (4단계 누진세율)",
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n2", targetHandle: "taxableIncome" },
+      { id: "e2", source: "n2", sourceHandle: "amount", target: "n3", targetHandle: "v" },
+    ],
+  },
+  {
+    id: "tpl_inheritance_tax",
+    name: "상속세 산출",
+    kind: "inheritance",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 4),
+        data: {
+          kind: "input",
+          label: "상속재산총액",
+          value: 2000000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(2, 10),
+        data: {
+          kind: "input",
+          label: "배우자공제",
+          value: 500000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(2, 16),
+        data: {
+          kind: "input",
+          label: "자녀공제",
+          value: 100000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(18, 10),
+        data: {
+          kind: "formula",
+          label: "상속세과세표준",
+          rule: "inheritance-tax",
+          inputs: [{ id: "inheritanceBase", name: "inheritanceBase", label: "과세표준" }],
+          outputs: [{ id: "amount", name: "amount", label: "산출세액" }],
+        },
+      },
+      {
+        id: "n5",
+        type: "stat",
+        position: cell(34, 10),
+        data: {
+          kind: "output",
+          label: "상속세액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n6",
+        type: "stat",
+        position: cell(34, 16),
+        data: {
+          kind: "legal",
+          label: "「상속세법」§26",
+          citation: "「상속세 및 증여세법」 제26조 (상속세 세율)",
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n4", targetHandle: "inheritanceBase" },
+    ],
+  },
+  {
+    id: "tpl_earned_income_credit",
+    name: "근로장려금 산정",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 8),
+        data: {
+          kind: "input",
+          label: "총급여등소득",
+          value: 8000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(16, 8),
+        data: {
+          kind: "formula",
+          label: "근로장려금",
+          rule: "earned-income-credit",
+          inputs: [{ id: "householdIncome", name: "householdIncome", label: "총소득" }],
+          outputs: [{ id: "amount", name: "amount", label: "장려금액" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(32, 8),
+        data: {
+          kind: "output",
+          label: "지급액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(32, 14),
+        data: {
+          kind: "legal",
+          label: "「조특법」§100조의3",
+          citation: "「조세특례제한법」 제100조의3 (근로장려세제)",
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n2", targetHandle: "householdIncome" },
+      { id: "e2", source: "n2", sourceHandle: "amount", target: "n3", targetHandle: "v" },
+    ],
+  },
 ];

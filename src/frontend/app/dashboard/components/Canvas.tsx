@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -42,6 +42,13 @@ export default function Canvas({ mobile = false }: Props) {
   const removeNode = useGraphStore((s) => s.removeNode);
   const removeEdge = useGraphStore((s) => s.removeEdge);
   const runAll = useGraphStore((s) => s.runAll);
+  const fitViewTrigger = useGraphStore((s) => s.fitViewTrigger);
+
+  useEffect(() => {
+    if (fitViewTrigger > 0) {
+      rf.fitView({ padding: 0.18, duration: 240 });
+    }
+  }, [fitViewTrigger, rf]);
 
   const rfNodes: Node[] = useMemo(
     () =>

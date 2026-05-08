@@ -55,7 +55,7 @@ const DOUBLE_TAP_MS = 280;
 const DOUBLE_TAP_TOLERANCE_PX = 30;
 const DOUBLE_TAP_ZOOM_FACTOR = 1.6;
 
-type Tab = "info" | "add" | "exec" | "menu" | "log";
+type Tab = "info" | "add" | "exec" | "menu" | "log" | "help";
 
 const MODE_LABELS: Record<DashMode, string> = {
   normal: "정상",
@@ -96,6 +96,12 @@ function MobileBody() {
 
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+
+  const savedResults = useGraphStore((s) => s.savedResults);
+  const saveResult = useGraphStore((s) => s.saveResult);
+  const loadResult = useGraphStore((s) => s.loadResult);
+  const deleteResult = useGraphStore((s) => s.deleteResult);
 
   // 줌 컨트롤 + 더블탭에 사용. ReactFlowProvider 안쪽이라 안전.
   const rf = useReactFlow();
@@ -252,14 +258,18 @@ function MobileBody() {
       return;
     }
 
+    if (!editMode) return;
+
     const label = doc.nodes.find((n) => n.id === id)?.data.label ?? id.slice(0, 6);
     pressRef.current = {
       timer: window.setTimeout(() => {
         const cur = pressRef.current.nodeId;
         if (cur) {
-          removeNode(cur);
-          showToast(`삭제: ${pressRef.current.label}`);
-          if ("vibrate" in navigator) navigator.vibrate?.(40);
+          if (confirm(`"${pressRef.current.label}" 노드를 삭제하시겠습니까?`)) {
+            removeNode(cur);
+            showToast(`삭제: ${pressRef.current.label}`);
+            if ("vibrate" in navigator) navigator.vibrate?.(40);
+          }
         }
         pressRef.current.timer = null;
       }, LONG_PRESS_MS),
@@ -315,6 +325,20 @@ function MobileBody() {
         <span className={`m-status m-status-${execState}`}>
           {execState.toUpperCase()}
         </span>
+        <button
+          className="m-help-btn"
+          onClick={() => setTab("help")}
+          aria-label="도움말"
+        >
+          ?
+        </button>
+        <button
+          className={`m-edit-toggle ${editMode ? "active" : ""}`}
+          onClick={() => setEditMode((v) => !v)}
+          aria-label={editMode ? "보기 모드로 전환" : "편집 모드로 전환"}
+        >
+          {editMode ? "보기" : "편집"}
+        </button>
         <button className="m-run" onClick={() => runAll()} aria-label="재실행">
           ▶
         </button>
@@ -347,10 +371,10 @@ function MobileBody() {
           proOptions={{ hideAttribution: true }}
           minZoom={0.3}
           maxZoom={2}
-          panOnDrag
+          panOnDrag={editMode}
           zoomOnPinch
           deleteKeyCode={null}
-          nodesDraggable={true}
+          nodesDraggable={editMode}
           selectionOnDrag={false}
           multiSelectionKeyCode={null}
           reconnectRadius={28}
@@ -376,6 +400,12 @@ function MobileBody() {
             {MODE_LABELS[mode]}
           </span>
         )}
+        <span
+          className={`m-mode-badge ${editMode ? "m-mode-edit" : "m-mode-view"}`}
+          aria-label={`현재 상태: ${editMode ? "편집" : "보기"}`}
+        >
+          {editMode ? "편집" : "보기"}
+        </span>
       </div>
 
       {tab && (
@@ -395,7 +425,7 @@ function MobileBody() {
             </button>
           </div>
           <div className="m-sheet-body">
-            {tab === "info" && <InfoSheet selectedId={selectedId} />}
+            {tab === "info" && <InfoSheet selectedId={selectedId} editMode={editMode} />}
             {tab === "add" && (
               <AddSheet
                 onAddTemplate={(tpl) => {
@@ -459,6 +489,17 @@ function MobileBody() {
                   });
                   showToast("빈 그래프로 시작");
                 }}
+                onReset={() => {
+                  if (!confirm("현재 그래프를 초기화하시겠습니까? 저장되지 않은 내용은 사라집니다.")) return;
+                  setDoc({
+                    id: "",
+                    name: "새 그래프",
+                    kind: "custom",
+                    nodes: [],
+                    edges: [],
+                  });
+                  showToast("그래프가 초기화되었습니다.");
+                }}
                 onDelete={async () => {
                   if (!doc.id) return;
                   if (!confirm(`"${doc.name}" 그래프를 삭제하시겠습니까?`)) return;
@@ -490,6 +531,7 @@ function MobileBody() {
               ) : (
                 <OverlayPanel />
               ))}
+            {tab === "help" && <HelpSheet />}
           </div>
         </section>
       )}
@@ -526,6 +568,8 @@ function tabTitle(t: Tab): string {
       return "메뉴";
     case "log":
       return "실행 로그";
+    case "help":
+      return "도움말";
   }
 }
 
@@ -588,6 +632,7 @@ function MenuSheet({
   onLoadSaved,
   onSave,
   onNew,
+  onReset,
   onDelete,
   onAutoLayout,
 }: {
@@ -599,6 +644,7 @@ function MenuSheet({
   onLoadSaved: (id: string) => void;
   onSave: () => void;
   onNew: () => void;
+  onReset: () => void;
   onDelete: () => void;
   onAutoLayout: () => void;
 }) {
@@ -606,6 +652,10 @@ function MenuSheet({
     Array<{ id: string; name: string; kind: string; updatedAt: string }>
   >([]);
   const [years, setYears] = useState<number[]>([]);
+  const savedResults = useGraphStore((s) => s.savedResults);
+  const saveResult = useGraphStore((s) => s.saveResult);
+  const loadResult = useGraphStore((s) => s.loadResult);
+  const deleteResult = useGraphStore((s) => s.deleteResult);
 
   useEffect(() => {
     listGraphs()
@@ -629,10 +679,18 @@ function MenuSheet({
           </button>
           <button
             className="m-menu-btn danger"
+            onClick={onReset}
+          >
+            ⟲ 초기화
+          </button>
+        </div>
+        <div className="m-menu-row" style={{ marginTop: 6 }}>
+          <button
+            className="m-menu-btn danger full"
             onClick={onDelete}
             disabled={!doc.id}
           >
-            × 삭제
+            × 그래프 삭제
           </button>
         </div>
         <div className="m-menu-id">
@@ -674,6 +732,22 @@ function MenuSheet({
             </option>
           ))}
         </select>
+      </section>
+
+      <section className="m-menu-section">
+        <div className="m-menu-label">예시 불러오기</div>
+        <div className="m-template-grid">
+          {TEMPLATES.map((t) => (
+            <button
+              key={t.id}
+              className="m-template-chip"
+              onClick={() => onLoadTemplate(t.id)}
+            >
+              <span className="m-template-name">{t.name}</span>
+              <span className="m-template-kind">[{t.kind}]</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="m-menu-section">
@@ -725,6 +799,61 @@ function MenuSheet({
           </p>
         )}
       </section>
+
+      <section className="m-menu-section">
+        <div className="m-menu-label">계산 결과 저장/불러오기</div>
+        <div className="m-menu-row">
+          <input
+            className="m-menu-input"
+            placeholder="결과 이름"
+            id="save-result-name"
+            style={{ flex: 1 }}
+          />
+          <button
+            className="m-menu-btn accent"
+            onClick={() => {
+              const el = document.getElementById("save-result-name") as HTMLInputElement | null;
+              const name = el?.value.trim();
+              if (name) {
+                saveResult(name);
+                if (el) el.value = "";
+              }
+            }}
+          >
+            ▣ 저장
+          </button>
+        </div>
+        {savedResults.length === 0 ? (
+          <p className="m-empty" style={{ padding: 8 }}>
+            저장된 계산 결과가 없습니다.
+          </p>
+        ) : (
+          <div className="m-result-list">
+            {savedResults.map((r) => (
+              <div key={r.id} className="m-result-item">
+                <span className="m-result-name">{r.name}</span>
+                <span className="m-result-date">
+                  {new Date(r.createdAt).toLocaleDateString("ko-KR")}
+                </span>
+                <button
+                  className="m-menu-btn"
+                  onClick={() => loadResult(r.id)}
+                >
+                  불러오기
+                </button>
+                <button
+                  className="m-menu-btn danger"
+                  onClick={() => {
+                    if (confirm(`"${r.name}" 결과를 삭제하시겠습니까?`)) deleteResult(r.id);
+                  }}
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -751,7 +880,7 @@ function TabButton({
   );
 }
 
-function InfoSheet({ selectedId }: { selectedId: string | null }) {
+function InfoSheet({ selectedId, editMode }: { selectedId: string | null; editMode: boolean }) {
   const node = useGraphStore((s) =>
     selectedId ? s.doc.nodes.find((n) => n.id === selectedId) : undefined,
   );
@@ -760,7 +889,8 @@ function InfoSheet({ selectedId }: { selectedId: string | null }) {
     return (
       <p className="m-empty">
         노드를 짧게 탭하면 정보가 표시됩니다.
-        <br />길게 누르면 삭제됩니다.
+        <br />
+        {editMode ? "길게 누르면 삭제됩니다." : "편집 모드에서만 삭제할 수 있습니다."}
       </p>
     );
   }
@@ -871,11 +1001,40 @@ function ExecSheet() {
   const outputs = nodes.filter(
     (n) => n.data.kind === "output" || n.data.kind === "pdf",
   );
+  const runtimeNodes = nodes.filter((n) => n.data.runtime);
   return (
     <div className="m-exec">
       <button className="m-exec-btn" onClick={() => runAll()}>
         ▶ 전체 재실행 ({execState})
       </button>
+
+      <div className="m-menu-label">전체 결과 요약</div>
+      {runtimeNodes.length === 0 ? (
+        <p className="m-empty">실행 결과가 없습니다.</p>
+      ) : (
+        <table className="m-summary-table">
+          <thead>
+            <tr>
+              <th>노드</th>
+              <th>출력</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runtimeNodes.map((n) => (
+              <tr key={n.id}>
+                <td>{n.data.label}</td>
+                <td className="m-summary-val">
+                  {formatOutput(n.data.runtime?.output)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="m-menu-label" style={{ marginTop: 14 }}>
+        출력 노드
+      </div>
       <div className="m-exec-list">
         {outputs.length === 0 ? (
           <p className="m-empty">출력 노드가 없습니다.</p>
@@ -917,6 +1076,34 @@ function LogSheet({
   );
 }
 
+function HelpSheet() {
+  return (
+    <div className="m-help-sheet">
+      <div className="m-help-section">
+        <div className="m-menu-label">단축키</div>
+        <div className="m-help-list">
+          <p>Ctrl+Enter : 전체 재실행</p>
+          <p>Delete : 선택 노드 삭제</p>
+          <p>Escape : 선택 해제</p>
+          <p>? : 도움말</p>
+          <p>Ctrl+S : 그래프 저장</p>
+          <p>Ctrl+0 : 화면 맞춤</p>
+        </div>
+      </div>
+      <div className="m-help-section">
+        <div className="m-menu-label">사용법</div>
+        <div className="m-help-list">
+          <p>짧게 클릭 : 노드 정보 보기</p>
+          <p>편집 모드에서 길게 누름(모바일) : 노드 삭제 (확인 후)</p>
+          <p>편집 모드에서 노드 드래그 : 이동</p>
+          <p>엣지 끝점 드래그 : 다른 노드로 재연결</p>
+          <p>빈 영역 더블클릭 : 화면 맞춤</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Hint() {
   const [show, setShow] = useState(false);
   useEffect(() => {
@@ -936,11 +1123,11 @@ function Hint() {
       <p>
         <b>짧게 탭</b> — 노드 정보
         <br />
-        <b>길게 누름</b> — 노드 삭제
+        <b>편집 → 길게 누름</b> — 노드 삭제
         <br />
         <b>두 번 탭(빈 곳)</b> — 손가락 위치로 확대
         <br />
-        <b>두 손가락</b> — 핀치 줌 / 한 손가락 드래그 = 팬
+        <b>두 손가락</b> — 핀치 줌
         <br />
         <b>엣지 끝점 드래그</b> — 다른 노드로 재연결
       </p>

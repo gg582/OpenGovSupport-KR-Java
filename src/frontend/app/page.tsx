@@ -25,6 +25,20 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="panel border-blue-200 bg-blue-50">
+        <div className="panel-header text-blue-900">대시보드 안내</div>
+        <div className="px-4 py-3 text-sm text-blue-900 leading-relaxed space-y-2">
+          <p>
+            노드 그래프 방식의 대시보드에서 직접 계산 흐름을 설계하고 실행할 수 있습니다.
+            연말정산·상속세·법인세 등 복잡한 산식도 끌어다 놓기만으로 조립할 수 있으며,
+            연도별 Time Machine으로 개정 전후 세 부담을 한눈에 비교할 수 있습니다.
+          </p>
+          <Link href="/dashboard" className="btn-primary inline-block">
+            대시보드 열기 →
+          </Link>
+        </div>
+      </section>
+
       <section className="panel border-amber-300 bg-amber-50">
         <div className="panel-header text-amber-900">면책 고지</div>
         <div className="px-4 py-3 text-sm text-amber-900 leading-relaxed space-y-2">

@@ -16,6 +16,11 @@ export default function EasyToolbar() {
   const execState = useGraphStore((s) => s.execState);
   const setYear = useGraphStore((s) => s.setYear);
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
+  const savedResults = useGraphStore((s) => s.savedResults);
+  const saveResult = useGraphStore((s) => s.saveResult);
+  const loadResult = useGraphStore((s) => s.loadResult);
+  const deleteResult = useGraphStore((s) => s.deleteResult);
+  const toggleHelp = useGraphStore((s) => s.toggleHelp);
 
   const [saved, setSaved] = useState<Array<{ id: string; name: string; kind: string; updatedAt: string }>>([]);
   const [savingHint, setSavingHint] = useState<string | null>(null);
@@ -187,6 +192,47 @@ export default function EasyToolbar() {
         {years.length === 0 && <option value="">연도</option>}
         {years.map((y) => (
           <option key={y} value={y}>{y}년</option>
+        ))}
+      </select>
+
+      <div className="sep" />
+      <button className="btn" onClick={() => toggleHelp()} title="도움말">?</button>
+
+      <div className="sep" />
+      <button
+        className="btn"
+        onClick={() => {
+          const name = prompt("계산 결과 이름을 입력하세요");
+          if (name) saveResult(name);
+        }}
+        title="계산 결과 저장"
+      >
+        ▣ 결과 저장
+      </button>
+      <select
+        className="saved"
+        value=""
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v.startsWith("load:")) loadResult(v.slice(5));
+          else if (v.startsWith("del:")) {
+            if (confirm("해당 계산 결과를 삭제하시겠습니까?")) deleteResult(v.slice(5));
+          }
+          e.currentTarget.value = "";
+        }}
+        title="저장된 계산 결과"
+      >
+        <option value="">▼ 저장된 결과 ({savedResults.length})</option>
+        {savedResults.map((r) => (
+          <option key={r.id} value={`load:${r.id}`}>
+            {r.name} ({new Date(r.createdAt).toLocaleDateString("ko-KR")})
+          </option>
+        ))}
+        {savedResults.length > 0 && <option disabled>──────────</option>}
+        {savedResults.map((r) => (
+          <option key={r.id} value={`del:${r.id}`}>
+            × 삭제: {r.name}
+          </option>
         ))}
       </select>
 

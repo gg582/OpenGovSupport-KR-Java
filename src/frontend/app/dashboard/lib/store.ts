@@ -15,6 +15,27 @@ import { downstreamOf, executeGraph, type SlotMap } from "./exec";
 import type { NodeTemplate } from "./registry";
 import type { SubgraphTemplate } from "./subgraphTemplates";
 
+export type SavedResult = {
+  id: string;
+  name: string;
+  createdAt: string;
+  nodes: GraphNode[];
+  slots: [string, unknown][];
+};
+
+const LS_KEY = "opengov-saved-results";
+
+function loadSavedResults(): SavedResult[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as SavedResult[];
+  } catch {
+    return [];
+  }
+}
+
 type ExecState = "idle" | "running" | "ok" | "error";
 
 type State = {
@@ -40,6 +61,9 @@ type State = {
     activeAfter: string[];
     pairs: Array<{ a: string; b: string; winner: string; loser: string; reason: string }>;
   };
+  savedResults: SavedResult[];
+  showHelp: boolean;
+  fitViewTrigger: number;
 
   // mutations
   setDoc(doc: GraphDoc): void;
@@ -77,6 +101,14 @@ type State = {
 
   // ui mode
   setUIMode(m: import("./types").UIMode): void;
+
+  // saved results
+  saveResult(name: string): void;
+  loadResult(id: string): void;
+  deleteResult(id: string): void;
+  setShowHelp(v: boolean): void;
+  toggleHelp(): void;
+  triggerFitView(): void;
 };
 
 const newId = (prefix = "n"): string =>
@@ -104,6 +136,9 @@ export const useGraphStore = create<State>((set, get) => ({
   uiMode: "expert",
   timeMachine: { years: [], results: [] },
   conflicts: { activeBefore: [], suppressed: [], activeAfter: [], pairs: [] },
+  savedResults: loadSavedResults(),
+  showHelp: false,
+  fitViewTrigger: 0,
 
   setDoc: (doc) => {
     set({ doc, slots: new Map(), logs: [], selectedId: null, execState: "idle" });
@@ -337,6 +372,49 @@ export const useGraphStore = create<State>((set, get) => ({
   setTimeMachine: (r) => set({ timeMachine: r }),
   setConflicts: (c) => set({ conflicts: c }),
   setUIMode: (m) => set({ uiMode: m }),
+
+  saveResult: (name) => {
+    const { doc, slots } = get();
+    const entry: SavedResult = {
+      id: newId("res"),
+      name,
+      createdAt: new Date().toISOString(),
+      nodes: doc.nodes,
+      slots: Array.from(slots.entries()),
+    };
+    set((s) => {
+      const next = [...s.savedResults, entry];
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LS_KEY, JSON.stringify(next));
+      }
+      return { savedResults: next };
+    });
+  },
+
+  loadResult: (id) => {
+    const found = get().savedResults.find((r) => r.id === id);
+    if (!found) return;
+    set({
+      doc: { ...get().doc, nodes: found.nodes },
+      slots: new Map(found.slots),
+      selectedId: null,
+    });
+  },
+
+  deleteResult: (id) => {
+    set((s) => {
+      const next = s.savedResults.filter((r) => r.id !== id);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LS_KEY, JSON.stringify(next));
+      }
+      return { savedResults: next };
+    });
+  },
+
+  setShowHelp: (v) => set({ showHelp: v }),
+  toggleHelp: () => set((s) => ({ showHelp: !s.showHelp })),
+  triggerFitView: () => set((s) => ({ fitViewTrigger: s.fitViewTrigger + 1 })),
+
   toggleNodeDirection: (id) =>
     set((s) => ({
       doc: {
