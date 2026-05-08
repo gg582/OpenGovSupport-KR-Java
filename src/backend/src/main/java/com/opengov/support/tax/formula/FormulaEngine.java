@@ -197,8 +197,11 @@ public class FormulaEngine {
             if (values != null && values.containsKey(key)) {
                 return bdValue(values.get(key));
             }
+            throw new IllegalStateException(
+                    "capMap 에서 키 '" + key + "' 를 찾을 수 없습니다.");
         }
-        return BigDecimal.ZERO;
+        throw new IllegalStateException(
+                "Type B 룰에 cap, capVariable, capMap 중 하나가 필요합니다.");
     }
 
     /** Type B용 — 단일 rate / 변수 조건부 rate / 텍스트 매핑 rate 중 첫 값을 채택. */
@@ -216,6 +219,8 @@ public class FormulaEngine {
                 BigDecimal actual = ctx.num(var);
                 if (test(op, actual, value)) return bd(band, "rate");
             }
+            throw new IllegalStateException(
+                    "rateBands 에서 조건을 만족하는 rate 를 찾을 수 없습니다.");
         }
         if (p.get("rateMap") instanceof Map<?, ?> map) {
             Map<String, Object> rm = (Map<String, Object>) map;
@@ -224,8 +229,11 @@ public class FormulaEngine {
             if (values != null && values.containsKey(key)) {
                 return bdValue(values.get(key));
             }
+            throw new IllegalStateException(
+                    "rateMap 에서 키 '" + key + "' 를 찾을 수 없습니다.");
         }
-        return BigDecimal.ZERO;
+        throw new IllegalStateException(
+                "Type B 룰에 rate, rateBands, rateMap 중 하나가 필요합니다.");
     }
 
     private static boolean test(String op, BigDecimal v, BigDecimal t) {
