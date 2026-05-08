@@ -14,7 +14,7 @@ const EASY_KIND: Record<string, string> = {
   input: "입력값",
   manual: "고정값",
   formula: "계산식",
-  conditional: "조걸분기",
+  conditional: "조건분기",
   threshold: "기준판단",
   lookup: "표조회",
   legal: "법령근거",

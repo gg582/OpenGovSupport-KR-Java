@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * 통계산 그래프 영속화. 각 그래프는 정규화된 JSON (nodes/edges/meta) 으로 저장.
+ * 통합 계산 그래프 영속화. 각 그래프는 정규화된 JSON (nodes/edges/meta) 으로 저장.
  *
  * <p>저장소: {@code ${user.home}/.opengov-graphs/{id}.json} 단일 파일 단위.
  * Postgres 로 교체할 때는 이 컨트롤러만 다시 구현 — JSON 스키마는 동일.
