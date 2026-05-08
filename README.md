@@ -1,21 +1,91 @@
 # 정부지원·세무 계산
 
-「국민기초생활보장법」·「기초연금법」 등 사회복지 행정과
-「소득세법」·「법인세법」·「상속세 및 증여세법」·「부가가치세법」·「조세특례제한법」 등
-세무 법령의 공개 산식을 코드로 평가하는 웹앱.
-**Spring Boot 4.0.2 (Java 21, virtual threads) + Next.js 14** 구성.
+<p align="center">
+  <img src="tyutya.gif" alt="뜌땨 생활행정 데모" width="720">
+</p>
 
-내부 산술은 모두 `BigDecimal` 임의정밀 — 부동소수점 오차 없음.
+<p align="center">
+  <a href="https://tyutya.top"><strong>🌐 tyutya.top — 웹에서 바로 써보기</strong></a>
+</p>
 
-## 면책 고지
+> 「국민기초생활보장법」·「소득세법」·「법인세법」·「상속세 및 증여세법」·「부가가치세법」·「조세특례제한법」 등
+> **공개 법령의 산식을 누구나 검증·확장할 수 있는 오픈거버먼스 계산 엔진**
 
-본 사이트는 세무사·세무대리 행위를 수행하지 않으며, 산출 결과의 정확성·완전성·최신성을
-보증하지 않습니다. 산식 자체는 공개 법령에 근거하나, 케이스별 적용 여부와 예외 처리는
-사용자가 직접 확인해야 합니다. 산출 결과는 신고·납부·수급의 효력을 갖지 않으므로 실제
-신고는 반드시 홈택스(국세청) / 복지로(보건복지부) / 정부24 / 세무전문가를 통해 확정해야
-합니다.
+낮은 소득 가구의 기초생활급여 자격 산정부터 개인사업자의 종합소득세, 직장인 연말정산, 법인세, 상속·증여세, 부가가치세까지
+**한국 사회복지·세무 행정의 핵심 산식**을 코드로 평가합니다.
 
-## 정보 구조
+낮은 소득 가구의 기초생활급여 자격 산정부터 개인사업자의 종합소득세, 직장인 연말정산, 법인세, 상속·증여세, 부가가치세까지
+**한국 사회복지·세무 행정의 핵심 산식**을 코드로 평가합니다.
+
+모든 산술은 `BigDecimal` 임의정밀 — 부동소수점 오차 없음.
+
+---
+
+## 🎯 왜 만듦
+
+정부가 공개한 법령과 고시는 있지만, 일반 국민이 **직접 대입필보고 결과를 검증**하기는 어렵습니다.
+이 프로젝트는 공개된 법령 조문을 **정규화된 4가지 산식 유형(A/B/C/D)**으로 변환하고,
+누구든 웹·데스크톱에서 계산·비교·확장할 수 있게 합니다.
+
+- **세무사·세문대리인** — 빠른 시뮬레이션과 산식 검증
+- **개발자·연구자** — 공개 법령의 결정론적 엔진을 자신의 서비스에 연동
+- **일반 국민** — 연말정산·상속·부가가치세 등을 직접 계산핳보고 필요 서류 확인
+
+---
+
+## ✨ 주요 기능
+
+| 기능 | 설명 |
+|---|---|
+| **개인세무 16종** | 종합소득세·근로소득공제·연말정산·의료비·교육비·월세·연금·기부금·자녀공제·단순경비율·근로장려금·법인세·상속세·증여세·부가가치세 |
+| **사회복지 16종** | 사적이전소득·이자소득·재산상담·상속분·긴급공제·해외체류·공용 등 소득인정액·중위소득 비율·법정 상속 우선순위 |
+| **노드 그래프 대시보드** | React Flow 기반 — 노드를 연결해서 자신만의 계산 흐름 설계, 역산(reverse)·충돌 검출·Time Machine 모드 지원 |
+| **연도별 Time Machine** | 2023·2024·2025·2026년 법령 데이터를 동시에 비교 — 개정 전후 세 부담 변화를 한눈에 |
+| **데이터 없는 구조** | DB 없이 `resources/tax-rules/{year}/*.json` + Java 상수로 모든 기준값 관리 — 오프라인·데스크톱 실행 가능 |
+| **데스크톱 앱 (뜌땨 생활행정)** | Windows·macOS·Linux·FreeBSD — 더블클릭 설치, 낮부 Java + Next.js 번들 |
+
+---
+
+## 🖥️ 스크린샷
+
+<p align="center">
+  <img src="tyutya.gif" alt="데모" width="720">
+</p>
+
+---
+
+## 🚀 빠른 시작
+
+### 웹 (권장)
+
+```
+https://tyutya.top
+```
+
+별도 설치 없이 브라우저에서 모든 계산·그래프 설계·연도 비교를 사용할 수 있습니다.
+
+### 로컬 개발
+
+```bash
+make run            # backend :8080 + frontend :3000 동시
+make run-backend    # backend only
+make run-frontend   # frontend only
+make test           # 전체 테스트
+```
+
+### Docker Compose
+
+```bash
+cp .env.example .env
+make compose-up
+make compose-logs
+```
+
+HTTPS는 Spring Boot 내장 SSL이 처리 (포트 443). HTTP(80) → HTTPS(443) 자동 리다이렉트.
+
+---
+
+## 📐 정보 구조
 
 ```
 헤더 메뉴
@@ -63,7 +133,9 @@ Type B 확장 옵션:
 - `rateMap` — 텍스트 키로 rate 룩업 (예: 업종별 단순경비율)
 - `capVariable` / `capMap` — cap을 ctx 변수 또는 텍스트 매핑에서 조회
 
-## 백엔드 아키텍처
+---
+
+## 🏗️ 백엔드 아키텍처
 
 ```
 src/backend/src/main/java/com/opengov/support/
@@ -114,7 +186,9 @@ tax-audit ts=2026-05-07T03:35:00Z ruleId=corporate-tax year=2026 qualified=true 
 
 입력 원문은 로그에 남기지 않는다 (PII 보호).
 
-## 데이터·캐싱·DB
+---
+
+## 💾 데이터·캐싱·DB
 
 - **DB 없음**. 모든 기준값은 `domain/Standards.java` (복지) + `tax/TaxStandards.java` (세무)에 연도별 하드코딩.
   세무 룰은 `resources/tax-rules/{year}/*.json` 으로도 분리 (RuleRegistry가 시작 시 로드).
@@ -122,7 +196,9 @@ tax-audit ts=2026-05-07T03:35:00Z ruleId=corporate-tax year=2026 qualified=true 
 - **캐싱 2단** — `RuleRegistry`: 시작 시 1회 로드 후 read-only `ConcurrentHashMap`. 런타임 변경 없음.
 - **백프레셔** — `BoundedRequestPool`: 가상 스레드 + 2단 우선순위 큐 (fast/slow). 큐 만석 시 503 + Retry-After.
 
-## 법령 갱신 파이프라인
+---
+
+## 🔄 법령 갱신 파이프라인
 
 새 연도 (예: 2027) 고시값이 나올 때:
 
@@ -146,7 +222,9 @@ tax-audit ts=2026-05-07T03:35:00Z ruleId=corporate-tax year=2026 qualified=true 
 
 5. **변경 이력** — git commit 메시지에 「소득세법」§N 개정 일자·고시번호 명시 권장.
 
-## 사기·이상값 방지
+---
+
+## 🛡️ 사기·이상값 방지
 
 `TaxInputValidator` 가 룰엔진 진입 전 1차 방어:
 - 음수 금액 거부 (`year` 등 메타값 제외)
@@ -156,7 +234,9 @@ tax-audit ts=2026-05-07T03:35:00Z ruleId=corporate-tax year=2026 qualified=true 
 
 거부 시 `TaxAudit.recordRejection` 으로 SIEM 친화 로그 기록.
 
-## API 엔드포인트 (개인세무)
+---
+
+## 📡 API 엔드포인트 (개인세무)
 
 | Method | Path | 용도 |
 |---|---|---|
@@ -179,7 +259,9 @@ tax-audit ts=2026-05-07T03:35:00Z ruleId=corporate-tax year=2026 qualified=true 
 }
 ```
 
-## 프런트엔드
+---
+
+## 🎨 프런트엔드
 
 Next.js 14 App Router. 라우트:
 - `/` — 두 섹션 카드 + 면책 고지
@@ -191,56 +273,9 @@ Next.js 14 App Router. 라우트:
 LNB 는 현재 URL의 섹션을 감지해 해당 섹션 features만 그룹별로 노출.
 헤더에 "사회복지 / 개인세무" 탭이 있고 푸터에 면책 두 단락이 항상 표시.
 
-## 실행
+---
 
-### 로컬
-
-```bash
-make run            # backend :8080 + frontend :3000 동시
-make run-backend    # backend only
-make run-frontend   # frontend only
-make build          # backend fat jar (target/backend.jar)
-make test
-```
-
-### Docker Compose
-
-```bash
-cp .env.example .env
-make compose-up
-make compose-logs
-make compose-down
-```
-
-- HTTPS는 Spring Boot 내장 SSL이 처리 (포트 443).
-- HTTP(80) → HTTPS(443) 자동 리다이렉트.
-- 인증서를 `${CERTS_DIR}` (기본 `./certs`)에 `cert.pem`, `privkey.pem` 두 파일로 배치.
-
-## 환경 변수 (주요)
-
-| 변수 | 기본값 | 설명 |
-|---|---|---|
-| `PORT` / `HTTP_PORT` / `INTERNAL_PORT` | 443 / 80 / 8080 | TLS / HTTP 리다이렉트 / 내부 |
-| `SSL_ENABLED` | false (로컬), true (Docker) | TLS 활성화 |
-| `SSL_CERT` / `SSL_KEY` | `/certs/{cert,privkey}.pem` | 인증서 경로 |
-| `FRONTEND_URL` | `http://frontend:3000` | 프록시 대상 |
-| `POOL_WORKERS` | 0 (= `availableProcessors()`) | 가상 스레드 워커 수 |
-| `POOL_QUEUE` | 1024 | 레인 당 큐 용량 |
-| `POOL_FAST_THRESHOLD` | 4096 | fast 레인 진입 바이트 임계값 |
-| `JSON_INDENT` | false | 응답 JSON 들여쓰기 (dev) |
-
-## 의존성
-
-- Java ≥ 21
-- Maven ≥ 3.9
-- Spring Boot 4.0.2 (Spring Framework 7, Jakarta EE 11)
-- Jackson 3.0.4 (`tools.jackson.databind`)
-- Node ≥ 18, npm
-
-서드파티 비즈니스 라이브러리는 사용하지 않습니다 — Spring Boot `spring-boot-starter-web` 만 사용하며,
-도메인 계산 로직은 표준 라이브러리(`java.time`, `java.util`, `java.math.BigDecimal`)로만 작성되어 있습니다.
-
-## 데스크톱 배포 (Mode B) — 뜌땨 생활행정
+## 💻 데스크톱 배포 (Mode B) — 뜌땨 생활행정
 
 서버 배포(`docker compose up -d`, **Mode A**) 는 그대로 유지됩니다. 별도로 일반 사용자가
 **더블클릭으로 설치**하는 데스크톱 빌드(브랜드명 **「뜌땨 생활행정」**, ASCII 코드명 `tyutya`)
@@ -362,3 +397,41 @@ make package-freebsd       # FreeBSD .txz → desktop/out/*.txz
 - 두 모드는 **동일한 Java 백엔드 + 동일한 Next.js 프런트엔드** 를 공유합니다.
 - 비즈니스 로직은 어디에도 중복되지 않습니다 — 데스크톱은 단지 Electron 셸 + jlink JRE 를 추가로 묶을 뿐입니다.
 - 기존 `docker compose up -d` 흐름은 **그대로 유지** 되며 본 패키징 시스템의 영향을 받지 않습니다.
+
+---
+
+## ⚖️ 면책 고지
+
+본 사이트는 세무사·세무대리 행위를 수행하지 않으며, 산출 결과의 정확성·완전성·최신성을
+보증하지 않습니다. 산식 자체는 공개 법령에 근거하나, 케이스별 적용 여부와 예외 처리는
+사용자가 직접 확인해야 합니다. 산출 결과는 신고·납부·수급의 효력을 갖지 않으므로 실제
+신고는 반드시 홈택스(국세청) / 복지로(보건복지부) / 정부24 / 세무전문가를 통해 확정해야
+합니다.
+
+---
+
+## 환경 변수 (주요)
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `PORT` / `HTTP_PORT` / `INTERNAL_PORT` | 443 / 80 / 8080 | TLS / HTTP 리다이렉트 / 내부 |
+| `SSL_ENABLED` | false (로컬), true (Docker) | TLS 활성화 |
+| `SSL_CERT` / `SSL_KEY` | `/certs/{cert,privkey}.pem` | 인증서 경로 |
+| `FRONTEND_URL` | `http://frontend:3000` | 프록시 대상 |
+| `POOL_WORKERS` | 0 (= `availableProcessors()`) | 가상 스레드 워커 수 |
+| `POOL_QUEUE` | 1024 | 레인 당 큐 용량 |
+| `POOL_FAST_THRESHOLD` | 4096 | fast 레인 진입 바이트 임계값 |
+| `JSON_INDENT` | false | 응답 JSON 들여쓰기 (dev) |
+
+---
+
+## 의존성
+
+- Java ≥ 21
+- Maven ≥ 3.9
+- Spring Boot 4.0.2 (Spring Framework 7, Jakarta EE 11)
+- Jackson 3.0.4 (`tools.jackson.databind`)
+- Node ≥ 18, npm
+
+서드파티 비즈니스 라이브러리는 사용하지 않습니다 — Spring Boot `spring-boot-starter-web` 만 사용하며,
+도메인 계산 로직은 표준 라이브러리(`java.time`, `java.util`, `java.math.BigDecimal`)로만 작성되어 있습니다.
