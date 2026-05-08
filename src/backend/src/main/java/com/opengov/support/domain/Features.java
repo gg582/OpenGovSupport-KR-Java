@@ -158,11 +158,11 @@ public final class Features {
                                 Input.of("substituteCount", "대습상속인 수", "number").defaultValue("0").build()
                         )),
 
-                // ── 04-2 정통 산식 (8 primitive) ──
+                // ── 04-2 정통 산식 ──
                 new Feature(
                         "statutory/recognized-income", w,
                         "04-2_정통산식", "정통 산식",
-                        "소득인정액 산출 (primitive 6)",
+                        "소득인정액 산출",
                         "「국민기초생활 보장법」제2조 — 소득평가액 + 재산의 소득환산. 일반/금융/자동차 환산율 + 지역별 기본공제 자동 적용.",
                         List.of(
                                 Input.of("salary", "근로소득 (원/월)", "number").defaultValue("0").build(),
@@ -187,7 +187,7 @@ public final class Features {
                 new Feature(
                         "statutory/median-ratio", w,
                         "04-2_정통산식", "정통 산식",
-                        "중위소득 비율 자격 분기 (primitive 7)",
+                        "중위소득 비율 자격 분기",
                         "「국민기초생활 보장법」제8조의2 — 소득인정액 ÷ 가구원수별 기준중위소득 → 생계 32% / 의료 40% / 주거 48% / 교육 50%.",
                         List.of(
                                 Input.of("year", "기준 연도", "select")
@@ -200,7 +200,7 @@ public final class Features {
                         "statutory/eligibility-flow", w,
                         "04-2_정통산식", "정통 산식",
                         "통합 자격 평가 (소득인정액 → 비율 → 해외체류)",
-                        "primitive 6 + 7 을 한 번에 평가 + 해외체류 정지 임계 검토.",
+                        "소득인정액 비율 +  해외체류 정지 임계 검토.",
                         List.of(
                                 Input.of("year", "기준 연도", "select")
                                         .options(yearOptions()).defaultValue(yearStr).build(),
@@ -228,7 +228,7 @@ public final class Features {
                 new Feature(
                         "statutory/deduction-ladder/earned-income", w,
                         "04-2_정통산식", "정통 산식",
-                        "근로소득공제 사다리 (primitive 2)",
+                        "근로소득공제 사다리",
                         "「소득세법」제47조 — 5단계 piecewise-linear (≤500만 70%·≤1500만 47.5%·≤4500만 15%·≤1억 5%·>1억 2%).",
                         List.of(
                                 Input.of("salary", "총급여 (원, 연간)", "number").defaultValue("0").required(true).build()
@@ -236,7 +236,7 @@ public final class Features {
                 new Feature(
                         "statutory/vat-delta", w,
                         "04-2_정통산식", "정통 산식",
-                        "부가가치세 차분 (primitive 5)",
+                        "부가가치세 차분",
                         "「부가가치세법」제30·37·38조 — payable = (sales − purchase) × 10%. 음수 결과는 환급세액.",
                         List.of(
                                 Input.of("salesSupplyAmount", "매출 공급가액 (원)", "number").defaultValue("0").required(true).build(),
