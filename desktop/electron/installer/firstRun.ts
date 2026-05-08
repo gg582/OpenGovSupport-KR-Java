@@ -6,8 +6,9 @@
  *   1) AppImage 가 사용자 영구 위치(~/.local/share/{app}/) 가 아니면 이동·복사
  *   2) {app}.desktop 파일을 ~/.local/share/applications/ 에 작성
  *   3) 아이콘을 ~/.local/share/icons/hicolor/512x512/apps/ 에 등록
- *   4) update-desktop-database / xdg-desktop-menu / gtk-update-icon-cache 자동 실행
- *   5) 설치된 사본을 새로 띄우고 현재 인스턴스 종료
+ *   4) 언인스톨러 bash 스크립트 + tyutya-uninstall.desktop 메뉴 항목 등록
+ *   5) update-desktop-database / xdg-desktop-menu / gtk-update-icon-cache 자동 실행
+ *   6) 설치된 사본을 새로 띄우고 현재 인스턴스 종료
  *
  * 사용자가 chmod 하거나 터미널을 열 필요가 없다.
  *
@@ -20,6 +21,7 @@ import * as path from "path";
 import * as os from "os";
 import { spawn, spawnSync } from "child_process";
 import { FileLogger } from "../lib/logger";
+import { writeUninstaller, UninstallTargets } from "./uninstaller";
 
 type InstallResult =
   | "not-needed"   // 이미 ~/.local/share 안에서 실행 중
@@ -146,7 +148,30 @@ export async function runFirstRunInstallerIfNeeded(log: FileLogger): Promise<Ins
       }
     }
 
-    // 5) 데스크톱 데이터베이스 새로고침 — 설치한 즉시 검색에 노출.
+    // 5) 언인스톨러 설치 — 본 install root 안에 bash 스크립트 + 메뉴 .desktop 항목.
+    //    Electron 자체로 삭제 다이얼로그를 띄우면 자기 자신을 못 지우므로 분리한다.
+    const uninstallTargets: UninstallTargets = {
+      installRoot,
+      appDesktopFile: desktopFile,
+      uninstallDesktopFile: path.join(
+        homedir(), ".local", "share", "applications", "tyutya-uninstall.desktop",
+      ),
+      iconFile: iconDest,
+      userDataDir: app.getPath("userData"),
+      desktopShortcut: fs.existsSync(desktopDir)
+        ? path.join(desktopDir, "tyutya.desktop")
+        : "",
+      selfPath: path.join(installRoot, "tyutya-uninstall.sh"),
+    };
+    try {
+      writeUninstaller(uninstallTargets, app.getVersion());
+      log.info(`first-run: wrote uninstaller ${uninstallTargets.selfPath}`);
+      log.info(`first-run: wrote uninstaller entry ${uninstallTargets.uninstallDesktopFile}`);
+    } catch (e) {
+      log.warn(`uninstaller install failed: ${(e as Error).message}`);
+    }
+
+    // 6) 데스크톱 데이터베이스 새로고침 — 설치한 즉시 검색에 노출.
     runQuiet("update-desktop-database", [path.dirname(desktopFile)]);
     runQuiet("xdg-desktop-menu", ["forceupdate", "--mode", "user"]);
     runQuiet("gtk-update-icon-cache", [
@@ -156,7 +181,7 @@ export async function runFirstRunInstallerIfNeeded(log: FileLogger): Promise<Ins
     await setStage(win, "done");
     await sleep(400);
 
-    // 6) 설치된 사본을 detached 로 띄우고 현재 인스턴스 종료.
+    // 7) 설치된 사본을 detached 로 띄우고 현재 인스턴스 종료.
     spawn(installedAt, [], {
       detached: true,
       stdio: "ignore",
