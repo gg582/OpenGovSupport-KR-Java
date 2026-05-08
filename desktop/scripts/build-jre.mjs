@@ -80,28 +80,53 @@ try {
 }
 
 // jdeps 가 비어 있는 경우 — Spring Boot fat jar 는 nested jar 라 종종 그렇다.
-// 그럴 때는 안전한 superset 을 사용 (HTTPS + JDBC + JNDI + 동적 클래스로딩 포함).
+// 그럴 때는 안전한 superset 을 사용한다. Spring Boot 4 + Tomcat + Jackson + SpEL 가
+// 런타임 동적 로딩으로 끌어쓰는 모듈을 모두 포함 (HTTPS / JDBC / JNDI / 자동
+// 직렬화 / charset / locale / RMI / DNS lookup).
+//
+// 빠지면 증상이 묘하게 나타나는 모듈 목록:
+//   jdk.charsets    → MS949/Cp949 등 비-UTF-8 charset 사용 시 Tomcat 부팅 실패
+//   jdk.localedata  → Locale.KOREA / DateTimeFormatter 한글 NPE
+//   jdk.naming.dns  → InetAddress / Jackson 일부 deserializer 가 lookup 시 hang/실패
+//   jdk.naming.rmi  → JNDI 관련 lookup
+//   java.rmi        → JMX / 일부 Spring 4 코드
+//   jdk.dynalink    → SpEL / Nashorn 호환 layer
+//   jdk.security.auth + jdk.management.agent → 디버거 attach 및 일부 인증 hook
 const FALLBACK_MODULES = [
   "java.base",
   "java.compiler",
+  "java.datatransfer",
   "java.desktop",
   "java.instrument",
   "java.logging",
   "java.management",
+  "java.management.rmi",
   "java.naming",
   "java.net.http",
   "java.prefs",
+  "java.rmi",
   "java.scripting",
   "java.security.jgss",
   "java.security.sasl",
+  "java.smartcardio",
   "java.sql",
+  "java.sql.rowset",
   "java.transaction.xa",
   "java.xml",
+  "java.xml.crypto",
+  "jdk.charsets",
   "jdk.crypto.cryptoki",
   "jdk.crypto.ec",
+  "jdk.dynalink",
+  "jdk.httpserver",
   "jdk.jdi",
-  "jdk.unsupported",
+  "jdk.localedata",
   "jdk.management",
+  "jdk.management.agent",
+  "jdk.naming.dns",
+  "jdk.naming.rmi",
+  "jdk.security.auth",
+  "jdk.unsupported",
   "jdk.zipfs",
 ].join(",");
 
@@ -117,6 +142,10 @@ if (existsSync(jreOut)) {
 }
 
 // 3. jlink 실행.
+//    --bind-services      : ServiceLoader 로 발견되는 의존 모듈을 자동 포함
+//    --include-locales    : jdk.localedata 안의 locale 데이터를 한·영만 남김 (~5MB 절약)
+//    --compress=2         : 호환성 좋은 ZIP 압축. JDK 22+ 에서는 zip-6 권장이나
+//                          본 프로젝트는 21 LTS 라 2 유지.
 console.log(`[jlink] linking minimal JRE → ${jreOut}`);
 const rc = spawnSync(
   jlinkBin,
@@ -125,6 +154,8 @@ const rc = spawnSync(
     "--no-man-pages",
     "--strip-debug",
     "--compress=2",
+    "--bind-services",
+    "--include-locales=en,ko",
     "--add-modules", modules,
     "--output", jreOut,
   ],

@@ -45,6 +45,7 @@
       "output": "out",
       "buildResources": "build"
     },
+    "afterPack": "scripts/afterPack.mjs",
     "files": [
       "dist/**/*",
       "splash/**/*",

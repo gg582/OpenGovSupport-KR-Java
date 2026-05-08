@@ -161,10 +161,12 @@ async function boot(): Promise<void> {
     const r = await backend.start();
     backendPort = r.port;
   } catch (e) {
-    log.error(`backend start failed: ${(e as Error).message}`);
+    const detail = (e as Error).message;
+    log.error(`backend start failed: ${detail}`);
     dialog.showErrorBox(
       "엔진 시작 실패",
-      "내부 계산 엔진을 시작하지 못했습니다. 프로그램을 다시 실행해 주세요.",
+      "내부 계산 엔진을 시작하지 못했습니다. 프로그램을 다시 실행해 주세요.\n\n" +
+      truncateForDialog(detail),
     );
     app.quit();
     return;
@@ -177,10 +179,12 @@ async function boot(): Promise<void> {
     const r = await frontend.start(backendPort);
     frontendPort = r.port;
   } catch (e) {
-    log.error(`frontend start failed: ${(e as Error).message}`);
+    const detail = (e as Error).message;
+    log.error(`frontend start failed: ${detail}`);
     dialog.showErrorBox(
       "화면 시작 실패",
-      "사용자 인터페이스를 시작하지 못했습니다. 프로그램을 다시 실행해 주세요.",
+      "사용자 인터페이스를 시작하지 못했습니다. 프로그램을 다시 실행해 주세요.\n\n" +
+      truncateForDialog(detail),
     );
     app.quit();
     return;
@@ -243,6 +247,16 @@ function shutdown(): void {
     try { tray.destroy(); } catch { /* already destroyed */ }
     tray = null;
   }
+}
+
+/** 다이얼로그 본문에 stderr 가 통째로 들어가지 않도록 최대 길이 + 줄 수로 잘라낸다. */
+function truncateForDialog(s: string, maxChars = 1200, maxLines = 16): string {
+  const lines = s.split(/\r?\n/);
+  const trimmed = lines.length > maxLines
+    ? [...lines.slice(0, maxLines), `… (+${lines.length - maxLines} 줄)`]
+    : lines;
+  const joined = trimmed.join("\n");
+  return joined.length > maxChars ? joined.slice(0, maxChars) + " …" : joined;
 }
 
 function tryLoadIcon(p: string): Electron.NativeImage | undefined {

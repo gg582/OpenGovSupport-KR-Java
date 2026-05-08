@@ -73,10 +73,24 @@ export function windowIconPath(): string {
 
 /** 플랫폼별 java 실행 파일 경로 (jlink JRE 내부). */
 export function javaBin(): string {
-  const jre = resourcePath("jre");
+  const jre = jreRoot();
   return process.platform === "win32"
     ? path.join(jre, "bin", "java.exe")
     : path.join(jre, "bin", "java");
+}
+
+/**
+ * jlink 결과는 통상 단순 폴더이지만, macOS 에서 향후 `Contents/Home` 구조를 끼워
+ * 넣게 될 가능성을 대비한 분기. bin/java(.exe) 가 곧장 보이면 그 폴더를, 아니면
+ * Contents/Home 을 시도.
+ */
+export function jreRoot(): string {
+  const root = resourcePath("jre");
+  const exe = process.platform === "win32" ? "java.exe" : "java";
+  if (fs.existsSync(path.join(root, "bin", exe))) return root;
+  const macHome = path.join(root, "Contents", "Home");
+  if (fs.existsSync(path.join(macHome, "bin", exe))) return macHome;
+  return root;
 }
 
 /** Spring Boot 백엔드 fat jar 경로. */
