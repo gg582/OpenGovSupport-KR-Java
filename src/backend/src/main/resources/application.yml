@@ -30,6 +30,8 @@ opengov:
     enabled: true
     shards: 32
   frontend-url: ${FRONTEND_URL:http://frontend:3000}
+  ax:
+    max-wait-seconds: ${AX_MAX_WAIT_SECONDS:180}
 
 springdoc:
   api-docs:

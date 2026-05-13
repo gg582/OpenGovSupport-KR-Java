@@ -63,6 +63,7 @@ const MODE_LABELS: Record<DashMode, string> = {
   conflict: "충돌",
   timeline: "연도",
   audit: "감사",
+  ax: "AX",
 };
 
 export default function MobileDashboard() {
@@ -97,6 +98,7 @@ function MobileBody() {
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   const savedResults = useGraphStore((s) => s.savedResults);
   const saveResult = useGraphStore((s) => s.saveResult);
@@ -115,8 +117,12 @@ function MobileBody() {
         position: n.position,
         data: n.data,
         draggable: true,
+        className:
+          connectingFrom && connectingFrom !== n.id
+            ? "candidate-target"
+            : undefined,
       })),
-    [doc.nodes],
+    [doc.nodes, connectingFrom],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -168,6 +174,17 @@ function MobileBody() {
     },
     [connect, runAll],
   );
+
+  const onConnectStart = useCallback(
+    (_: unknown, params: { nodeId: string; handleId: string | null; handleType: "source" | "target" }) => {
+      if (params.nodeId) setConnectingFrom(params.nodeId);
+    },
+    [],
+  );
+
+  const onConnectEnd = useCallback(() => {
+    setConnectingFrom(null);
+  }, []);
 
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
@@ -346,7 +363,7 @@ function MobileBody() {
 
       <div
         ref={canvasRef}
-        className="m-canvas stat-canvas mobile"
+        className={`m-canvas stat-canvas mobile ${connectingFrom ? "connecting" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={cancelPress}

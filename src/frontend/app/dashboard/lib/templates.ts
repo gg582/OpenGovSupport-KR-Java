@@ -899,4 +899,279 @@ export const TEMPLATES: GraphDoc[] = [
       { id: "e7", source: "n7", sourceHandle: "ratio", target: "n8", targetHandle: "v" },
     ],
   },
+
+  // ── 자녀 세액공제 ─────────────────────────────────────────────────
+  {
+    id: "tpl_child_credit",
+    name: "자녀 세액공제",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 2),
+        data: {
+          kind: "input",
+          label: "자녀 수",
+          value: 2,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(14, 2),
+        data: {
+          kind: "formula",
+          label: "자녀 세액공제",
+          rule: "child-credit",
+          inputs: [{ id: "childCount", name: "childCount", label: "자녀수" }],
+          outputs: [{ id: "amount", name: "amount", label: "공제액" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(26, 2),
+        data: {
+          kind: "output",
+          label: "공제액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n2", targetHandle: "childCount" },
+      { id: "e2", source: "n2", sourceHandle: "amount", target: "n3", targetHandle: "v" },
+    ],
+  },
+
+  // ── 의료비 세액공제 ───────────────────────────────────────────────
+  {
+    id: "tpl_medical_credit",
+    name: "의료비 세액공제",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 2),
+        data: {
+          kind: "input",
+          label: "총급여",
+          value: 60000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(2, 10),
+        data: {
+          kind: "input",
+          label: "의료비",
+          value: 5000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(14, 6),
+        data: {
+          kind: "formula",
+          label: "의료비 세액공제",
+          rule: "medical-expense-credit",
+          inputs: [
+            { id: "salary", name: "salary", label: "총급여" },
+            { id: "medicalExpense", name: "medicalExpense", label: "의료비" },
+          ],
+          outputs: [{ id: "amount", name: "amount", label: "공제액" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(26, 6),
+        data: {
+          kind: "output",
+          label: "공제액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n3", targetHandle: "salary" },
+      { id: "e2", source: "n2", sourceHandle: "v", target: "n3", targetHandle: "medicalExpense" },
+      { id: "e3", source: "n3", sourceHandle: "amount", target: "n4", targetHandle: "v" },
+    ],
+  },
+
+  // ── 월세 세액공제 ─────────────────────────────────────────────────
+  {
+    id: "tpl_rent_credit",
+    name: "월세 세액공제",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 2),
+        data: {
+          kind: "input",
+          label: "총급여",
+          value: 55000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(2, 10),
+        data: {
+          kind: "input",
+          label: "연간 월세",
+          value: 8400000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(14, 6),
+        data: {
+          kind: "formula",
+          label: "월세 세액공제",
+          rule: "rent-credit",
+          inputs: [
+            { id: "salary", name: "salary", label: "총급여" },
+            { id: "rentPaid", name: "rentPaid", label: "월세" },
+          ],
+          outputs: [{ id: "amount", name: "amount", label: "공제액" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(26, 6),
+        data: {
+          kind: "output",
+          label: "공제액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n3", targetHandle: "salary" },
+      { id: "e2", source: "n2", sourceHandle: "v", target: "n3", targetHandle: "rentPaid" },
+      { id: "e3", source: "n3", sourceHandle: "amount", target: "n4", targetHandle: "v" },
+    ],
+  },
+
+  // ── 연금계좌 세액공제 ─────────────────────────────────────────────
+  {
+    id: "tpl_pension_credit",
+    name: "연금계좌 세액공제",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 2),
+        data: {
+          kind: "input",
+          label: "총급여",
+          value: 70000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(2, 10),
+        data: {
+          kind: "input",
+          label: "연금 납입액",
+          value: 6000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(14, 6),
+        data: {
+          kind: "formula",
+          label: "연금계좌 세액공제",
+          rule: "pension-credit",
+          inputs: [
+            { id: "salary", name: "salary", label: "총급여" },
+            { id: "pensionContribution", name: "pensionContribution", label: "납입액" },
+          ],
+          outputs: [{ id: "amount", name: "amount", label: "공제액" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(26, 6),
+        data: {
+          kind: "output",
+          label: "공제액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n3", targetHandle: "salary" },
+      { id: "e2", source: "n2", sourceHandle: "v", target: "n3", targetHandle: "pensionContribution" },
+      { id: "e3", source: "n3", sourceHandle: "amount", target: "n4", targetHandle: "v" },
+    ],
+  },
+
+  // ── 기부금 세액공제 ───────────────────────────────────────────────
+  {
+    id: "tpl_donation_credit",
+    name: "기부금 세액공제",
+    kind: "tax",
+    nodes: [
+      {
+        id: "n1",
+        type: "stat",
+        position: cell(2, 2),
+        data: {
+          kind: "input",
+          label: "기부금",
+          value: 3000000,
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n2",
+        type: "stat",
+        position: cell(14, 2),
+        data: {
+          kind: "formula",
+          label: "기부금 세액공제",
+          rule: "donation-credit",
+          inputs: [{ id: "donation", name: "donation", label: "기부금" }],
+          outputs: [{ id: "amount", name: "amount", label: "공제액" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(26, 2),
+        data: {
+          kind: "output",
+          label: "공제액",
+          inputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n2", targetHandle: "donation" },
+      { id: "e2", source: "n2", sourceHandle: "amount", target: "n3", targetHandle: "v" },
+    ],
+  },
 ];

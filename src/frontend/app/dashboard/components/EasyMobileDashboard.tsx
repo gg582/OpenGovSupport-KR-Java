@@ -19,6 +19,8 @@ import ReactFlow, {
   type NodeChange,
   type EdgeChange,
   type OnConnect,
+  type OnConnectStart,
+  type OnConnectEnd,
   applyNodeChanges,
   applyEdgeChanges,
 } from "reactflow";
@@ -80,6 +82,7 @@ function EasyMobileBody() {
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   const savedResults = useGraphStore((s) => s.savedResults);
   const saveResult = useGraphStore((s) => s.saveResult);
@@ -147,8 +150,14 @@ function EasyMobileBody() {
         selectable: true,
         draggable: true,
         selected: n.id === selectedId,
+        className:
+          connectingFrom && isValidConnection({ source: connectingFrom, target: n.id, sourceHandle: null, targetHandle: null })
+            ? "valid-target"
+            : connectingFrom
+              ? "invalid-target"
+              : undefined,
       })),
-    [doc.nodes, selectedId],
+    [doc.nodes, selectedId, connectingFrom, isValidConnection],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -231,6 +240,17 @@ function EasyMobileBody() {
     },
     [connect, runAll],
   );
+
+  const onConnectStart: OnConnectStart = useCallback(
+    (_: unknown, params) => {
+      if (params.nodeId) setConnectingFrom(params.nodeId);
+    },
+    [],
+  );
+
+  const onConnectEnd: OnConnectEnd = useCallback(() => {
+    setConnectingFrom(null);
+  }, []);
 
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
@@ -360,7 +380,7 @@ function EasyMobileBody() {
 
       <div
         ref={canvasRef}
-        className="m-canvas easy-m-canvas"
+        className={`m-canvas easy-m-canvas ${connectingFrom ? "connecting" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={cancelPress}
@@ -379,6 +399,8 @@ function EasyMobileBody() {
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           isValidConnection={isValidConnection}
+          onConnectStart={onConnectStart}
+          onConnectEnd={onConnectEnd}
           onNodeClick={onNodeClick}
           onPaneClick={() => {
             select(null);
@@ -394,7 +416,8 @@ function EasyMobileBody() {
           nodesDraggable={editMode}
           selectionOnDrag={false}
           multiSelectionKeyCode={null}
-          edgesFocusable={false}
+          edgesFocusable={true}
+          edgeUpdaterRadius={14}
         >
           <Background
             gap={GRID.size}

@@ -6,7 +6,8 @@ function fmt(v: unknown): string {
   if (v == null) return "—";
   if (typeof v === "number") return v.toLocaleString("ko-KR");
   if (typeof v === "string") return v;
-  if (typeof v === "object") return JSON.stringify(v, null, 2);
+  if (Array.isArray(v)) return `목록 ${v.length}건`;
+  if (typeof v === "object") return `데이터 ${Object.keys(v).length}항`;
   return String(v);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -12,6 +12,8 @@ import ReactFlow, {
   type EdgeChange,
   type Connection,
   type OnConnect,
+  type OnConnectStart,
+  type OnConnectEnd,
   applyNodeChanges,
   applyEdgeChanges,
 } from "reactflow";
@@ -41,6 +43,9 @@ export default function EasyCanvas() {
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const fitViewTrigger = useGraphStore((s) => s.fitViewTrigger);
+  const execState = useGraphStore((s) => s.execState);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   useEffect(() => {
     if (fitViewTrigger > 0) {
@@ -82,8 +87,14 @@ export default function EasyCanvas() {
         selectable: true,
         draggable: true,
         selected: n.id === selectedId,
+        className:
+          connectingFrom && isValidConnection({ source: connectingFrom, target: n.id, sourceHandle: null, targetHandle: null })
+            ? "valid-target"
+            : connectingFrom
+              ? "invalid-target"
+              : undefined,
       })),
-    [doc.nodes, selectedId],
+    [doc.nodes, selectedId, connectingFrom, isValidConnection],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -167,6 +178,17 @@ export default function EasyCanvas() {
     [connect, runAll],
   );
 
+  const onConnectStart: OnConnectStart = useCallback(
+    (_: unknown, params) => {
+      if (params.nodeId) setConnectingFrom(params.nodeId);
+    },
+    [],
+  );
+
+  const onConnectEnd: OnConnectEnd = useCallback(() => {
+    setConnectingFrom(null);
+  }, []);
+
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
       setNodes((nodes) =>
@@ -179,7 +201,11 @@ export default function EasyCanvas() {
   );
 
   return (
-    <div className="dash-canvas easy-canvas" style={{ position: "relative" }}>
+    <div
+      className={`dash-canvas easy-canvas ${execState === "running" ? "running" : ""} ${isDragOver ? "drag-over" : ""} ${connectingFrom ? "connecting" : ""}`}
+      style={{ position: "relative" }}
+      onDragLeave={() => setIsDragOver(false)}
+    >
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -193,6 +219,8 @@ export default function EasyCanvas() {
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
         isValidConnection={isValidConnection}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
         onNodeClick={(_, n) => select(n.id)}
         onPaneClick={() => {
           select(null);
@@ -201,9 +229,11 @@ export default function EasyCanvas() {
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
+          setIsDragOver(true);
         }}
         onDrop={(e) => {
           e.preventDefault();
+          setIsDragOver(false);
           const container = (e.target as HTMLElement).closest<HTMLElement>(".react-flow");
           const rect = container?.getBoundingClientRect();
           if (!rect) return;
@@ -229,7 +259,8 @@ export default function EasyCanvas() {
         proOptions={{ hideAttribution: true }}
         minZoom={0.4}
         maxZoom={1.2}
-        edgesFocusable={false}
+        edgesFocusable={true}
+        edgeUpdaterRadius={12}
         deleteKeyCode={null}
         nodesDraggable={true}
         selectionOnDrag={true}

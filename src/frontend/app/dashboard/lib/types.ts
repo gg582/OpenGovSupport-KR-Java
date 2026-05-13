@@ -44,7 +44,9 @@ export type FormulaRule =
   | "eligibility-flow"
   | "inheritance-priority"
   | "vat-delta"
-  | "deduction-ladder/earned-income";
+  | "deduction-ladder/earned-income"
+  | "marriage-credit"
+  | "sports-credit";
 
 export type Port = { id: string; name: string; label: string };
 
@@ -130,7 +132,7 @@ export type GraphDoc = {
 };
 
 /** 글로벌 dashboard 모드 — 상단 overlay 토글. */
-export type DashMode = "normal" | "reverse" | "conflict" | "timeline" | "audit";
+export type DashMode = "normal" | "reverse" | "conflict" | "timeline" | "audit" | "ax";
 
 /** UI 전체 모드 — 쉬운 모드 / 전문가 모드. */
 export type UIMode = "easy" | "expert";

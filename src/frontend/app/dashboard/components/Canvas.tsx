@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -12,6 +12,8 @@ import ReactFlow, {
   type NodeChange,
   type EdgeChange,
   type OnConnect,
+  type OnConnectStart,
+  type OnConnectEnd,
   applyNodeChanges,
   applyEdgeChanges,
 } from "reactflow";
@@ -47,12 +49,31 @@ export default function Canvas({ mobile = false }: Props) {
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const fitViewTrigger = useGraphStore((s) => s.fitViewTrigger);
+  const execState = useGraphStore((s) => s.execState);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   useEffect(() => {
     if (fitViewTrigger > 0) {
       rf.fitView({ padding: 0.18, duration: 240 });
     }
   }, [fitViewTrigger, rf]);
+
+  const isValidTarget = useCallback(
+    (sourceId: string, targetId: string) => {
+      if (sourceId === targetId) return false;
+      const sNode = doc.nodes.find((n) => n.id === sourceId);
+      const tNode = doc.nodes.find((n) => n.id === targetId);
+      if (!sNode || !tNode) return false;
+      const invalidSources = ["legal", "output", "pdf"];
+      const invalidTargets = ["input", "manual", "legal"];
+      return (
+        !invalidSources.includes(sNode.data.kind) &&
+        !invalidTargets.includes(tNode.data.kind)
+      );
+    },
+    [doc.nodes],
+  );
 
   const rfNodes: Node[] = useMemo(
     () =>
@@ -62,8 +83,14 @@ export default function Canvas({ mobile = false }: Props) {
         position: n.position,
         data: n.data,
         draggable: true,
+        className:
+          connectingFrom && isValidTarget(connectingFrom, n.id)
+            ? "valid-target"
+            : connectingFrom
+              ? "invalid-target"
+              : undefined,
       })),
-    [doc.nodes],
+    [doc.nodes, connectingFrom, isValidTarget],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -130,6 +157,17 @@ export default function Canvas({ mobile = false }: Props) {
     [connect, runAll],
   );
 
+  const onConnectStart: OnConnectStart = useCallback(
+    (_: unknown, params) => {
+      if (params.nodeId) setConnectingFrom(params.nodeId);
+    },
+    [],
+  );
+
+  const onConnectEnd: OnConnectEnd = useCallback(() => {
+    setConnectingFrom(null);
+  }, []);
+
   // 데스크톱: 좌클릭 드래그 = 영역 선택, 중·우클릭 드래그 = 팬.
   // 모바일: 한 손가락 드래그 = 팬, 두 손가락 = 핀치 줌 (RF 기본).
   const desktopProps = {
@@ -153,8 +191,9 @@ export default function Canvas({ mobile = false }: Props) {
 
   return (
     <div
-      className={`dash-canvas stat-canvas ${mobile ? "mobile" : ""}`}
+      className={`dash-canvas stat-canvas ${mobile ? "mobile" : ""} ${execState === "running" ? "running" : ""} ${isDragOver ? "drag-over" : ""} ${connectingFrom ? "connecting" : ""}`}
       style={{ position: "relative" }}
+      onDragLeave={() => setIsDragOver(false)}
     >
       <ReactFlow
         nodes={rfNodes}
@@ -167,14 +206,18 @@ export default function Canvas({ mobile = false }: Props) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
         onNodeClick={(_, n) => select(n.id)}
         onPaneClick={clearAllSelection}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
+          setIsDragOver(true);
         }}
         onDrop={(e) => {
           e.preventDefault();
+          setIsDragOver(false);
           const container = (e.target as HTMLElement).closest<HTMLElement>(".react-flow");
           const rect = container?.getBoundingClientRect();
           if (!rect) return;

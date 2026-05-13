@@ -1,0 +1,26 @@
+{
+  "rule_id": "sports-credit",
+  "category": "특별세액공제",
+  "title": "체육시설 이용료 세액공제",
+  "formula_type": "B",
+  "formula_expression": "체육시설 이용료 금액 자체를 공제 (연 300만원 한도)",
+  "params": {
+    "variable": "sportsExpense",
+    "rate": 1.0,
+    "cap": 3000000
+  },
+  "eligibility": [
+    { "variable": "sportsExpense", "op": "gt", "value": 0, "message": "체육시설 이용료가 있어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "체육시설 이용료 영수증",
+      "issuer": "체육시설 운영자",
+      "online_issuance": false,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "헬스장·수영장 등 이용료 증빙 (2024년 7월 이후 발생분)"
+    }
+  ],
+  "submission_channels": ["회사 연말정산 시스템", "홈택스 종합소득세 신고"],
+  "legal_source": "「소득세법」제59조의4 ⑪ — 체육시설 이용료 세액공제 (연 300만원 한도, 2024년 7월 이후 발생분)"
+}

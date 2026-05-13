@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { useGraphStore } from "../lib/store";
 import type { NodeData } from "../lib/types";
 import ResultPopover from "./ResultPopover";
+import { debounce } from "../lib/debounce";
 
 const KIND_LABEL: Record<string, string> = {
   input: "INPUT",
@@ -28,23 +30,30 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
   const updateNodeData = useGraphStore((s) => s.updateNodeData);
   const runFrom = useGraphStore((s) => s.runFrom);
   const toggleNodeDirection = useGraphStore((s) => s.toggleNodeDirection);
+  const execState = useGraphStore((s) => s.execState);
 
   const inputs = data.inputs ?? [];
   const outputs = data.outputs ?? [];
   const reverseMode = data.direction === "reverse";
+  const isRunning = execState === "running";
+
+  const debouncedRun = useMemo(
+    () => debounce((nodeId: string) => runFrom(nodeId), 320),
+    [runFrom],
+  );
+  useEffect(() => () => debouncedRun.cancel(), [debouncedRun]);
 
   const onValueChange = (v: string) => {
     const num = Number(v);
     updateNodeData(id, { value: Number.isFinite(num) ? num : v });
-    // 입력값이 바뀌면 곧바로 incremental 재실행.
-    queueMicrotask(() => runFrom(id));
+    debouncedRun(id);
   };
 
   const onLimitChange = (v: string) => {
     const num = Number(v);
     if (!data.threshold) return;
     updateNodeData(id, { threshold: { ...data.threshold, limit: num } });
-    queueMicrotask(() => runFrom(id));
+    debouncedRun(id);
   };
 
   const onOpChange = (op: string) => {
@@ -53,14 +62,14 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
     } else if (data.conditional) {
       updateNodeData(id, { conditional: { ...data.conditional, op: op as never } });
     }
-    queueMicrotask(() => runFrom(id));
+    debouncedRun(id);
   };
 
   return (
     <>
       <ResultPopover nodeId={id} data={data} isSelected={!!selected} />
       <div
-        className={`stat-node ${selected ? "selected" : ""} ${reverseMode ? "reverse" : ""}`}
+        className={`stat-node ${selected ? "selected" : ""} ${reverseMode ? "reverse" : ""} ${isRunning ? "running" : ""}`}
         data-kind={data.kind}
       >
       {/* head */}

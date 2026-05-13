@@ -247,6 +247,30 @@ export const FORMULA_RULES: Record<
     legalBasis: "「소득세법」 제47조 (5단계 piecewise-linear)",
     inputMap: { salary: "salary" },
   },
+  "marriage-credit": {
+    label: "결혼 세액공제",
+    endpoint: "/api/tax/marriage-credit",
+    inputs: [
+      p("isMarriedInPeriod", "혼인해당"),
+      p("claimedBefore", "이전공제"),
+      p("spouseClaim", "배우자공제"),
+    ],
+    outputs: [p("amount", "공제액")],
+    legalBasis: "「소득세법」 제59조의4 ⑩",
+    inputMap: {
+      isMarriedInPeriod: "isMarriedInPeriod",
+      claimedBefore: "claimedBefore",
+      spouseClaim: "spouseClaim",
+    },
+  },
+  "sports-credit": {
+    label: "체육시설 이용료 공제",
+    endpoint: "/api/tax/sports-credit",
+    inputs: [p("sportsExpense", "체육이용료")],
+    outputs: [p("amount", "공제액")],
+    legalBasis: "「소득세법」 제59조의4 ⑪",
+    inputMap: { sportsExpense: "sportsExpense" },
+  },
 };
 
 /** 좌측 팔레트에 표시할 노드 템플릿 — kind 별 1개 + formula 는 ruleId 별. */

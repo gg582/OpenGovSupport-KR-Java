@@ -6,6 +6,7 @@ import { TEMPLATES } from "../lib/templates";
 import { ALL_TEMPLATES } from "../lib/registry";
 import { autoLayoutEasy } from "../lib/elk";
 import { listGraphs, loadGraph, saveGraph, deleteGraph, timeMachineYears } from "../lib/api";
+import { exportGraphToXlsx } from "../lib/exportData";
 
 export default function EasyToolbar() {
   const doc = useGraphStore((s) => s.doc);
@@ -234,6 +235,21 @@ export default function EasyToolbar() {
             × 삭제: {r.name}
           </option>
         ))}
+      </select>
+
+      <div className="sep" />
+      <select
+        className="tpl"
+        value=""
+        onChange={async (e) => {
+          const v = e.target.value;
+          if (v === "xlsx") await exportGraphToXlsx(doc);
+          e.currentTarget.value = "";
+        }}
+        title="자료 추출"
+      >
+        <option value="">▼ 추출</option>
+        <option value="xlsx">Excel (.xlsx)</option>
       </select>
 
       <div className="grow" />

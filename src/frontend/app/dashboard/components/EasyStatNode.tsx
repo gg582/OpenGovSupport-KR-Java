@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { useGraphStore } from "../lib/store";
 import type { NodeData } from "../lib/types";
+import { debounce } from "../lib/debounce";
 
 const EASY_LABELS: Record<string, string> = {
   input: "입력",
@@ -26,23 +28,31 @@ function fmt(v: unknown): string {
 export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>) {
   const updateNodeData = useGraphStore((s) => s.updateNodeData);
   const runFrom = useGraphStore((s) => s.runFrom);
+  const execState = useGraphStore((s) => s.execState);
 
   const inputs = data.inputs ?? [];
   const outputs = data.outputs ?? [];
 
+  const debouncedRun = useMemo(
+    () => debounce((nodeId: string) => runFrom(nodeId), 320),
+    [runFrom],
+  );
+  useEffect(() => () => debouncedRun.cancel(), [debouncedRun]);
+
   const onValueChange = (v: string) => {
     const num = Number(v);
     updateNodeData(id, { value: Number.isFinite(num) ? num : v });
-    queueMicrotask(() => runFrom(id));
+    debouncedRun(id);
   };
 
   const isEditable = data.kind === "input" || data.kind === "manual";
   const showResult = data.runtime != null;
+  const isRunning = execState === "running";
 
   return (
     <>
       <div
-        className={`easy-stat-node ${selected ? "selected" : ""}`}
+        className={`easy-stat-node ${selected ? "selected" : ""} ${isRunning ? "running" : ""}`}
         data-kind={data.kind}
       >
         <div className="easy-head">
