@@ -69,6 +69,63 @@ def _extract_json(text: str) -> Optional[dict]:
 
 
 # ------------------------------------------------------------------
+# 자연어 숫자 정규화 (조/억/만/천/백/십 등)
+# ------------------------------------------------------------------
+_KOREAN_UNITS = {
+    "조": 10 ** 12,
+    "천억": 10 ** 11,
+    "백억": 10 ** 10,
+    "십억": 10 ** 9,
+    "억": 10 ** 8,
+    "천만": 10 ** 7,
+    "백만": 10 ** 6,
+    "십만": 10 ** 5,
+    "만": 10 ** 4,
+    "천": 10 ** 3,
+    "백": 10 ** 2,
+    "십": 10 ** 1,
+    "일": 1,
+}
+
+
+def normalize_korean_number(text: str) -> Any:
+    """한국어 숫자 표현을 정수로 변환. 변환 불가 시 원본 반환.
+    예: '5천만원' → 50000000, '1억 2천만' → 120000000
+    """
+    if not isinstance(text, str):
+        return text
+
+    # 공백/쉼표/통화·단위 접미사 제거
+    s = text.replace(",", "").replace(" ", "").replace("원", "").replace("개", "").replace("명", "")
+
+    # 이미 순수 숫자면 int 로
+    if re.fullmatch(r"-?\d+", s):
+        return int(s)
+
+    # (숫자)(단위) 반복 매칭
+    pattern = re.compile(r"(\d+)(조|천억|백억|십억|억|천만|백만|십만|만|천|백|십|일)")
+    matches = pattern.findall(s)
+    if not matches:
+        return text  # 변환 불가 → 원본 유지
+
+    total = 0
+    for num_str, unit in matches:
+        total += int(num_str) * _KOREAN_UNITS[unit]
+    return total
+
+
+def _normalize_inputs(value: Any) -> Any:
+    """inputs 전체를 순회하며 문자열 값 중 한국어 숫자를 정규화."""
+    if isinstance(value, str):
+        return normalize_korean_number(value)
+    if isinstance(value, dict):
+        return {k: _normalize_inputs(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_normalize_inputs(item) for item in value]
+    return value
+
+
+# ------------------------------------------------------------------
 # Placeholder 해석 (최대한 다양하게)
 # ------------------------------------------------------------------
 def _resolve_placeholders(value: Any, context: dict) -> Any:
@@ -169,6 +226,7 @@ async def execute(req: ExecuteRequest):
             description = step.get("description", "")
 
             resolved_inputs = _resolve_placeholders(inputs, context)
+            resolved_inputs = _normalize_inputs(resolved_inputs)
             url = f"{base_url}{endpoint}"
 
             try:
