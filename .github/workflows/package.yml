@@ -13,7 +13,8 @@ name: package
 #     - macOS:   GitHub-hosted macos-14 (arm64) 실 VM
 #     - Linux:   GitHub-hosted ubuntu-22.04 VM
 #
-#   FreeBSD 빌드는 vmactions VM 안정성 문제로 제거됨 (추후 재도입 예정).
+#   FreeBSD 빌드는 ubuntu-22.04 runner 에서 linux-compat 모드로 실행
+#   (desktop/scripts/build-freebsd-bundle.mjs — electron-builder --linux dir → .txz 재포장).
 #
 #   Mode A (Docker compose) 는 본 워크플로우의 영향을 전혀 받지 않습니다.
 
@@ -289,9 +290,58 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  freebsd:
+    name: freebsd · ${{ matrix.tag }}
+    needs: scan
+    if: needs.scan.outputs.tag_count != '0'
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.scan.outputs.tags_json) }}
+    # Linux runner 에서 linux-compat 모드로 FreeBSD bundle 생성.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: backend jar
+        run: cd src/backend && mvn -B -DskipTests package
+      - name: frontend build
+        run: |
+          cd src/frontend
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: desktop install
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: prepare resources + jlink
+        working-directory: desktop
+        run: |
+          npm run prepare:resources
+          npm run prepare:jre
+      - name: build freebsd bundle (linux-compat)
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run package:freebsd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tyutya-${{ matrix.tag }}-freebsd
+          path: desktop/out/*.txz
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: release · ${{ matrix.tag }}
-    needs: [scan, windows, macos, linux]
+    needs: [scan, windows, macos, linux, freebsd]
     if: needs.scan.outputs.tag_count != '0'
     strategy:
       fail-fast: false
@@ -330,6 +380,7 @@ jobs:
             echo "- Windows: \`Tyutya-Setup-*.exe\` — 더블클릭 → 설치"
             echo "- macOS (Apple Silicon): \`Tyutya-*-arm64.dmg\` (또는 \`.zip\`) — DMG 열기 → Applications 드롭"
             echo "- Linux: \`Tyutya-*.AppImage\` — 더블클릭 → 자동 설치 마법사 (chmod 불필요)"
+            echo "- FreeBSD: \`Tyutya-freebsd.txz\` — 풀기 → register.sh 실행 → 응용프로그램 메뉴 등록"
             echo ""
             echo "### 면책"
             echo ""
@@ -349,4 +400,5 @@ jobs:
             artifacts/**/*.dmg
             artifacts/**/*.zip
             artifacts/**/*.AppImage
+            artifacts/**/*.txz
           fail_on_unmatched_files: false
