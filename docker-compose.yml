@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     environment:
       HF_TOKEN: "${HUGGINGFACE_TOKEN}"
-      MODEL_ID: "onnx-community/Qwen2.5-1.5B-ONNX"
+      MODEL_ID: "Qwen/Qwen2.5-0.5B-Instruct"
     volumes:
       - hf-cache:/root/.cache/huggingface
     networks:
