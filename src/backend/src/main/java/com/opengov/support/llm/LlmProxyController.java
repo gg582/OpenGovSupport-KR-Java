@@ -27,6 +27,16 @@ public class LlmProxyController {
         return restTemplate.postForEntity(llmUrl + "/generate", body, Object.class);
     }
 
+    @PostMapping("/ax/plan")
+    public ResponseEntity<?> axPlan(@RequestBody Map<String, Object> body) {
+        return restTemplate.postForEntity(llmUrl + "/ax/plan", body, Object.class);
+    }
+
+    @PostMapping("/ax/fix")
+    public ResponseEntity<?> axFix(@RequestBody Map<String, Object> body) {
+        return restTemplate.postForEntity(llmUrl + "/ax/fix", body, Object.class);
+    }
+
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return restTemplate.getForEntity(llmUrl + "/health", Object.class);

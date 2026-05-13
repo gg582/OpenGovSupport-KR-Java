@@ -1,0 +1,1539 @@
+{
+  "base_url": "${BASE_URL}",
+  "note": "모든 금액 단위는 원(KRW). year는 선택이며 생략 시 2025.",
+  "endpoints": [
+    {
+      "url": "${BASE_URL}/api/tax/comprehensive-income-tax",
+      "endpoint": "/api/tax/comprehensive-income-tax",
+      "method": "POST",
+      "title": "산출세액 (누진세율)",
+      "description": "「소득세법」제55조 8단계 누진세율로 종합소득 과세표준의 산출세액을 계산합니다.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "taxableIncome",
+          "label": "과세표준 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "총수입금액에서 필요경비·소득공제를 차감한 금액. 8단계 누진세율표가 자동 적용됩니다.",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액",
+      "eligibility": [
+        {
+          "variable": "taxableIncome",
+          "op": "gt",
+          "value": 0,
+          "message": "과세표준이 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제55조 (세율) — 종합소득 과세표준 8단계 누진세율",
+      "brackets": [
+        {
+          "max": 14000000,
+          "rate": 0.06,
+          "qd": 0
+        },
+        {
+          "max": 50000000,
+          "rate": 0.15,
+          "qd": 1260000
+        },
+        {
+          "max": 88000000,
+          "rate": 0.24,
+          "qd": 5760000
+        },
+        {
+          "max": 150000000,
+          "rate": 0.35,
+          "qd": 15440000
+        },
+        {
+          "max": 300000000,
+          "rate": 0.38,
+          "qd": 19940000
+        },
+        {
+          "max": 500000000,
+          "rate": 0.4,
+          "qd": 25940000
+        },
+        {
+          "max": 1000000000,
+          "rate": 0.42,
+          "qd": 35940000
+        },
+        {
+          "max": 0,
+          "rate": 0.45,
+          "qd": 65940000
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/comprehensive-income-refund",
+      "endpoint": "/api/tax/comprehensive-income-refund",
+      "method": "POST",
+      "title": "환급/추징 시뮬레이터",
+      "description": "산출세액에서 기납부세액(원천징수·중간예납)을 차감해 환급액 또는 추가납부액을 계산합니다.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "taxableIncome",
+          "label": "과세표준 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "8단계 누진세율로 산출세액이 자동 계산됩니다.",
+          "options": []
+        },
+        {
+          "name": "prepaidTax",
+          "label": "기납부세액 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "원천징수 + 중간예납 + 수시부과 합계.",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/earned-income-deduction",
+      "endpoint": "/api/tax/earned-income-deduction",
+      "method": "POST",
+      "title": "근로소득공제",
+      "description": "「소득세법」제47조 5단계 누진율표로 총급여에서 차감할 근로소득공제액을 계산합니다.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "grossSalary",
+          "label": "총급여 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "비과세소득을 제외한 연간 총급여. 5,000만원 이하 70%부터 1억 초과 2%까지 5단계.",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "공제액 = 총급여 × 공제율 − 누진보정액 (총급여 구간별)",
+      "eligibility": [
+        {
+          "variable": "grossSalary",
+          "op": "gt",
+          "value": 0,
+          "message": "총급여(연간)가 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제47조 (근로소득공제) — 총급여 5단계 누진율표",
+      "brackets": [
+        {
+          "max": 5000000,
+          "rate": 0.7,
+          "qd": 0
+        },
+        {
+          "max": 15000000,
+          "rate": 0.4,
+          "qd": -1500000
+        },
+        {
+          "max": 45000000,
+          "rate": 0.15,
+          "qd": -5250000
+        },
+        {
+          "max": 100000000,
+          "rate": 0.05,
+          "qd": -9750000
+        },
+        {
+          "max": 0,
+          "rate": 0.02,
+          "qd": -12750000
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/year-end-settlement",
+      "endpoint": "/api/tax/year-end-settlement",
+      "method": "POST",
+      "title": "연말정산 통합 시뮬레이터",
+      "description": "근로소득공제 → 종합소득공제 → 산출세액 → 세액공제 합계 → 결정세액 → 환급/추징의 전체 흐름을 한 번에 평가합니다.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "grossSalary",
+          "label": "총급여 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "dependentCount",
+          "label": "기본공제 대상 인원수",
+          "type": "number",
+          "required": true,
+          "default": "1",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "childCount",
+          "label": "기본공제대상 자녀 수",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "insurancePremium",
+          "label": "국민연금·건강보험 본인부담 합계 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "medicalExpense",
+          "label": "의료비 지출액 (원)",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "educationExpense",
+          "label": "교육비 지출액 (원)",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "rentPaid",
+          "label": "월세 지출액 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "pensionContribution",
+          "label": "연금계좌 납입액 (원)",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "donation",
+          "label": "기부금 (원)",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "prepaidTax",
+          "label": "기납부세액(원천징수 합계, 원)",
+          "type": "number",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/medical-expense-credit",
+      "endpoint": "/api/tax/medical-expense-credit",
+      "method": "POST",
+      "title": "의료비 세액공제",
+      "description": "「소득세법」제59조의4 ① — 총급여 3% 초과분의 15%를 산출세액에서 공제 (일반 700만원 한도).",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salary",
+          "label": "총급여 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "의료비 임계 산정 기준 (총급여 × 3%).",
+          "options": []
+        },
+        {
+          "name": "medicalExpense",
+          "label": "의료비 지출액 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "본인·기본공제대상 부양가족이 지출한 의료비 합계. 연말정산 간소화 기준.",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "공제대상 = max(의료비 − 총급여 × 3%, 0); 세액공제 = min(공제대상, 한도) × 15%",
+      "eligibility": [
+        {
+          "variable": "salary",
+          "op": "gt",
+          "value": 0,
+          "message": "근로소득(총급여)이 있어야 합니다."
+        },
+        {
+          "variable": "medicalExpense",
+          "op": "gt",
+          "value": 0,
+          "message": "의료비 지출액이 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제59조의4 ① — 의료비 세액공제 (총급여 3% 초과분의 15%, 일반 700만원 한도)"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/education-credit",
+      "endpoint": "/api/tax/education-credit",
+      "method": "POST",
+      "title": "교육비 세액공제",
+      "description": "「소득세법」제59조의4 ② — 단계별 한도 내에서 교육비의 15%를 세액공제.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "stage",
+          "label": "교육 단계",
+          "type": "select",
+          "required": true,
+          "default": "대학·대학원",
+          "help": "",
+          "options": [
+            "미취학·초중고",
+            "대학·대학원"
+          ]
+        },
+        {
+          "name": "educationExpense",
+          "label": "교육비 지출액 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "공제 = min(교육비, 단계별 한도) × 15% (미취학·초중고 1인 300만원 / 대학·본인 1인 900만원)",
+      "eligibility": [
+        {
+          "variable": "educationExpense",
+          "op": "gt",
+          "value": 0,
+          "message": "교육비 지출액이 있어야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제59조의4 ② — 교육비 세액공제 (공제율 15%, 단계별 1인당 한도)"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/rent-credit",
+      "endpoint": "/api/tax/rent-credit",
+      "method": "POST",
+      "title": "월세 세액공제",
+      "description": "「조세특례제한법」제95조의2 — 무주택 세대주, 총급여 8천만원 이하. 5,500만원 이하 17% / 그 외 15%.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salary",
+          "label": "총급여 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "rentPaid",
+          "label": "연 월세 지출액 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "공제 = min(연 월세지출액, 1,000만원) × {총급여 5,500만원 이하 17%, 그 외 15%}",
+      "eligibility": [
+        {
+          "variable": "salary",
+          "op": "gt",
+          "value": 0,
+          "message": "근로소득(총급여)이 있어야 합니다."
+        },
+        {
+          "variable": "salary",
+          "op": "lte",
+          "value": 80000000,
+          "message": "총급여 8,000만원 이하 무주택 세대주 요건."
+        },
+        {
+          "variable": "rentPaid",
+          "op": "gt",
+          "value": 0,
+          "message": "연간 월세 지출액이 있어야 합니다."
+        }
+      ],
+      "legal_source": "「조세특례제한법」제95조의2 (월세액에 대한 세액공제) — 무주택 세대주, 총급여 8천만원 이하"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/pension-credit",
+      "endpoint": "/api/tax/pension-credit",
+      "method": "POST",
+      "title": "연금계좌 세액공제",
+      "description": "「소득세법」제59조의3 — 연금저축·IRP 납입액 900만원 한도. 5,500만원 이하 15% / 그 외 12%.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salary",
+          "label": "총급여 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "pensionContribution",
+          "label": "연금계좌 납입액 (원, 연금저축+IRP)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "공제 = min(연금저축+IRP 납입액, 900만원) × {총급여 5,500만원 이하 15%, 그 외 12%}",
+      "eligibility": [
+        {
+          "variable": "pensionContribution",
+          "op": "gt",
+          "value": 0,
+          "message": "연금계좌 납입액이 있어야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제59조의3 (연금계좌세액공제) — 연금저축 600만원 + IRP 추가 300만원, 총 900만원 한도"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/donation-credit",
+      "endpoint": "/api/tax/donation-credit",
+      "method": "POST",
+      "title": "기부금 세액공제",
+      "description": "「소득세법」제59조의4 ④ — 1,000만원 이하 15% + 초과분 30% (Type A 정규형).",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "donation",
+          "label": "기부금 합계 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "공제 = 1,000만원 이하분 × 15% + 초과분 × 30% (정규화: x*r − c)",
+      "eligibility": [
+        {
+          "variable": "donation",
+          "op": "gt",
+          "value": 0,
+          "message": "기부금 납부액이 있어야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제59조의4 ④ — 기부금 세액공제 (1천만원 이하 15% / 초과분 30%)",
+      "brackets": [
+        {
+          "max": 10000000,
+          "rate": 0.15,
+          "qd": 0
+        },
+        {
+          "max": 0,
+          "rate": 0.3,
+          "qd": 1500000
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/child-credit",
+      "endpoint": "/api/tax/child-credit",
+      "method": "POST",
+      "title": "자녀 세액공제",
+      "description": "「소득세법」제59조의2 — 1~2번째 자녀 1인 25만원 + 3번째 이상 1인 40만원 (8세 이상).",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "childCount",
+          "label": "기본공제대상 자녀 수",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "1~2번째 자녀 1인 25만원 + 3번째 이상 1인 40만원 (Type D 정규형으로 인코딩, b<0)",
+      "eligibility": [
+        {
+          "variable": "childCount",
+          "op": "gt",
+          "value": 0,
+          "message": "기본공제대상 자녀가 1인 이상이어야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제59조의2 (자녀세액공제) — 기본공제대상 자녀 수 기준 누적 단가"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/marriage-credit",
+      "endpoint": "/api/tax/marriage-credit",
+      "method": "POST",
+      "title": "결혼 세액공제",
+      "description": "「소득세법」제59조의4 ⑩ — 2024년 1월 1일~2026년 12월 31일 혼인신고분, 부부 각각 50만원(생애 1회).",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "isMarriedInPeriod",
+          "label": "혼인신고 시기 해당",
+          "type": "select",
+          "required": true,
+          "default": "해당",
+          "help": "",
+          "options": [
+            "해당",
+            "미해당"
+          ]
+        },
+        {
+          "name": "claimedBefore",
+          "label": "이전에 공제받은 적 있음",
+          "type": "select",
+          "required": true,
+          "default": "false",
+          "help": "",
+          "options": [
+            "false",
+            "true"
+          ]
+        },
+        {
+          "name": "spouseClaim",
+          "label": "배우자 공제 여부",
+          "type": "select",
+          "required": true,
+          "default": "배우자도",
+          "help": "",
+          "options": [
+            "본인만",
+            "배우자도"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "1인당 연 50만원 세액공제 (배우자 공제 시 추가 50만원)",
+      "eligibility": [
+        {
+          "variable": "isMarriedInPeriod",
+          "op": "eq",
+          "value": 1,
+          "message": "2024~2026년 기간 내 혼인신고 필수"
+        }
+      ],
+      "legal_source": "「소득세법」제59조의4 ⑩ — 2024~2026년 혼인신고 시 1인당 연 50만원 세액공제"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/sports-credit",
+      "endpoint": "/api/tax/sports-credit",
+      "method": "POST",
+      "title": "체육시설 이용료 세액공제",
+      "description": "「소득세법」제59조의4 ③ — 2025년 귀속~ 9세 미만·초등학교 2학년 이하 자녀 체육시설 이용료의 15%, 연 300만원 한도.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "sportsExpense",
+          "label": "체육시설 이용료 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "체육시설 이용료 금액 자체를 공제 (연 300만원 한도)",
+      "eligibility": [
+        {
+          "variable": "sportsExpense",
+          "op": "gt",
+          "value": 0,
+          "message": "체육시설 이용료가 있어야 합니다."
+        }
+      ],
+      "legal_source": "「소득세법」제59조의4 ⑪ — 체육시설 이용료 세액공제 (연 300만원 한도, 2024년 7월 이후 발생분)"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/simple-expense-rate",
+      "endpoint": "/api/tax/simple-expense-rate",
+      "method": "POST",
+      "title": "단순경비율 추정 필요경비",
+      "description": "「소득세법 시행령」제143조 — 업종별 단순경비율로 필요경비를 추정. 신규/소규모 사업자 대상.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "industry",
+          "label": "업종",
+          "type": "select",
+          "required": true,
+          "default": "",
+          "help": "",
+          "options": [
+            "도소매업",
+            "제조업",
+            "음식점업",
+            "건설업",
+            "전문서비스업"
+          ]
+        },
+        {
+          "name": "revenue",
+          "label": "수입금액 (원, 연간)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "추정 필요경비 = 수입금액 × 업종별 단순경비율 (소득금액 = 수입금액 − 필요경비)",
+      "eligibility": [
+        {
+          "variable": "revenue",
+          "op": "gt",
+          "value": 0,
+          "message": "수입금액(매출)이 있어야 합니다."
+        },
+        {
+          "variable": "revenue",
+          "op": "lt",
+          "value": 75000000,
+          "message": "단순경비율 적용 대상은 직전 과세기간 수입금액이 업종별 기준(도소매 7,500만원, 제조 등 4,800만원, 서비스 3,600만원) 미만인 경우입니다."
+        }
+      ],
+      "legal_source": "「소득세법 시행령」제143조 (단순경비율 적용 대상) — 신규사업자 또는 직전연도 수입금액이 업종별 기준 미만인 사업자"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/earned-income-credit",
+      "endpoint": "/api/tax/earned-income-credit",
+      "method": "POST",
+      "title": "근로장려금 (단독가구)",
+      "description": "「조세특례제한법」제100조의3 — 단독가구 phase-in/plateau/phase-out 곡선 (최대 165만원).",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "householdIncome",
+          "label": "총급여 등 가구합산소득 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "phase-in: 0~400만원 0.4125x | plateau: 400만~900만 165만원 | phase-out: 900만~2,200만 (단독가구 기준)",
+      "eligibility": [
+        {
+          "variable": "householdIncome",
+          "op": "gt",
+          "value": 0,
+          "message": "총급여 등 합산소득이 있어야 합니다."
+        },
+        {
+          "variable": "householdIncome",
+          "op": "lte",
+          "value": 22000000,
+          "message": "단독가구는 총급여 등 2,200만원 미만이어야 신청 가능합니다."
+        }
+      ],
+      "legal_source": "「조세특례제한법」제100조의3~제100조의5 (근로장려세제) — 단독·홑벌이·맞벌이 가구별 차등; 본 룰은 단독가구 기준"
+    },
+    {
+      "url": "${BASE_URL}/api/tax/corporate-tax",
+      "endpoint": "/api/tax/corporate-tax",
+      "method": "POST",
+      "title": "산출세액 (4단계 누진)",
+      "description": "「법인세법」제55조 — 9% / 19% / 21% / 24% 4단계 누진세율로 법인세 산출세액 계산.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "taxableIncome",
+          "label": "각 사업연도 과세표준 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액 (4단계 누진)",
+      "eligibility": [
+        {
+          "variable": "taxableIncome",
+          "op": "gt",
+          "value": 0,
+          "message": "과세표준이 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「법인세법」제55조 (세율) — 4단계 누진 (9% / 19% / 21% / 24%), 2023년~2025년 사업연도분 적용",
+      "brackets": [
+        {
+          "max": 200000000,
+          "rate": 0.09,
+          "qd": 0
+        },
+        {
+          "max": 20000000000,
+          "rate": 0.19,
+          "qd": 20000000
+        },
+        {
+          "max": 300000000000,
+          "rate": 0.21,
+          "qd": 420000000
+        },
+        {
+          "max": 0,
+          "rate": 0.24,
+          "qd": 9420000000
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/inheritance-tax",
+      "endpoint": "/api/tax/inheritance-tax",
+      "method": "POST",
+      "title": "상속세 산출세액 (5단계 누진)",
+      "description": "「상속세 및 증여세법」제26조 — 10% ~ 50% 5단계 누진세율로 상속세 산출세액 계산.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "inheritanceBase",
+          "label": "상속세 과세표준 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액 (5단계 누진)",
+      "eligibility": [
+        {
+          "variable": "inheritanceBase",
+          "op": "gt",
+          "value": 0,
+          "message": "상속세 과세표준(상속세과세가액 − 상속공제)이 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「상속세 및 증여세법」제26조 (세율) — 5단계 누진 (10% ~ 50%), 2023년~2025년 상속개시분 적용",
+      "brackets": [
+        {
+          "max": 100000000,
+          "rate": 0.1,
+          "qd": 0
+        },
+        {
+          "max": 500000000,
+          "rate": 0.2,
+          "qd": 10000000
+        },
+        {
+          "max": 1000000000,
+          "rate": 0.3,
+          "qd": 60000000
+        },
+        {
+          "max": 3000000000,
+          "rate": 0.4,
+          "qd": 160000000
+        },
+        {
+          "max": 0,
+          "rate": 0.5,
+          "qd": 460000000
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/gift-tax",
+      "endpoint": "/api/tax/gift-tax",
+      "method": "POST",
+      "title": "증여세 산출세액 (5단계 누진)",
+      "description": "「상속세 및 증여세법」제56조 — 상속세 동일 5단계 누진세율로 증여세 산출세액 계산.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "giftBase",
+          "label": "증여세 과세표준 (원)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액 (상속세와 동일 5단계 누진)",
+      "eligibility": [
+        {
+          "variable": "giftBase",
+          "op": "gt",
+          "value": 0,
+          "message": "증여세 과세표준(증여세과세가액 − 증여재산공제)이 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「상속세 및 증여세법」제56조 (증여세 세율) — 제26조 상속세 세율 준용, 2023년~2025년 증여분 적용",
+      "brackets": [
+        {
+          "max": 100000000,
+          "rate": 0.1,
+          "qd": 0
+        },
+        {
+          "max": 500000000,
+          "rate": 0.2,
+          "qd": 10000000
+        },
+        {
+          "max": 1000000000,
+          "rate": 0.3,
+          "qd": 60000000
+        },
+        {
+          "max": 3000000000,
+          "rate": 0.4,
+          "qd": 160000000
+        },
+        {
+          "max": 0,
+          "rate": 0.5,
+          "qd": 460000000
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/tax/vat-payable",
+      "endpoint": "/api/tax/vat-payable",
+      "method": "POST",
+      "title": "납부세액 (매출세액 − 매입세액)",
+      "description": "「부가가치세법」제30·37·38조 — 일반과세자 납부세액 = (매출 공급가액 − 매입 공급가액) × 10%.",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "supplyValue",
+          "label": "매출 공급가액 (원, 분기별)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "purchaseValue",
+          "label": "매입 공급가액 (원, 분기별)",
+          "type": "number",
+          "required": true,
+          "default": "0",
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amount",
+          "label": "결과값"
+        }
+      ],
+      "formula_expression": "납부세액 = max(매출 공급가액 − 매입 공급가액, 0) × 10%",
+      "eligibility": [
+        {
+          "variable": "supplyValue",
+          "op": "gt",
+          "value": 0,
+          "message": "매출 공급가액이 0원 초과여야 합니다."
+        }
+      ],
+      "legal_source": "「부가가치세법」제30조 (세율 10%) + 제37조·제38조 (납부세액 = 매출세액 − 매입세액)"
+    },
+    {
+      "url": "${BASE_URL}/api/statutory/recognized-income",
+      "endpoint": "/api/statutory/recognized-income",
+      "method": "POST",
+      "title": "소득인정액",
+      "description": "「국민기초생활 보장법」제2조 제8·9호",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "기준 연도. 생략 시 현재 연도.",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salary",
+          "label": "근로소득",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "businessIncome",
+          "label": "사업소득",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "financialIncome",
+          "label": "재산소득",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "rentalIncome",
+          "label": "임대소득",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "transferIncome",
+          "label": "이전소득",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "generalProperty",
+          "label": "일반재산",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "financialAssets",
+          "label": "금융재산",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "vehicleAssets",
+          "label": "자동차",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "debt",
+          "label": "부채",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "recognizedIncome",
+          "label": "소득인정액"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/statutory/median-ratio",
+      "endpoint": "/api/statutory/median-ratio",
+      "method": "POST",
+      "title": "중위소득 비율",
+      "description": "「국민기초생활 보장법」제8조의2",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "기준 연도. 생략 시 현재 연도.",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "recognizedIncome",
+          "label": "소득인정액",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "householdSize",
+          "label": "가구원수",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "ratio",
+          "label": "비율(%)"
+        },
+        {
+          "name": "eligibility",
+          "label": "자격"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/statutory/eligibility-flow",
+      "endpoint": "/api/statutory/eligibility-flow",
+      "method": "POST",
+      "title": "복지 자격 통합",
+      "description": "복지 자격 + 해외체류 기준",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "기준 연도. 생략 시 현재 연도.",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salary",
+          "label": "근로소득",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "householdSize",
+          "label": "가구원수",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "overseasDays",
+          "label": "해외체류",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "qualified",
+          "label": "자격여부"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/statutory/inheritance-priority",
+      "endpoint": "/api/statutory/inheritance-priority",
+      "method": "POST",
+      "title": "상속 우선순위",
+      "description": "「민법」 제1000~1112조",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "기준 연도. 생략 시 현재 연도.",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "totalEstate",
+          "label": "상속재산",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "spouseCount",
+          "label": "배우자수",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "childCount",
+          "label": "자녀수",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "parentCount",
+          "label": "부모수",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "shares",
+          "label": "분배"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/statutory/vat-delta",
+      "endpoint": "/api/statutory/vat-delta",
+      "method": "POST",
+      "title": "부가가치세 차분",
+      "description": "「부가가치세법」제30·37·38조",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "기준 연도. 생략 시 현재 연도.",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salesSupplyAmount",
+          "label": "매출",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        },
+        {
+          "name": "purchaseSupplyAmount",
+          "label": "매입",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "payable",
+          "label": "납부/환급"
+        }
+      ]
+    },
+    {
+      "url": "${BASE_URL}/api/statutory/deduction-ladder/earned-income",
+      "endpoint": "/api/statutory/deduction-ladder/earned-income",
+      "method": "POST",
+      "title": "근로소득공제 사다리",
+      "description": "「소득세법」제47조 (5단계 piecewise-linear)",
+      "inputs": [
+        {
+          "name": "year",
+          "label": "기준 연도",
+          "type": "select",
+          "required": false,
+          "default": "2025",
+          "help": "기준 연도. 생략 시 현재 연도.",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ]
+        },
+        {
+          "name": "salary",
+          "label": "총급여",
+          "type": "number",
+          "required": true,
+          "help": "",
+          "options": []
+        }
+      ],
+      "outputs": [
+        {
+          "name": "deduction",
+          "label": "공제액"
+        }
+      ]
+    }
+  ]
+}

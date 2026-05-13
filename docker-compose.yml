@@ -25,6 +25,7 @@ services:
     environment:
       HF_TOKEN: "${HUGGINGFACE_TOKEN}"
       MODEL_ID: "Qwen/Qwen2.5-0.5B-Instruct"
+      BASE_URL: "http://backend:8080"
     volumes:
       - hf-cache:/root/.cache/huggingface
     networks:

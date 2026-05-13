@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { generateTaxChatResponse, reportToQwen } from "./qwen-client";
+import { generateTaxChatResponse, reportToQwen, fixAxPlan } from "./qwen-client";
 import { executePlan } from "./ax-api";
 import type { AxPlan, AxExecutionResult } from "./types";
 
@@ -173,38 +173,95 @@ export function useTaxAxChat() {
       setError("");
       setPhase("executing");
 
-      try {
-        const res = await executePlan(plan);
-        if (abortRef.current) return;
+      const startTime = Date.now();
+      const deadline = startTime + 180_000; // 180초
+      let currentPlan = plan;
+      let attempt = 0;
 
-        const tableHtml = buildResultTable(res);
-        addMessage({
-          id: nextId(),
-          role: "result",
-          content: tableHtml,
-          result: res,
-        });
-
-        setPhase("reporting");
-        const report = await reportToQwen(
-          res.overallSuccess,
-          JSON.stringify(res, null, 2),
-          originalRequest,
-        );
+      while (true) {
         if (abortRef.current) return;
+        if (Date.now() > deadline) {
+          const timeoutMsg = "AX 실행 제한 시간 180초 초과";
+          setError(timeoutMsg);
+          addMessage({ id: nextId(), role: "error", content: timeoutMsg });
+          setPhase("error");
+          return;
+        }
 
-        addMessage({
-          id: nextId(),
-          role: "assistant",
-          content: report,
-        });
-        setPhase("done");
-      } catch (e) {
-        if (abortRef.current) return;
-        const errMsg = (e as Error).message;
-        setError(errMsg);
-        addMessage({ id: nextId(), role: "error", content: errMsg });
-        setPhase("error");
+        try {
+          attempt++;
+          const res = await executePlan(currentPlan);
+          if (abortRef.current) return;
+
+          const tableHtml = buildResultTable(res);
+          addMessage({
+            id: nextId(),
+            role: "result",
+            content: tableHtml,
+            result: res,
+          });
+
+          setPhase("reporting");
+          const report = await reportToQwen(
+            res.overallSuccess,
+            JSON.stringify(res, null, 2),
+            originalRequest,
+          );
+          if (abortRef.current) return;
+
+          addMessage({
+            id: nextId(),
+            role: "assistant",
+            content: report,
+          });
+          setPhase("done");
+          return;
+        } catch (e) {
+          if (abortRef.current) return;
+          const errMsg = (e as Error).message;
+
+          if (Date.now() > deadline) {
+            setError(errMsg);
+            addMessage({ id: nextId(), role: "error", content: errMsg });
+            setPhase("error");
+            return;
+          }
+
+          addMessage({
+            id: nextId(),
+            role: "assistant",
+            content: `AX 실행 실패 (시도 ${attempt}): ${errMsg}\n플랜을 수정하여 재시도합니다...`,
+          });
+
+          try {
+            const fixText = await fixAxPlan(
+              originalRequest,
+              JSON.stringify(currentPlan, null, 2),
+              errMsg,
+            );
+            if (abortRef.current) return;
+
+            const { json } = extractJson(fixText);
+            if (!json) {
+              throw new Error("수정된 플랜에서 JSON을 찾을 수 없습니다.");
+            }
+            const fixed = JSON.parse(json);
+            if (fixed.steps) {
+              currentPlan = fixed as AxPlan;
+            } else {
+              throw new Error("수정된 응답에 steps가 없습니다.");
+            }
+
+            await new Promise((r) => setTimeout(r, 1000));
+          } catch (fixErr) {
+            if (abortRef.current) return;
+            const fixErrMsg = (fixErr as Error).message;
+            setError(fixErrMsg);
+            addMessage({ id: nextId(), role: "error", content: fixErrMsg });
+            setPhase("error");
+            return;
+          }
+        }
       }
     },
     [addMessage],

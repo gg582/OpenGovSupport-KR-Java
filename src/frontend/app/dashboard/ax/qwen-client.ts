@@ -37,12 +37,40 @@ async function callGenerate(prompt: string, max_new_tokens: number): Promise<str
 
 export async function generateAxPlan(
   userRequest: string,
-  endpointsInfo: string,
+  _endpointsInfo: string,
   _modelId?: string,
 ): Promise<string> {
-  const prompt = buildPlanPrompt(userRequest, endpointsInfo);
-  const text = await callGenerate(prompt, 1024);
-  return text.slice(prompt.length).trim();
+  const res = await fetch("/api/llm/ax/plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_request: userRequest, history: [] }),
+  });
+  if (!res.ok) {
+    throw new Error(`LLM 플랜 생성 실패 (${res.status}): ${await res.text()}`);
+  }
+  const data = await res.json();
+  return (data.generated_text ?? "").trim();
+}
+
+export async function fixAxPlan(
+  originalRequest: string,
+  failedPlan: string,
+  errorInfo: string,
+): Promise<string> {
+  const res = await fetch("/api/llm/ax/fix", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      original_request: originalRequest,
+      failed_plan: failedPlan,
+      error_info: errorInfo,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`LLM 플랜 수정 실패 (${res.status}): ${await res.text()}`);
+  }
+  const data = await res.json();
+  return (data.generated_text ?? "").trim();
 }
 
 export async function reportToQwen(
@@ -85,9 +113,19 @@ export async function generateTaxChatResponse(
   messages: ChatMessage[],
   _modelId?: string,
 ): Promise<string> {
-  const prompt = buildTaxChatPrompt(messages);
-  const text = await callGenerate(prompt, 1024);
-  return text.slice(prompt.length).trim();
+  // 마지막 메시지가 사용자 요청, 나머지는 history
+  const userRequest = messages.filter((m) => m.role === "user").pop()?.content ?? "";
+  const history = messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
+  const res = await fetch("/api/llm/ax/plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_request: userRequest, history }),
+  });
+  if (!res.ok) {
+    throw new Error(`LLM 요청 실패 (${res.status}): ${await res.text()}`);
+  }
+  const data = await res.json();
+  return (data.generated_text ?? "").trim();
 }
 
 /* ------------------------------------------------------------------ */
