@@ -87,7 +87,10 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
         max_new_tokens=max_new_tokens,
         do_sample=False,
     )
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자륍면 토큰/문자 불일치로 결과가 망가짐)
+    input_length = inputs.input_ids.shape[1]
+    new_tokens = outputs[0][input_length:]
+    return tokenizer.decode(new_tokens, skip_special_tokens=True)
 
 
 @app.post("/generate")
@@ -192,7 +195,7 @@ JSON 출력 형식:
 def ax_plan(req: PlanRequest):
     prompt = _build_plan_prompt(req.user_request, req.history)
     generated_text = _generate(prompt, req.max_new_tokens)
-    result = generated_text[len(prompt) :].strip()
+    result = generated_text.strip()
     return {"generated_text": result}
 
 
@@ -200,5 +203,5 @@ def ax_plan(req: PlanRequest):
 def ax_fix(req: FixRequest):
     prompt = _build_fix_prompt(req.original_request, req.failed_plan, req.error_info)
     generated_text = _generate(prompt, req.max_new_tokens)
-    result = generated_text[len(prompt) :].strip()
+    result = generated_text.strip()
     return {"generated_text": result}
