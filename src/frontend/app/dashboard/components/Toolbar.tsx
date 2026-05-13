@@ -21,7 +21,7 @@ const MODE_LABELS: Record<DashMode, string> = {
   conflict: "충돌",
   timeline: "연도",
   audit: "감사",
-  ax: "AX",
+  ax: "세무 AX",
 };
 
 export default function Toolbar() {
@@ -199,7 +199,7 @@ export default function Toolbar() {
       </select>
 
       <div className="sep" />
-      {(["normal", "reverse", "conflict", "timeline", "audit"] as const).map(
+      {(["normal", "reverse", "conflict", "timeline", "audit", "ax"] as const).map(
         (m) => (
           <button
             key={m}

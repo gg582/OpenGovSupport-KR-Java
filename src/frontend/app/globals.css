@@ -239,3 +239,48 @@
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   FeatureForm 개선 — 카드 기반 입력 / 계좌별 행 입력
+   ═══════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .scalar-field {
+    @apply bg-page rounded border border-line p-3;
+  }
+  .scalar-label {
+    @apply block text-sm font-semibold text-navy mb-1.5;
+  }
+  .scalar-input-wrap {
+    @apply w-full;
+  }
+  .scalar-help {
+    @apply mt-1.5 text-xs text-navy/60 leading-relaxed;
+  }
+
+  /* 행 입력 카드 */
+  .row-card {
+    @apply bg-white border border-line rounded overflow-hidden;
+  }
+  .row-card-header {
+    @apply flex items-center justify-between px-3 py-2 bg-navy-50/40 border-b border-line;
+  }
+  .row-card-title {
+    @apply text-sm font-semibold text-navy;
+  }
+  .row-card-body {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3;
+  }
+  .row-card-cell {
+    @apply flex flex-col gap-1;
+  }
+  .row-card-label {
+    @apply text-xs font-medium text-navy/70;
+  }
+}
+
+@media (max-width: 767px) {
+  .row-card-body {
+    grid-template-columns: 1fr;
+  }
+}

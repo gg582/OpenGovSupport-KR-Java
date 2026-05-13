@@ -8,7 +8,7 @@ import Toolbar from "./components/Toolbar";
 import ExecPanel from "./components/ExecPanel";
 import LogPanel from "./components/LogPanel";
 import OverlayPanel from "./components/OverlayPanel";
-import AxPanel from "./ax/AxPanel";
+import TaxAxChatPanel from "./ax/TaxAxChatPanel";
 import MobileDashboard from "./components/MobileDashboard";
 import EasyMobileDashboard from "./components/EasyMobileDashboard";
 import EasyCanvas from "./components/EasyCanvas";
@@ -135,6 +135,7 @@ export default function Dashboard() {
           <EasyToolbar />
           <EasyCanvas />
           <EasyExecPanel />
+          {mode === "ax" && <TaxAxChatPanel />}
           {helpPanel}
         </div>
       </ReactFlowProvider>
@@ -148,7 +149,7 @@ export default function Dashboard() {
         <Palette />
         <Canvas />
         {mode === "ax" ? (
-          <AxPanel />
+          <TaxAxChatPanel />
         ) : mode === "normal" ? (
           <LogPanel />
         ) : (

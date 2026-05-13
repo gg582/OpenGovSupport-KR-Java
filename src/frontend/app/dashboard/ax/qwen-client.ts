@@ -1,10 +1,12 @@
 /**
- * WebGPU 기반 브라우저 남아 Qwen 실행 클라이언트.
+ * WebGPU 기반 브라우저 내 Qwen 실행 클라이언트.
  *
  * <p>@huggingface/transformers 를 npm 에서 import 하지 않고
  * 런타임 CDN 로드로 번들링 문제를 완전히 회피한다.
  * 이 파일만 삭제하면 AX 모듈 전체를 쉽게 제거할 수 있다.</p>
  */
+
+import { FORMULA_RULES } from "../lib/registry";
 
 declare global {
   interface Window {
@@ -80,6 +82,47 @@ export async function reportToQwen(
   const text: string = output[0]?.generated_text ?? "";
   return text.slice(prompt.length).trim();
 }
+
+/* ------------------------------------------------------------------ */
+/*  세무 AX — 세법 endpoint 만 필터링                                   */
+/* ------------------------------------------------------------------ */
+
+export type ChatMessage =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string };
+
+function buildTaxEndpointInfo(): string {
+  return Object.entries(FORMULA_RULES)
+    .filter(([, meta]) => meta.endpoint.startsWith("/api/tax/"))
+    .map(([key, meta]) => {
+      const ins = meta.inputs.map((p) => `${p.name}: number`).join(", ");
+      const outs = meta.outputs.map((p) => `${p.name}: number`).join(", ");
+      return `- ${meta.endpoint} (rule: ${key}) → 입력 {${ins}}, 출력 {${outs}}`;
+    })
+    .join("\n");
+}
+
+/**
+ * 멀티턴 세무 AX 대화.
+ * @returns AI 의 응답 문자열. JSON 플랜이 포함될 수 있음.
+ */
+export async function generateTaxChatResponse(
+  messages: ChatMessage[],
+  modelId?: string,
+): Promise<string> {
+  const gen = await loadQwen(modelId);
+  const prompt = buildTaxChatPrompt(messages);
+  const output = await gen(prompt, {
+    max_new_tokens: 1024,
+    do_sample: false,
+  });
+  const text: string = output[0]?.generated_text ?? "";
+  return text.slice(prompt.length).trim();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Prompt builders                                                    */
+/* ------------------------------------------------------------------ */
 
 function buildPlanPrompt(userRequest: string, endpointsInfo: string): string {
   return `<|im_start|>system
@@ -167,4 +210,52 @@ AX 실패 정보: ${resultJson}
 <|im_end|>
 <|im_start|>assistant
 `;
+}
+
+function buildTaxChatPrompt(messages: ChatMessage[]): string {
+  const endpointsInfo = buildTaxEndpointInfo();
+
+  const system = `<|im_start|>system
+너는 한국 세법 전문 AI 어시스턴트 "세무 AX"야.
+
+역할:
+- 사용자와 자연스러운 대화를 나누면서 세법 관련 계산을 도와준다.
+- 세금 계산이 필요하면, 아래 제공된 세법 산출식 목록만 사용하여 실행 플랜(JSON)을 만든다.
+- 제공되지 않은 endpoint나 규칙은 절대 지어내지 않는다.
+- 사용자의 요청이 모호하거나 계산에 필요한 정보가 부족하면, 친절하게 추가 정보를 묻는다.
+
+행동 지침:
+1. 대화 흐름:
+   - 사용자가 계산을 요청하면 → JSON 플랜을 생성하여 출력.
+   - 정보가 부족하면 → 질문을 던져 요구사항을 구체화.
+   - 일반적인 세법 질문이면 → 평문으로 답변.
+2. JSON 플랜 형식(계산 필요 시 ONLY):
+{
+  "steps": [
+    {
+      "endpoint": "/api/tax/earned-income-deduction",
+      "method": "POST",
+      "inputs": { "grossSalary": 72000000 },
+      "outputKey": "earnedDeduction",
+      "description": "근로소득공제 계산"
+    }
+  ]
+}
+3. JSON 외 텍스트는 평문으로 출력한다. 마크다운 코드 블록( \`\`\` )은 사용하지 않는다.
+4. 각 단계의 outputKey는 고유해야 한다.
+5. inputs 의 값은 사용자 요청에서 직접 추출한 구체적인 숫자를 사용한다.
+6. 플랜이 필요 없는 경우(질문, 모호한 요청)에는 평문으로만 응답한다.
+
+사용 가능한 세법 산출식 목록:
+${endpointsInfo}
+<|im_end|>`;
+
+  const history = messages
+    .map(
+      (m) =>
+        `<|im_start|>${m.role}\n${m.content}<|im_end|>`,
+    )
+    .join("\n");
+
+  return `${system}\n${history}\n<|im_start|>assistant\n`;
 }

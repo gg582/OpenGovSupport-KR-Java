@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ALL_TEMPLATES, type NodeTemplate } from "../lib/registry";
 import { useGraphStore } from "../lib/store";
 import {
@@ -38,21 +39,45 @@ export default function Palette() {
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const runAll = useGraphStore((s) => s.runAll);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
 
   // 정형 패턴 — 그룹별.
   const subgraphsByGroup = SUBGRAPH_GROUP_ORDER.map((g) => ({
     group: g,
-    items: SUBGRAPH_TEMPLATES.filter((t) => t.group === g),
-  }));
+    items: SUBGRAPH_TEMPLATES.filter((t) => {
+      if (!q) return t.group === g;
+      const hay = `${t.name} ${t.description} ${t.legalBasis ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    }),
+  })).filter(({ items }) => items.length > 0);
 
   // 일반 노드 팔레트.
   const nodesByGroup = NODE_GROUP_ORDER.map((g) => ({
     group: g,
-    items: ALL_TEMPLATES.filter((t) => t.group === g),
-  }));
+    items: ALL_TEMPLATES.filter((t) => {
+      if (!q) return t.group === g;
+      const hay = `${t.label} ${t.hint ?? ""} ${t.citation ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    }),
+  })).filter(({ items }) => items.length > 0);
 
   return (
     <aside className="dash-palette">
+      <div className="palette-search">
+        <input
+          type="text"
+          placeholder="노드/패턴 검색…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {q && (
+          <button className="palette-clear" onClick={() => setQuery("")}>
+            ×
+          </button>
+        )}
+      </div>
       {/* ── 정형 패턴 — 최상단에 시각적으로 분리 ─────────── */}
       <div className="group" style={{ color: "#f6c668", letterSpacing: "0.16em" }}>
         ▦ 정형 패턴 (TEMPLATE)

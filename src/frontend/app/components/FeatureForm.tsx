@@ -90,66 +90,42 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
     openPrintable(feature, result);
   }
 
-  // separate row-kind inputs (which render as full-width tables)
-  // from scalar inputs (which render in the key-value form table).
   const scalarInputs = feature.inputs.filter((i) => i.kind !== "rows");
   const rowInputs = feature.inputs.filter((i) => i.kind === "rows");
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={onSubmit} className="space-y-4">
+    <div className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-5">
+        {/* ── 단일 입력 항목 ── */}
         {scalarInputs.length > 0 && (
           <section className="panel">
             <div className="panel-header">입력 정보</div>
-            <table className="gov-table">
-              <thead>
-                <tr>
-                  <th className="w-[50px] text-center">No.</th>
-                  <th className="w-[200px]">항목</th>
-                  <th>입력값</th>
-                  <th className="w-[240px] hidden md:table-cell">안내</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scalarInputs.map((input, i) => (
-                  <tr key={input.name}>
-                    <td className="text-center font-mono text-navy/70">
-                      {String(i + 1).padStart(2, "0")}
-                    </td>
-                    <th>
-                      {input.label}
-                      {input.required && <span className="text-red-600 ml-1">*</span>}
-                    </th>
-                    <td>
-                      <div className="space-y-1">
-                        {renderField(input, values, setScalar)}
-                        {input.help && (
-                          <div className="text-xs text-navy/55 md:hidden">{input.help}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="text-xs text-navy/55 hidden md:table-cell align-middle">
-                      {input.help}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="px-4 py-4 space-y-4">
+              {scalarInputs.map((input) => (
+                <ScalarField
+                  key={input.name}
+                  input={input}
+                  value={(values[input.name] as string) ?? ""}
+                  onChange={(v) => setScalar(input.name, v)}
+                />
+              ))}
+            </div>
           </section>
         )}
 
+        {/* ── 표(행) 입력 항목 ── */}
         {rowInputs.map((input) => (
           <section className="panel" key={input.name}>
-            <div className="panel-header">
-              {input.label}
-              <span className="ml-auto text-xs font-mono text-navy/50 font-normal">
-                {((values[input.name] as Record<string, string>[]) ?? []).length} 행
+            <div className="panel-header flex items-center justify-between">
+              <span>{input.label}</span>
+              <span className="text-xs font-mono text-navy/50 font-normal">
+                {((values[input.name] as Record<string, string>[]) ?? []).length}건 등록
               </span>
             </div>
             {input.help && (
               <div className="px-4 pt-3 text-xs text-navy/60">{input.help}</div>
             )}
-            <div className="px-4 pb-4 pt-3 overflow-x-auto">
+            <div className="px-4 pb-4 pt-3 space-y-3">
               <RowsField
                 input={input}
                 rows={(values[input.name] as Record<string, string>[]) ?? []}
@@ -249,50 +225,64 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
   );
 }
 
-function renderField(
-  input: Input,
-  values: Record<string, unknown>,
-  setScalar: (n: string, v: string) => void,
-) {
-  if (input.kind === "select") {
-    return (
-      <select
-        id={input.name}
-        className="field-input"
-        value={(values[input.name] as string) ?? ""}
-        onChange={(e) => setScalar(input.name, e.target.value)}
-      >
-        {(input.options ?? []).map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
-      </select>
-    );
-  }
-  if (input.kind === "textarea") {
-    return (
-      <textarea
-        id={input.name}
-        className="field-input"
-        value={(values[input.name] as string) ?? ""}
-        onChange={(e) => setScalar(input.name, e.target.value)}
-        placeholder={input.placeholder}
-      />
-    );
-  }
+/* ── 단일 입력 필드 (라벨 위, 입력 아래, 도움말 하단) ── */
+function ScalarField({
+  input,
+  value,
+  onChange,
+}: {
+  input: Input;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
-    <input
-      id={input.name}
-      type={input.kind === "date" ? "date" : input.kind === "number" ? "number" : "text"}
-      step={input.kind === "number" ? "any" : undefined}
-      className="field-input"
-      value={(values[input.name] as string) ?? ""}
-      onChange={(e) => setScalar(input.name, e.target.value)}
-      placeholder={input.placeholder}
-      required={input.required}
-    />
+    <div className="scalar-field">
+      <label htmlFor={input.name} className="scalar-label">
+        {input.label}
+        {input.required && <span className="text-red-600 ml-1">*</span>}
+      </label>
+      <div className="scalar-input-wrap">
+        {input.kind === "select" ? (
+          <select
+            id={input.name}
+            className="field-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          >
+            {(input.options ?? []).map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+        ) : input.kind === "textarea" ? (
+          <textarea
+            id={input.name}
+            className="field-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={input.placeholder}
+            rows={3}
+          />
+        ) : (
+          <input
+            id={input.name}
+            type={input.kind === "date" ? "date" : input.kind === "number" ? "number" : "text"}
+            step={input.kind === "number" ? "any" : undefined}
+            className="field-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={input.placeholder}
+            required={input.required}
+          />
+        )}
+      </div>
+      {input.help && (
+        <p className="scalar-help">{input.help}</p>
+      )}
+    </div>
   );
 }
 
+/* ── 행(카드) 입력 필드 ── */
 function RowsField({
   input,
   rows,
@@ -307,29 +297,46 @@ function RowsField({
   onRemove: (idx: number) => void;
 }) {
   const cols = input.columns ?? [];
+
+  // 컬럼명에서 은행/계좌/금액 패턴을 감지하면 카드 헤더를 다르게 표시
+  const hasBank = cols.some((c) => /은행|bank/i.test(c.name + c.label));
+  const hasAccount = cols.some((c) => /계좌|account|계좌번호/i.test(c.name + c.label));
+  const hasAmount = cols.some((c) => /금액|이자|amount|interest/i.test(c.name + c.label));
+
   return (
-    <>
-      <table className="gov-table gov-table--scroll min-w-[640px]">
-        <thead>
-          <tr>
-            <th className="w-[40px] text-center">No.</th>
-            {cols.map((c) => <th key={c.name}>{c.label}</th>)}
-            <th className="w-[60px]" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={cols.length + 2} className="text-center text-navy/55 py-6">
-                입력된 데이터가 없습니다. 아래 [+ 행 추가] 버튼으로 시작하세요.
-              </td>
-            </tr>
-          )}
-          {rows.map((row, idx) => (
-            <tr key={idx}>
-              <td className="text-center font-mono text-navy/70">{String(idx + 1).padStart(2, "0")}</td>
+    <div className="space-y-3">
+      {rows.length === 0 && (
+        <div className="text-center text-navy/55 py-6 bg-page rounded border border-line">
+          입력된 데이터가 없습니다. 아래 [+ 추가] 버튼으로 시작하세요.
+        </div>
+      )}
+
+      {rows.map((row, idx) => {
+        // 은행/계좌/금액 패턴이면 "계좌 1" 식으로 표시
+        let cardTitle = `${input.label} ${idx + 1}`;
+        if (hasBank && hasAccount) {
+          const bankVal = row[cols.find((c) => /은행|bank/i.test(c.name + c.label))?.name ?? ""];
+          cardTitle = bankVal ? `${bankVal} 계좌` : `계좌 ${idx + 1}`;
+        } else if (hasAmount) {
+          cardTitle = `${input.label.replace(/입력|등록/g, "").trim()} ${idx + 1}`;
+        }
+
+        return (
+          <div key={idx} className="row-card">
+            <div className="row-card-header">
+              <span className="row-card-title">{cardTitle}</span>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                onClick={() => onRemove(idx)}
+              >
+                삭제
+              </button>
+            </div>
+            <div className="row-card-body">
               {cols.map((c) => (
-                <td key={c.name}>
+                <div key={c.name} className="row-card-cell">
+                  <label className="row-card-label">{c.label}</label>
                   {c.kind === "select" ? (
                     <select
                       className="field-input"
@@ -350,22 +357,16 @@ function RowsField({
                       placeholder={c.placeholder}
                     />
                   )}
-                </td>
+                </div>
               ))}
-              <td className="text-center">
-                <button type="button" className="btn-ghost" onClick={() => onRemove(idx)}>
-                  삭제
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-3 flex gap-2">
-        <button type="button" className="btn-secondary" onClick={onAdd}>
-          + 행 추가
-        </button>
-      </div>
-    </>
+            </div>
+          </div>
+        );
+      })}
+
+      <button type="button" className="btn-secondary" onClick={onAdd}>
+        + {input.label.replace(/입력|등록/g, "").trim() || "항목"} 추가
+      </button>
+    </div>
   );
 }

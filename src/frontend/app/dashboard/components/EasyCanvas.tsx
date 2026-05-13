@@ -22,7 +22,7 @@ import "reactflow/dist/style.css";
 import EasyStatNode from "./EasyStatNode";
 import EasyConnectionLine from "./EasyConnectionLine";
 import { useGraphStore } from "../lib/store";
-import { GRID } from "../lib/types";
+import { GRID, snapXY } from "../lib/types";
 import { autoLayoutEasy } from "../lib/elk";
 import type { NodeTemplate } from "../lib/registry";
 import { SUBGRAPH_TEMPLATES } from "../lib/subgraphTemplates";
@@ -39,6 +39,7 @@ export default function EasyCanvas() {
   const setMode = useGraphStore((s) => s.setMode);
 
   const connect = useGraphStore((s) => s.connect);
+  const removeEdge = useGraphStore((s) => s.removeEdge);
   const runAll = useGraphStore((s) => s.runAll);
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
@@ -189,11 +190,27 @@ export default function EasyCanvas() {
     setConnectingFrom(null);
   }, []);
 
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (!newConnection.source || !newConnection.target) return;
+      removeEdge(oldEdge.id);
+      connect({
+        source: newConnection.source,
+        target: newConnection.target,
+        sourceHandle: newConnection.sourceHandle,
+        targetHandle: newConnection.targetHandle,
+      });
+      queueMicrotask(() => runAll());
+    },
+    [connect, removeEdge, runAll],
+  );
+
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
+      const pos = snapXY(node.position.x, node.position.y);
       setNodes((nodes) =>
         nodes.map((n) =>
-          n.id === node.id ? { ...n, position: node.position } : n,
+          n.id === node.id ? { ...n, position: pos } : n,
         ),
       );
     },
@@ -261,7 +278,7 @@ export default function EasyCanvas() {
         maxZoom={1.2}
         edgesFocusable={true}
         edgeUpdaterRadius={12}
-        deleteKeyCode={null}
+        deleteKeyCode={["Backspace", "Delete"]}
         nodesDraggable={true}
         selectionOnDrag={true}
         selectionMode={SelectionMode.Partial}

@@ -22,7 +22,7 @@ import "reactflow/dist/style.css";
 import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
 import { useGraphStore } from "../lib/store";
-import { GRID } from "../lib/types";
+import { GRID, snapXY } from "../lib/types";
 import { clearReactFlowSelection } from "../lib/clearSelection";
 import type { NodeTemplate } from "../lib/registry";
 import { SUBGRAPH_TEMPLATES } from "../lib/subgraphTemplates";
@@ -42,7 +42,7 @@ export default function Canvas({ mobile = false }: Props) {
   const doc = useGraphStore((s) => s.doc);
   const connect = useGraphStore((s) => s.connect);
   const select = useGraphStore((s) => s.select);
-  const moveNode = useGraphStore((s) => s.moveNode);
+  const setNodes = useGraphStore((s) => s.setNodes);
   const removeNode = useGraphStore((s) => s.removeNode);
   const removeEdge = useGraphStore((s) => s.removeEdge);
   const runAll = useGraphStore((s) => s.runAll);
@@ -106,18 +106,21 @@ export default function Canvas({ mobile = false }: Props) {
     [doc.edges],
   );
 
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      const pos = snapXY(node.position.x, node.position.y);
+      setNodes((nodes) =>
+        nodes.map((n) => (n.id === node.id ? { ...n, position: pos } : n)),
+      );
+    },
+    [setNodes],
+  );
+
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      // 적용은 react-flow 도우미로 — 그러나 위치 변화는 우리 store 에 동기.
       const updated = applyNodeChanges(changes, rfNodes);
-      // 다중 선택을 고려해 select 변화는 마지막 selected 만 반영
-      // (selectedId 는 단일 — 다중은 RF 내부 selected flag 가 보유).
       let lastSelected: string | null | undefined;
       changes.forEach((c) => {
-        if (c.type === "position" && c.position && !c.dragging) {
-          // 드래그 종료 시점에만 그리드 스냅 적용 + 저장.
-          moveNode(c.id, c.position.x, c.position.y);
-        }
         if (c.type === "select") {
           if (c.selected) lastSelected = c.id;
         }
@@ -126,10 +129,9 @@ export default function Canvas({ mobile = false }: Props) {
         }
       });
       if (lastSelected !== undefined) select(lastSelected);
-      // 드래그 중 위치는 react-flow 가 알아서 표시하지만, 우리 store 에는 반영 안함.
       void updated;
     },
-    [rfNodes, moveNode, select, removeNode],
+    [rfNodes, select, removeNode],
   );
 
   const onEdgesChange = useCallback(
@@ -168,6 +170,21 @@ export default function Canvas({ mobile = false }: Props) {
     setConnectingFrom(null);
   }, []);
 
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      if (!newConnection.source || !newConnection.target) return;
+      removeEdge(oldEdge.id);
+      connect({
+        source: newConnection.source,
+        target: newConnection.target,
+        sourceHandle: newConnection.sourceHandle,
+        targetHandle: newConnection.targetHandle,
+      });
+      queueMicrotask(() => runAll());
+    },
+    [connect, removeEdge, runAll],
+  );
+
   // 데스크톱: 좌클릭 드래그 = 영역 선택, 중·우클릭 드래그 = 팬.
   // 모바일: 한 손가락 드래그 = 팬, 두 손가락 = 핀치 줌 (RF 기본).
   const desktopProps = {
@@ -204,8 +221,10 @@ export default function Canvas({ mobile = false }: Props) {
         snapToGrid
         snapGrid={[GRID.size, GRID.size]}
         onNodesChange={onNodesChange}
+        onNodeDragStop={onNodeDragStop}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onReconnect={onReconnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         onNodeClick={(_, n) => select(n.id)}

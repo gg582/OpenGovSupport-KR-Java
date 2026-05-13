@@ -22,6 +22,7 @@ export default function EasyToolbar() {
   const loadResult = useGraphStore((s) => s.loadResult);
   const deleteResult = useGraphStore((s) => s.deleteResult);
   const toggleHelp = useGraphStore((s) => s.toggleHelp);
+  const setMode = useGraphStore((s) => s.setMode);
 
   const [saved, setSaved] = useState<Array<{ id: string; name: string; kind: string; updatedAt: string }>>([]);
   const [savingHint, setSavingHint] = useState<string | null>(null);
@@ -197,6 +198,9 @@ export default function EasyToolbar() {
       </select>
 
       <div className="sep" />
+      <button className="btn btn-accent" onClick={() => setMode("ax")} title="세무 AX 챗봇">
+        세무 AX
+      </button>
       <button className="btn" onClick={() => toggleHelp()} title="도움말">?</button>
 
       <div className="sep" />
