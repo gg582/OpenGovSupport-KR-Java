@@ -79,6 +79,30 @@ services:
           cpus: "${BACKEND_CPUS:-2.0}"
           memory: "${BACKEND_MEMORY:-1024M}"
 
+  network-agent:
+    build:
+      context: ./src/network-agent
+      dockerfile: Dockerfile
+    image: opengovsupport-network-agent:latest
+    container_name: opengovsupport-network-agent
+    restart: unless-stopped
+    environment:
+      BASE_URL: "http://backend:8080"
+      DEFAULT_TIMEOUT: "30"
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "${AGENT_CPUS:-1.0}"
+          memory: "${AGENT_MEMORY:-512M}"
+
   frontend:
     build:
       context: ./src/frontend

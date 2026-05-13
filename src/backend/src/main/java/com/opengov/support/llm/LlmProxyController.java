@@ -37,6 +37,11 @@ public class LlmProxyController {
         return restTemplate.postForEntity(llmUrl + "/ax/fix", body, Object.class);
     }
 
+    @PostMapping("/agent/execute")
+    public ResponseEntity<?> agentExecute(@RequestBody Map<String, Object> body) {
+        return restTemplate.postForEntity("http://network-agent:8000/execute", body, Object.class);
+    }
+
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return restTemplate.getForEntity(llmUrl + "/health", Object.class);
