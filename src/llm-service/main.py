@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import os
 import json
+import asyncio
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 # Load endpoints spec
 ENDPOINTS_SPEC_PATH = os.path.join(os.path.dirname(__file__), "endpoints_spec.json")
 ENDPOINTS_SPEC = ""
+ENDPOINTS_SPEC_SUMMARY = ""
 try:
     with open(ENDPOINTS_SPEC_PATH, "r", encoding="utf-8") as f:
         ENDPOINTS_SPEC = f.read().replace("${BASE_URL}", BASE_URL)
@@ -27,6 +29,29 @@ except Exception as e:
         },
         ensure_ascii=False,
     )
+
+
+def _summarize_spec(spec_text: str) -> str:
+    """43KB JSON 전체를 LLM 프롬프트에 넣으면 토큰이 폭증해 OOM/timeout 이 발생한다.
+    endpoint/method/inputs/outputs 만 간결히 요약한다."""
+    try:
+        data = json.loads(spec_text)
+        lines = []
+        for ep in data.get("endpoints", []):
+            ins = ", ".join(i.get("name", "") for i in ep.get("inputs", []))
+            outs = ", ".join(o.get("name", "") for o in ep.get("outputs", []))
+            lines.append(
+                f"- {ep.get('endpoint', '')} [{ep.get('method', 'POST')}] "
+                f"{ep.get('title', '')} → 입력({ins}) 출력({outs})"
+            )
+        return "\n".join(lines)
+    except Exception:
+        # fallback: raw JSON 앞부분만
+        return spec_text[:1500]
+
+
+ENDPOINTS_SPEC_SUMMARY = _summarize_spec(ENDPOINTS_SPEC)
+print(f"[LLM] Endpoints spec: {len(ENDPOINTS_SPEC)} chars -> summary {len(ENDPOINTS_SPEC_SUMMARY)} chars", flush=True)
 
 model = None
 tokenizer = None
@@ -63,14 +88,14 @@ class ChatMessage(BaseModel):
 class PlanRequest(BaseModel):
     user_request: str
     history: list[ChatMessage] = []
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 512
 
 
 class FixRequest(BaseModel):
     original_request: str
     failed_plan: str
     error_info: str
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 512
 
 
 @app.get("/health")
@@ -93,9 +118,14 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
     return tokenizer.decode(new_tokens, skip_special_tokens=True)
 
 
+async def _generate_async(prompt: str, max_new_tokens: int) -> str:
+    """CPU 집약적인 ONNX generate 를 이벤트 루프를 블록하지 않도록 별도 스레드에서 실행."""
+    return await asyncio.to_thread(_generate, prompt, max_new_tokens)
+
+
 @app.post("/generate")
-def generate(req: GenerateRequest):
-    generated_text = _generate(req.prompt, req.max_new_tokens)
+async def generate(req: GenerateRequest):
+    generated_text = await _generate_async(req.prompt, req.max_new_tokens)
     return {"generated_text": generated_text}
 
 
@@ -135,7 +165,7 @@ JSON 출력 형식:
 }}
 
 사용 가능한 산출식 목록:
-{ENDPOINTS_SPEC}
+{ENDPOINTS_SPEC_SUMMARY}
 <|im_end|>"""
 
     lines = []
@@ -178,7 +208,7 @@ JSON 출력 형식:
 }}
 
 사용 가능한 산출식 목록:
-{ENDPOINTS_SPEC}
+{ENDPOINTS_SPEC_SUMMARY}
 <|im_end|>"""
 
     return f"""{system}
@@ -192,16 +222,16 @@ JSON 출력 형식:
 
 
 @app.post("/ax/plan")
-def ax_plan(req: PlanRequest):
+async def ax_plan(req: PlanRequest):
     prompt = _build_plan_prompt(req.user_request, req.history)
-    generated_text = _generate(prompt, req.max_new_tokens)
+    generated_text = await _generate_async(prompt, req.max_new_tokens)
     result = generated_text.strip()
     return {"generated_text": result}
 
 
 @app.post("/ax/fix")
-def ax_fix(req: FixRequest):
+async def ax_fix(req: FixRequest):
     prompt = _build_fix_prompt(req.original_request, req.failed_plan, req.error_info)
-    generated_text = _generate(prompt, req.max_new_tokens)
+    generated_text = await _generate_async(prompt, req.max_new_tokens)
     result = generated_text.strip()
     return {"generated_text": result}
