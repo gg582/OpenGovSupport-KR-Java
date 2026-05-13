@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForCausalLM
 
-MODEL_ID = os.getenv("MODEL_ID", "onnx-community/Qwen2.5-1.5B-ONNX")
+MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 model = None
