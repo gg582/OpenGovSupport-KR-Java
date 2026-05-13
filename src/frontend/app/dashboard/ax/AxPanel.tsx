@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FORMULA_RULES } from "../lib/registry";
-import { generateAxPlan, reportToQwen, loadQwen } from "./qwen-client";
+import {
+  generateAxPlan,
+  reportToQwen,
+  loadQwen,
+  isWebGpuSupported,
+} from "./qwen-client";
 import { executePlan, getAxConfig } from "./ax-api";
 import type { AxPlan, AxExecutionResult } from "./types";
 import AxProgressBar from "./AxProgressBar";
@@ -17,6 +22,22 @@ function buildEndpointInfo(): string {
       return `- ${meta.endpoint} (rule: ${key}) → 입력 {${ins}}, 출력 {${outs}}`;
     })
     .join("\n");
+}
+
+/** 마크다운 코드 블록과 설명 텍스트를 제거한 뒤 JSON 부분만 추출. */
+function extractJson(text: string): string | null {
+  // 1. 마크다운 코드 블록 낮추기
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) {
+    text = codeBlock[1].trim();
+  }
+  // 2. 첫 번째 '{' 와 마지막 '}' 사이
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) {
+    return text.slice(first, last + 1);
+  }
+  return null;
 }
 
 export default function AxPanel() {
@@ -67,6 +88,13 @@ export default function AxPanel() {
 
   const handleGenerate = async () => {
     if (!request.trim()) return;
+    if (!isWebGpuSupported()) {
+      setError(
+        "WebGPU 가 지원되지 않는 브라우저입니다. Chrome 113+ 또는 Edge 113+ 에서 사용해 주세요.",
+      );
+      setPhase("error");
+      return;
+    }
     setPhase("loading-model");
     setError("");
     try {
@@ -74,8 +102,8 @@ export default function AxPanel() {
       setPhase("generating");
       const endpointsInfo = buildEndpointInfo();
       const raw = await generateAxPlan(request, endpointsInfo);
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      setPlanJson(jsonMatch ? jsonMatch[0] : raw);
+      const extracted = extractJson(raw);
+      setPlanJson(extracted ?? raw);
       setPhase("ready");
     } catch (e) {
       setError((e as Error).message);
@@ -170,9 +198,22 @@ export default function AxPanel() {
         </div>
       )}
 
-      {error && (
+      {phase === "error" && error && (
         <div className="ax-section">
-          <div className="ax-error">× {error}</div>
+          <div className="ax-error">
+            <strong>AX 오류</strong>
+            <p>{error}</p>
+            <button
+              className="btn"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                setPhase("idle");
+                setError("");
+              }}
+            >
+              다시 시도
+            </button>
+          </div>
         </div>
       )}
 

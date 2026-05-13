@@ -8,15 +8,6 @@
 
 import { FORMULA_RULES } from "../lib/registry";
 
-declare global {
-  interface Window {
-    transformers?: any;
-  }
-}
-
-const TRANSFORMERS_CDN =
-  "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/dist/transformers.min.js";
-
 let generator: any = null;
 let loading = false;
 
@@ -24,16 +15,36 @@ export function isQwenLoading(): boolean {
   return loading;
 }
 
+/** 브라우저가 WebGPU 를 지원하는지 확인. */
+export function isWebGpuSupported(): boolean {
+  return typeof navigator !== "undefined" && "gpu" in navigator;
+}
+
+/**
+ * ESM CDN 을 통해 transformers.js 를 런타임 로드.
+ * webpackIgnore 로 번들링에서 완전히 제외된다.
+ */
 async function loadTransformersFromCDN(): Promise<any> {
-  if (window.transformers) return window.transformers;
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = TRANSFORMERS_CDN;
-    script.async = true;
-    script.onload = () => resolve(window.transformers);
-    script.onerror = () => reject(new Error("Transformers.js CDN 로드 실패"));
-    document.head.appendChild(script);
-  });
+  const cacheKey = "__ax_transformers_cdn";
+  const w = window as any;
+  if (w[cacheKey]) return w[cacheKey];
+
+  const urls = [
+    "https://esm.sh/@huggingface/transformers@3.0.0",
+    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm",
+  ];
+
+  let lastErr: Error | undefined;
+  for (const url of urls) {
+    try {
+      const mod = await import(/* webpackIgnore: true */ url);
+      w[cacheKey] = mod;
+      return mod;
+    } catch (e) {
+      lastErr = e as Error;
+    }
+  }
+  throw lastErr ?? new Error("Transformers.js CDN 로드 실패 — 네트워크를 확인하세요.");
 }
 
 export async function loadQwen(modelId = "onnx-community/Qwen2.5-1.5B-ONNX") {
