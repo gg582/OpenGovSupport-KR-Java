@@ -40,26 +40,70 @@ function extractJson(text: string): { json: string; plain: string } {
   return { json, plain };
 }
 
+/* ------------------------------------------------------------------ */
+/*  결과에서 amount / title / 요약 추출 (백엔드 응답: {title,text,data})  */
+/* ------------------------------------------------------------------ */
+function pickResult(response: unknown): {
+  amount?: number;
+  title?: string;
+  summary: string;
+} {
+  if (!response || typeof response !== "object") {
+    return { summary: String(response ?? "—") };
+  }
+  const obj = response as Record<string, unknown>;
+
+  // 1) data.amount
+  let amount: number | undefined;
+  if (obj.data && typeof obj.data === "object") {
+    const data = obj.data as Record<string, unknown>;
+    if (typeof data.amount === "number") amount = data.amount;
+  }
+  // 2) 최상위 amount
+  if (amount === undefined && typeof obj.amount === "number") {
+    amount = obj.amount;
+  }
+
+  const title = typeof obj.title === "string" ? obj.title : undefined;
+
+  // 3) text 에서 [결과] 라인 추출
+  let summary = "";
+  if (typeof obj.text === "string") {
+    const resultLine = obj.text.split("\n").find((l) => l.startsWith("[결과]"));
+    if (resultLine) {
+      summary = resultLine.replace("[결과]", "").trim();
+    }
+  }
+
+  // amount 가 있으면 "12,345,678원" 으로 덮어씀
+  if (amount !== undefined) {
+    summary = `${amount.toLocaleString("ko-KR")}원`;
+  }
+
+  return { amount, title, summary: summary || "—" };
+}
+
+/* ------------------------------------------------------------------ */
+/*  결과 테이블 HTML                                                    */
+/* ------------------------------------------------------------------ */
 function buildResultTable(result: AxExecutionResult): string {
   const rows = result.stepResults
     .map((sr) => {
-      const val =
+      const picked =
         sr.success && sr.response && typeof sr.response === "object"
-          ? (sr.response as Record<string, unknown>)["amount"] ??
-            JSON.stringify(sr.response)
-          : sr.error ?? "—";
-      const displayVal =
-        typeof val === "number" ? `${val.toLocaleString("ko-KR")}원` : String(val);
+          ? pickResult(sr.response)
+          : { summary: sr.error ?? "—" };
       return `<tr>
         <td>${sr.outputKey}</td>
-        <td>${sr.description ?? "—"}</td>
-        <td>${displayVal}</td>
-        <td>${sr.success ? "성공" : "실패"}</td>
+        <td>${picked.title ?? sr.description ?? "—"}</td>
+        <td style="text-align:right;font-weight:600">${picked.summary}</td>
+        <td>${sr.success ? "✓ 성공" : "✗ 실패"}</td>
       </tr>`;
     })
     .join("");
+
   return `<table class="ax-result-table">
-    <thead><tr><th>산출 단계</th><th>설명</th><th>결과</th><th>상태</th></tr></thead>
+    <thead><tr><th>산출 단계</th><th>항목</th><th>산출 결과</th><th>상태</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
@@ -270,16 +314,18 @@ export function useTaxAxChat() {
   const exportResultToXlsx = useCallback(
     async (result: AxExecutionResult, filename = "세무AX_산출결과") => {
       const xlsx = await import("xlsx");
-      const rows = result.stepResults.map((sr) => ({
-        산출단계: sr.outputKey,
-        설명: sr.description ?? "—",
-        결과:
+      const rows = result.stepResults.map((sr) => {
+        const picked =
           sr.success && sr.response && typeof sr.response === "object"
-            ? JSON.stringify((sr.response as Record<string, unknown>)["amount"] ?? sr.response)
-            : sr.error ?? "—",
-        상태: sr.success ? "성공" : "실패",
-        소요시간ms: result.elapsedMs,
-      }));
+            ? pickResult(sr.response)
+            : { summary: sr.error ?? "—" };
+        return {
+          산출단계: sr.outputKey,
+          항목: picked.title ?? sr.description ?? "—",
+          결과: picked.summary,
+          상태: sr.success ? "성공" : "실패",
+        };
+      });
       const ws = xlsx.utils.json_to_sheet(rows);
       const wb = xlsx.utils.book_new();
       xlsx.utils.book_append_sheet(wb, ws, "산출결과");
@@ -301,17 +347,14 @@ export function useTaxAxChat() {
     (result: AxExecutionResult, filename = "세무AX_산출결과") => {
       const rows = result.stepResults
         .map((sr) => {
-          const val =
+          const picked =
             sr.success && sr.response && typeof sr.response === "object"
-              ? (sr.response as Record<string, unknown>)["amount"] ??
-                JSON.stringify(sr.response)
-              : sr.error ?? "—";
-          const displayVal =
-            typeof val === "number" ? `${val.toLocaleString("ko-KR")}원` : String(val);
+              ? pickResult(sr.response)
+              : { summary: sr.error ?? "—" };
           return `<tr>
             <td style="padding:8px;border:1px solid #ccc">${sr.outputKey}</td>
-            <td style="padding:8px;border:1px solid #ccc">${sr.description ?? "—"}</td>
-            <td style="padding:8px;border:1px solid #ccc">${displayVal}</td>
+            <td style="padding:8px;border:1px solid #ccc">${picked.title ?? sr.description ?? "—"}</td>
+            <td style="padding:8px;border:1px solid #ccc;text-align:right;font-weight:600">${picked.summary}</td>
             <td style="padding:8px;border:1px solid #ccc">${sr.success ? "성공" : "실패"}</td>
           </tr>`;
         })
@@ -338,8 +381,8 @@ export function useTaxAxChat() {
             <thead>
               <tr>
                 <th>산출 단계</th>
-                <th>설명</th>
-                <th>결과</th>
+                <th>항목</th>
+                <th>산출 결과</th>
                 <th>상태</th>
               </tr>
             </thead>
