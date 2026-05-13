@@ -690,7 +690,10 @@ const EASY_KIND: Record<string, string> = {
 function formatOutput(v: unknown): string {
   if (v == null) return "—";
   if (typeof v === "number") return v.toLocaleString("ko-KR");
-  if (typeof v === "object") return JSON.stringify(v).slice(0, 80);
+  if (typeof v === "object") {
+    if (Array.isArray(v)) return `목록 ${v.length}건`;
+    return `데이터 ${Object.keys(v).length}항`;
+  }
   return String(v);
 }
 

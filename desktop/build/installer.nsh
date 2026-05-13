@@ -1,4 +1,4 @@
-; NSIS customization for 뜌땨 생활행정 (Tyutya) desktop installer.
+; NSIS customization for 누리이음 생활행정 (Tyutya) desktop installer.
 ;
 ; - Per-user install — never elevate.
 ; - Custom Korean strings.

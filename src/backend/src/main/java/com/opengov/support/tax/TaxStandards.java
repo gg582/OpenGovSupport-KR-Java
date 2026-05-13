@@ -214,6 +214,14 @@ public final class TaxStandards {
             Map.of("max", 0L,              "rate", 0.50, "qd", 460_000_000L)
     );
 
+    /** 「소득세법」제59조의4 ⑩ 결혼 세액공제 (2024~2026년 혼인신고분). 1인당 50만원, 부부 합산 최대 100만원, 생애 1회. */
+    public static final long MARRIAGE_CREDIT_PER_PERSON = 500_000;
+    public static final long MARRIAGE_CREDIT_MAX = 1_000_000;
+
+    /** 「소득세법」제59조의4 ③ 체육시설 이용료 세액공제 (2025년 귀속~). 9세 미만·초등2학년 이하 자녀 대상, 연 300만원 한도의 15%. */
+    public static final long SPORTS_CREDIT_CAP = 3_000_000;
+    public static final double SPORTS_CREDIT_RATE = 0.15;
+
     /** 「조세특례제한법」시행령 제143조 단순경비율 (대표 업종). */
     public static final Map<String, Double> SIMPLE_EXPENSE_RATE = Map.of(
             "도소매업",       0.86,

@@ -1,0 +1,28 @@
+{
+  "rule_id": "donation-credit",
+  "category": "특별세액공제",
+  "title": "기부금 세액공제",
+  "formula_type": "A",
+  "formula_expression": "공제 = 1,000만원 이하분 × 15% + 초과분 × 30% (정규화: x*r − c)",
+  "params": {
+    "variable": "donation",
+    "brackets": [
+      { "max": 10000000, "rate": 0.15, "qd": 0 },
+      { "max": 0,        "rate": 0.30, "qd": 1500000 }
+    ]
+  },
+  "eligibility": [
+    { "variable": "donation", "op": "gt", "value": 0, "message": "기부금 납부액이 있어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "기부금영수증",
+      "issuer": "수증기관 (공익단체·종교단체·정치자금 등)",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "법정·지정기부금 모두 연말정산 간소화에 등재"
+    }
+  ],
+  "submission_channels": ["회사 연말정산 시스템", "홈택스 종합소득세 신고"],
+  "legal_source": "「소득세법」제59조의4 ④ — 기부금 세액공제 (1천만원 이하 15% / 초과분 30%)"
+}

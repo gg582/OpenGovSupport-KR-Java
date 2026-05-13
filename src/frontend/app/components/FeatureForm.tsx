@@ -101,20 +101,40 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
         {scalarInputs.length > 0 && (
           <section className="panel">
             <div className="panel-header">입력 정보</div>
-            <div className="form-grid">
-              {scalarInputs.map((input) => (
-                <div className="form-row" key={input.name}>
-                  <div className="label">
-                    <span>{input.label}</span>
-                    {input.required && <span className="text-red-600">*</span>}
-                  </div>
-                  <div className="value space-y-1">
-                    {renderField(input, values, setScalar)}
-                    {input.help && <div className="text-xs text-navy/55">{input.help}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <table className="gov-table">
+              <thead>
+                <tr>
+                  <th className="w-[50px] text-center">No.</th>
+                  <th className="w-[200px]">항목</th>
+                  <th>입력값</th>
+                  <th className="w-[240px] hidden md:table-cell">안내</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scalarInputs.map((input, i) => (
+                  <tr key={input.name}>
+                    <td className="text-center font-mono text-navy/70">
+                      {String(i + 1).padStart(2, "0")}
+                    </td>
+                    <th>
+                      {input.label}
+                      {input.required && <span className="text-red-600 ml-1">*</span>}
+                    </th>
+                    <td>
+                      <div className="space-y-1">
+                        {renderField(input, values, setScalar)}
+                        {input.help && (
+                          <div className="text-xs text-navy/55 md:hidden">{input.help}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-xs text-navy/55 hidden md:table-cell align-middle">
+                      {input.help}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </section>
         )}
 
@@ -310,14 +330,26 @@ function RowsField({
               <td className="text-center font-mono text-navy/70">{String(idx + 1).padStart(2, "0")}</td>
               {cols.map((c) => (
                 <td key={c.name}>
-                  <input
-                    type={c.kind === "date" ? "date" : c.kind === "number" ? "number" : "text"}
-                    step={c.kind === "number" ? "any" : undefined}
-                    className="field-input"
-                    value={row[c.name] ?? ""}
-                    onChange={(e) => onSet(idx, c.name, e.target.value)}
-                    placeholder={c.placeholder}
-                  />
+                  {c.kind === "select" ? (
+                    <select
+                      className="field-input"
+                      value={row[c.name] ?? ""}
+                      onChange={(e) => onSet(idx, c.name, e.target.value)}
+                    >
+                      {(c.options ?? []).map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={c.kind === "date" ? "date" : c.kind === "number" ? "number" : "text"}
+                      step={c.kind === "number" ? "any" : undefined}
+                      className="field-input"
+                      value={row[c.name] ?? ""}
+                      onChange={(e) => onSet(idx, c.name, e.target.value)}
+                      placeholder={c.placeholder}
+                    />
+                  )}
                 </td>
               ))}
               <td className="text-center">

@@ -1,0 +1,29 @@
+{
+  "rule_id": "median-income",
+  "category": "복지",
+  "title": "기준중위소득 (2026년도)",
+  "formula_type": "lookup",
+  "formula_expression": "가구원수별 기준중위소득 조회",
+  "params": {
+    "table": [
+      { "householdSize": 1, "amount": 2564238 },
+      { "householdSize": 2, "amount": 4199292 },
+      { "householdSize": 3, "amount": 5359036 },
+      { "householdSize": 4, "amount": 6494738 },
+      { "householdSize": 5, "amount": 7556719 },
+      { "householdSize": 6, "amount": 8555952 },
+      { "householdSize": 7, "amount": 9515150 }
+    ]
+  },
+  "required_documents": [
+    {
+      "name": "주민등록등본",
+      "issuer": "정부24",
+      "online_issuance": true,
+      "submit_to": "관할 주민센터",
+      "note": "가구원수 및 동거 여부 확인"
+    }
+  ],
+  "submission_channels": ["주민센터 방문", "복지로 온라인 신청"],
+  "legal_source": "「국민기초생활 보장법」제6조의2 — 보건복지부 고시 제2025-135호 (2026년도 기준중위소득)"
+}

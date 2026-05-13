@@ -127,7 +127,7 @@ async function prepareNative() {
 
   // 4) 시작 셸 스크립트 — process.resourcesPath 가 ../resources 를 가리키도록 환경 정렬.
   const launcher = `#!/bin/sh
-# 뜌땨 생활행정 — FreeBSD 네이티브 런처.
+# 누리이음 생활행정 — FreeBSD 네이티브 런처.
 set -e
 HERE="\${HOME}/.local/share/tyutya"
 if [ ! -d "\${HERE}" ]; then
@@ -162,7 +162,7 @@ async function prepareLinuxCompat() {
 // ─── helpers ──────────────────────────────────────────────────────────
 function writeRegisterScript(stageDir) {
   const installer = `#!/bin/sh
-# 뜌땨 생활행정 — FreeBSD 등록 스크립트.
+# 누리이음 생활행정 — FreeBSD 등록 스크립트.
 # .txz 를 풀어둔 폴더에서 한 번 실행하면 응용프로그램 메뉴 / 검색에 자동 등록됩니다.
 set -e
 PREFIX="\${HOME}/.local/share/tyutya"
@@ -182,7 +182,7 @@ fi
 cat > "\${APPS}/tyutya.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=뜌땨 생활행정
+Name=누리이음 생활행정
 GenericName=Statutory Computation
 Exec="\${PREFIX}/tyutya" %U
 Icon=tyutya
@@ -197,18 +197,18 @@ update-desktop-database "\${APPS}" >/dev/null 2>&1 || true
 xdg-desktop-menu forceupdate --mode user >/dev/null 2>&1 || true
 gtk-update-icon-cache -q -t -f "\${HOME}/.local/share/icons/hicolor" >/dev/null 2>&1 || true
 
-echo "뜌땨 생활행정 — 등록 완료. 응용프로그램 메뉴에서 실행하세요."
+echo "누리이음 생활행정 — 등록 완료. 응용프로그램 메뉴에서 실행하세요."
 `;
   writeFileSync(join(stageDir, "register.sh"), installer, { mode: 0o755 });
 }
 
 function writeReadme(stageDir) {
-  const readme = `뜌땨 생활행정 — FreeBSD 번들
+  const readme = `누리이음 생활행정 — FreeBSD 번들
 
 설치 (3단계, 모두 GUI):
   1) 이 .txz 를 임의 위치에 풉니다.
   2) 풀린 'tyutya' 폴더 안의 'register.sh' 를 더블클릭 (한 번만).
-  3) 응용프로그램 메뉴에서 "뜌땨 생활행정" 을 더블클릭하면 실행됩니다.
+  3) 응용프로그램 메뉴에서 "누리이음 생활행정" 을 더블클릭하면 실행됩니다.
 
 요구사항:
   - FreeBSD 14.2+ (네이티브 빌드 — 별도 의존 없음)

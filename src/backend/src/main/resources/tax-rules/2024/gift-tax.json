@@ -1,0 +1,45 @@
+{
+  "rule_id": "gift-tax",
+  "category": "증여세",
+  "title": "증여세 산출세액",
+  "formula_type": "A",
+  "formula_expression": "산출세액 = 과세표준 × 적용세율 − 누진공제액 (상속세와 동일 5단계 누진)",
+  "params": {
+    "variable": "giftBase",
+    "brackets": [
+      { "max": 100000000,    "rate": 0.10, "qd": 0 },
+      { "max": 500000000,    "rate": 0.20, "qd": 10000000 },
+      { "max": 1000000000,   "rate": 0.30, "qd": 60000000 },
+      { "max": 3000000000,   "rate": 0.40, "qd": 160000000 },
+      { "max": 0,            "rate": 0.50, "qd": 460000000 }
+    ]
+  },
+  "eligibility": [
+    { "variable": "giftBase", "op": "gt", "value": 0, "message": "증여세 과세표준(증여세과세가액 − 증여재산공제)이 0원 초과여야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "증여세 과세표준신고 및 자진납부계산서",
+      "issuer": "국세청 (홈택스 작성)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "「상속세 및 증여세법 시행규칙」별지 제10호 서식. 증여일이 속하는 달 말일부터 3개월 이내 신고."
+    },
+    {
+      "name": "증여계약서",
+      "issuer": "증여자 / 수증자 작성",
+      "online_issuance": false,
+      "submit_to": "홈택스",
+      "note": "증여 사실 및 증여재산 명세 확인"
+    },
+    {
+      "name": "증여재산 평가자료",
+      "issuer": "등기부·금융기관 잔액증명서·감정평가서 등",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "부동산·예금·주식·기타재산 가액 평가"
+    }
+  ],
+  "submission_channels": ["홈택스 전자신고", "관할세무서 방문 접수"],
+  "legal_source": "「상속세 및 증여세법」제56조 (증여세 세율) — 제26조 상속세 세율 준용, 2023년~2025년 증여분 적용"
+}

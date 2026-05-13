@@ -1,0 +1,41 @@
+{
+  "rule_id": "vat-payable",
+  "category": "부가가치세",
+  "title": "부가가치세 납부세액",
+  "formula_type": "C",
+  "formula_expression": "납부세액 = max(매출 공급가액 − 매입 공급가액, 0) × 10%",
+  "params": {
+    "variable": "supplyValue",
+    "thresholdVariable": "purchaseValue",
+    "thresholdRate": 1.0,
+    "rate": 0.10
+  },
+  "eligibility": [
+    { "variable": "supplyValue", "op": "gt", "value": 0, "message": "매출 공급가액이 0원 초과여야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "부가가치세 신고서",
+      "issuer": "국세청 (홈택스 작성)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "「부가가치세법 시행규칙」별지 제21호 서식. 일반과세자 분기별 (1·4·7·10월)."
+    },
+    {
+      "name": "매출처별 세금계산서합계표",
+      "issuer": "본인 (전자세금계산서는 자동 수집)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "매출세액 산정 근거"
+    },
+    {
+      "name": "매입처별 세금계산서합계표",
+      "issuer": "본인 (전자세금계산서는 자동 수집)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "매입세액 공제 근거 (불공제분 별도 기재)"
+    }
+  ],
+  "submission_channels": ["홈택스 전자신고", "관할세무서 방문 접수"],
+  "legal_source": "「부가가치세법」제30조 (세율 10%) + 제37조·제38조 (납부세액 = 매출세액 − 매입세액)"
+}

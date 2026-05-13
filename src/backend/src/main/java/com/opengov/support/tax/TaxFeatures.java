@@ -191,6 +191,36 @@ public final class TaxFeatures {
                                         .defaultValue("0").required(true)
                                         .help("만 8세 이상 ~ 20세 이하 자녀.").build()
                         )),
+                new Feature(
+                        "tax/marriage-credit", s,
+                        "14_기타세액공제", "기타세액공제",
+                        "결혼 세액공제",
+                        "「소득세법」제59조의4 ⑩ — 2024년 1월 1일~2026년 12월 31일 혼인신고분, 부부 각각 50만원(생애 1회).",
+                        List.of(
+                                Input.of("year", "기준 연도", "select")
+                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                Input.of("isMarriedInPeriod", "혼인신고 시기 해당", "select")
+                                        .options(List.of("해당", "미해당")).defaultValue("해당")
+                                        .help("2024.1.1.~2026.12.31. 사이 혼인신고 시 해당.").build(),
+                                Input.of("claimedBefore", "이전에 공제받은 적 있음", "select")
+                                        .options(List.of("false", "true")).defaultValue("false")
+                                        .help("생애 1회 한도로 이전에 받은 적 있으면 0원.").build(),
+                                Input.of("spouseClaim", "배우자 공제 여부", "select")
+                                        .options(List.of("본인만", "배우자도")).defaultValue("배우자도")
+                                        .help("배우자도 해당되면 합산 최대 100만원.").build()
+                        )),
+                new Feature(
+                        "tax/sports-credit", s,
+                        "14_기타세액공제", "기타세액공제",
+                        "체육시설 이용료 세액공제",
+                        "「소득세법」제59조의4 ③ — 2025년 귀속~ 9세 미만·초등학교 2학년 이하 자녀 체육시설 이용료의 15%, 연 300만원 한도.",
+                        List.of(
+                                Input.of("year", "기준 연도", "select")
+                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                Input.of("sportsExpense", "체육시설 이용료 (원, 연간)", "number")
+                                        .defaultValue("0").required(true)
+                                        .help("헬스장·수영장·태권도장 등 이용료.").build()
+                        )),
 
                 // ── 15 사업소득 ──
                 new Feature(

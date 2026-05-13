@@ -1,0 +1,38 @@
+{
+  "rule_id": "recognized-income",
+  "category": "복지",
+  "title": "소득인정액 산출",
+  "formula_type": "B",
+  "formula_expression": "소득인정액 = 소득평가액 + 재산의 소득환산액 − 기본공제",
+  "params": {
+    "incomeTypes": ["근로소득", "사업소득", "재산소득(이자·배당)", "임대소득", "이전소득"],
+    "propertyConversion": {
+      "일반재산_일반": { "rate": 0.0417, "unit": "월", "note": "주거 외 일반재산 월 4.17% 환산" },
+      "일반재산_주거": { "rate": 0.0104, "unit": "월", "note": "주거용 재산 월 1.04% 환산" },
+      "금융재산": { "rate": 0.0417, "unit": "월", "note": "예금·채권 등 월 4.17% 환산" },
+      "자동차_일반": { "rate": 1.00, "unit": "월", "note": "원칙적으로 전액(100%) 월 소득 환산" },
+      "자동차_완화": { "rate": 0.0417, "unit": "월", "note": "완화 대상 차량은 월 4.17% 환산" }
+    },
+    "regionalDeduction": {
+      "서울": 5400000,
+      "경기": 4800000,
+      "광역세종창원": 4200000,
+      "그외도시": 3600000,
+      "농어촌": 3000000
+    }
+  },
+  "eligibility": [
+    { "variable": "householdSize", "op": "gt", "value": 0, "message": "가구원 수가 1인 이상이어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "소득·재산 신고서 및 증빙",
+      "issuer": "수급희망자 작성",
+      "online_issuance": false,
+      "submit_to": "관할 주민센터",
+      "note": "근로·사업·재산 증빙 및 금융재산 잔액 확인서"
+    }
+  ],
+  "submission_channels": ["주민센터 방문", "복지로 온라인 신청"],
+  "legal_source": "「국민기초생활 보장법」제2조(소득인정액) — 소득평가액 + 재산의 소득환산액 − 기본공제"
+}

@@ -1,0 +1,43 @@
+{
+  "rule_id": "simple-expense-rate",
+  "category": "사업소득",
+  "title": "단순경비율 추정 필요경비",
+  "formula_type": "B",
+  "formula_expression": "추정 필요경비 = 수입금액 × 업종별 단순경비율 (소득금액 = 수입금액 − 필요경비)",
+  "params": {
+    "variable": "revenue",
+    "rateMap": {
+      "key": "industry",
+      "values": {
+        "도소매업":         0.86,
+        "제조업":           0.78,
+        "음식점업":         0.79,
+        "건설업":           0.79,
+        "전문서비스업":     0.60,
+        "서비스업(인적)":   0.61
+      }
+    }
+  },
+  "eligibility": [
+    { "variable": "revenue", "op": "gt", "value": 0, "message": "수입금액(매출)이 있어야 합니다." },
+    { "variable": "revenue", "op": "lt", "value": 75000000, "message": "단순경비율 적용 대상은 직전 과세기간 수입금액이 업종별 기준(도소매 7,500만원, 제조 등 4,800만원, 서비스 3,600만원) 미만인 경우입니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "사업장현황신고서",
+      "issuer": "국세청 (홈택스)",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "면세사업자는 매년 2월 10일까지 신고"
+    },
+    {
+      "name": "수입금액증명원",
+      "issuer": "국세청",
+      "online_issuance": true,
+      "submit_to": "홈택스",
+      "note": "전년도 수입금액 확인 (단순경비율 적용 가능 여부 검증)"
+    }
+  ],
+  "submission_channels": ["홈택스 종합소득세 신고", "관할세무서 방문 접수"],
+  "legal_source": "「소득세법 시행령」제143조 (단순경비율 적용 대상) — 신규사업자 또는 직전연도 수입금액이 업종별 기준 미만인 사업자"
+}

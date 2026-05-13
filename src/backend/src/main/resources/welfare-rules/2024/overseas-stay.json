@@ -1,0 +1,28 @@
+{
+  "rule_id": "overseas-stay",
+  "category": "복지",
+  "title": "해외체류 급여 정지 임계",
+  "formula_type": "threshold",
+  "formula_expression": "출국 후 누적(또는 기간 내) 해외체류일이 임계를 초과하면 급여 정지",
+  "params": {
+    "rules": {
+      "기초생활_신규": { "threshold": 61, "unit": "일", "note": "신청일 기준 출입국 내역 — 61일 초과 시 수급 제한" },
+      "기초생활_기존": { "threshold": 61, "unit": "일", "window": 180, "note": "기준일(180일 전) 이후 해외체류일 합산 — 61일 초과 시 정지" },
+      "기초생활_누적": { "threshold": 61, "unit": "일", "window": 180, "note": "기존 수급자용 누적 합산 — 61일 초과 시 정지" },
+      "기초연금": { "threshold": 60, "unit": "일", "note": "출국 후 60일 초과 시 지급 정지" },
+      "장애인연금": { "threshold": 60, "unit": "일", "note": "출국 후 60일 초과 시 지급 정지" },
+      "차상위_본인부담경감": { "threshold": 90, "unit": "일", "note": "출국 후 3개월(90일) 초과 시 자격 정지" }
+    }
+  },
+  "required_documents": [
+    {
+      "name": "출입국 사실증명서",
+      "issuer": "법문부 출입국·외국인정책본부",
+      "online_issuance": true,
+      "submit_to": "관할 주민센터",
+      "note": "출국·입국 일자 확인"
+    }
+  ],
+  "submission_channels": ["주민센터 방문", "복지로 온라인 신청"],
+  "legal_source": "「국민기초생활 보장법」제10조의2 · 「기초연금법」제14조 · 「장애인연금법」제14조 · 「차상위계층 지원법」시행령"
+}

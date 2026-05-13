@@ -22,6 +22,8 @@ import OrthoEdge from "./OrthoEdge";
 import { useGraphStore } from "../lib/store";
 import { GRID } from "../lib/types";
 import { clearReactFlowSelection } from "../lib/clearSelection";
+import type { NodeTemplate } from "../lib/registry";
+import { SUBGRAPH_TEMPLATES } from "../lib/subgraphTemplates";
 
 const nodeTypes = { stat: StatNode } as const;
 const edgeTypes = { ortho: OrthoEdge } as const;
@@ -42,6 +44,8 @@ export default function Canvas({ mobile = false }: Props) {
   const removeNode = useGraphStore((s) => s.removeNode);
   const removeEdge = useGraphStore((s) => s.removeEdge);
   const runAll = useGraphStore((s) => s.runAll);
+  const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
+  const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const fitViewTrigger = useGraphStore((s) => s.fitViewTrigger);
 
   useEffect(() => {
@@ -140,10 +144,12 @@ export default function Canvas({ mobile = false }: Props) {
     multiSelectionKeyCode: null,
   } as const;
   const interactionProps = mobile ? mobileProps : desktopProps;
+  const setMode = useGraphStore((s) => s.setMode);
   const clearAllSelection = useCallback(() => {
     select(null);
+    setMode("normal");
     clearReactFlowSelection(rf);
-  }, [rf, select]);
+  }, [rf, select, setMode]);
 
   return (
     <div
@@ -163,6 +169,33 @@ export default function Canvas({ mobile = false }: Props) {
         onConnect={onConnect}
         onNodeClick={(_, n) => select(n.id)}
         onPaneClick={clearAllSelection}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const container = (e.target as HTMLElement).closest<HTMLElement>(".react-flow");
+          const rect = container?.getBoundingClientRect();
+          if (!rect) return;
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const nodeJson = e.dataTransfer.getData("application/opengov-node");
+          const subId = e.dataTransfer.getData("application/opengov-subgraph");
+          if (nodeJson) {
+            try {
+              const tpl = JSON.parse(nodeJson) as import("../lib/registry").NodeTemplate;
+              addNodeFromTemplate(tpl, { x, y });
+              queueMicrotask(() => runAll());
+            } catch { /* ignore */ }
+          } else if (subId) {
+            const tpl = SUBGRAPH_TEMPLATES.find((t) => t.id === subId);
+            if (tpl) {
+              addSubgraph(tpl, { x, y });
+              queueMicrotask(() => runAll());
+            }
+          }
+        }}
         defaultViewport={{ x: 80, y: 60, zoom: 1 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.4}

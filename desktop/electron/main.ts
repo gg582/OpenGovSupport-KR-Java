@@ -104,7 +104,7 @@ async function boot(): Promise<void> {
     minHeight: 640,
     show: true,
     backgroundColor: "#0e1116",
-    title: "뜌땨 생활행정",
+    title: "누리이음 생활행정",
     icon: tryLoadIcon(windowIconPath()),
     webPreferences: {
       contextIsolation: true,
@@ -285,7 +285,7 @@ function setupTray(): void {
     return;
   }
 
-  tray.setToolTip("뜌땨 생활행정");
+  tray.setToolTip("누리이음 생활행정");
   tray.setContextMenu(buildTrayMenu());
 
   // 트레이 클릭/더블클릭 → 창 토글 (Linux 의 일부 DE 는 click 이벤트가 없을 수 있어 둘 다 바인딩).

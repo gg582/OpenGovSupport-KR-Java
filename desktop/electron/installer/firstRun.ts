@@ -56,7 +56,7 @@ export async function runFirstRunInstallerIfNeeded(log: FileLogger): Promise<Ins
   // 사용자에게 한국어 다이얼로그로 확인.
   const choice = await dialog.showMessageBox({
     type: "question",
-    title: "뜌땨 생활행정 — 처음 실행",
+    title: "누리이음 생활행정 — 처음 실행",
     message: "이 프로그램을 컴퓨터에 설치할까요?",
     detail:
       "프로그램을 사용자 폴더(~/.local/share/tyutya)에 복사하고,\n" +
@@ -120,7 +120,7 @@ export async function runFirstRunInstallerIfNeeded(log: FileLogger): Promise<Ins
     const desktopEntry = [
       "[Desktop Entry]",
       "Type=Application",
-      "Name=뜌땨 생활행정",
+      "Name=누리이음 생활행정",
       "GenericName=Statutory Computation",
       "Comment=결정적 산식 기반 세무·복지 계산기",
       `Exec="${installedAt}" %U`,
@@ -257,7 +257,7 @@ function createProgressWindow(): BrowserWindow {
     frame: false,
     resizable: false,
     backgroundColor: "#0e1116",
-    title: "뜌땨 생활행정 설치",
+    title: "누리이음 생활행정 설치",
     webPreferences: { sandbox: true, contextIsolation: true },
   });
 }

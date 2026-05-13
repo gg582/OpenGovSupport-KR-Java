@@ -1,0 +1,53 @@
+{
+  "rule_id": "medical-expense-credit",
+  "category": "특별세액공제",
+  "title": "의료비 세액공제",
+  "formula_type": "C",
+  "formula_expression": "공제대상 = max(의료비 − 총급여 × 3%, 0); 세액공제 = min(공제대상, 한도) × 15%",
+  "params": {
+    "variable": "medicalExpense",
+    "thresholdVariable": "salary",
+    "thresholdRate": 0.03,
+    "rate": 0.15,
+    "cap": 7000000
+  },
+  "eligibility": [
+    {
+      "variable": "salary",
+      "op": "gt",
+      "value": 0,
+      "message": "근로소득(총급여)이 있어야 합니다."
+    },
+    {
+      "variable": "medicalExpense",
+      "op": "gt",
+      "value": 0,
+      "message": "의료비 지출액이 0원 초과여야 합니다."
+    }
+  ],
+  "required_documents": [
+    {
+      "name": "의료비 지급명세서",
+      "issuer": "국세청 (연말정산 간소화 자동수집)",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "홈택스 → 연말정산 간소화 → 의료비 항목"
+    },
+    {
+      "name": "의료비 영수증·진료비 세부내역서",
+      "issuer": "의료기관",
+      "online_issuance": false,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "간소화 자료 미수집분만 별도 제출"
+    },
+    {
+      "name": "장애인 증명서",
+      "issuer": "보건복지부 (정부24)",
+      "online_issuance": true,
+      "submit_to": "회사 연말정산 시스템",
+      "note": "장애인 의료비 한도 제외 적용 시"
+    }
+  ],
+  "submission_channels": ["회사 연말정산 시스템", "홈택스 종합소득세 신고"],
+  "legal_source": "「소득세법」제59조의4 ① — 의료비 세액공제 (총급여 3% 초과분의 15%, 일반 700만원 한도)"
+}

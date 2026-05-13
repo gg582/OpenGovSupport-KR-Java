@@ -23,7 +23,7 @@ export interface UninstallTargets {
   uninstallDesktopFile: string;
   /** hicolor 아이콘 */
   iconFile: string;
-  /** Electron userData (~/.config/뜌땨 생활행정) — 사용자 데이터 */
+  /** Electron userData (~/.config/누리이음 생활행정) — 사용자 데이터 */
   userDataDir: string;
   /** 바탕화면 바로가기 (없을 수 있음) */
   desktopShortcut: string;
@@ -31,7 +31,7 @@ export interface UninstallTargets {
   selfPath: string;
 }
 
-const PRODUCT_NAME = "뜌땨 생활행정";
+const PRODUCT_NAME = "누리이음 생활행정";
 
 /** bash 더블쿼트 안전한 문자열 — `"`, `$`, `\`, 백틱을 이스케이프. */
 function shq(s: string): string {

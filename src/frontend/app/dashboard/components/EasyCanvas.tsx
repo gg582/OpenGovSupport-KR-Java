@@ -22,6 +22,8 @@ import EasyConnectionLine from "./EasyConnectionLine";
 import { useGraphStore } from "../lib/store";
 import { GRID } from "../lib/types";
 import { autoLayoutEasy } from "../lib/elk";
+import type { NodeTemplate } from "../lib/registry";
+import { SUBGRAPH_TEMPLATES } from "../lib/subgraphTemplates";
 
 const nodeTypes = { easyStat: EasyStatNode } as const;
 const defaultEdgeOptions = { type: "smoothstep" } as const;
@@ -32,9 +34,12 @@ export default function EasyCanvas() {
   const setNodes = useGraphStore((s) => s.setNodes);
   const select = useGraphStore((s) => s.select);
   const selectedId = useGraphStore((s) => s.selectedId);
+  const setMode = useGraphStore((s) => s.setMode);
 
   const connect = useGraphStore((s) => s.connect);
   const runAll = useGraphStore((s) => s.runAll);
+  const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
+  const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const fitViewTrigger = useGraphStore((s) => s.fitViewTrigger);
 
   useEffect(() => {
@@ -189,7 +194,37 @@ export default function EasyCanvas() {
         onNodeDragStop={onNodeDragStop}
         isValidConnection={isValidConnection}
         onNodeClick={(_, n) => select(n.id)}
-        onPaneClick={() => select(null)}
+        onPaneClick={() => {
+          select(null);
+          setMode("normal");
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const container = (e.target as HTMLElement).closest<HTMLElement>(".react-flow");
+          const rect = container?.getBoundingClientRect();
+          if (!rect) return;
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const nodeJson = e.dataTransfer.getData("application/opengov-node");
+          const subId = e.dataTransfer.getData("application/opengov-subgraph");
+          if (nodeJson) {
+            try {
+              const tpl = JSON.parse(nodeJson) as import("../lib/registry").NodeTemplate;
+              addNodeFromTemplate(tpl, { x, y });
+              queueMicrotask(() => runAll());
+            } catch { /* ignore */ }
+          } else if (subId) {
+            const tpl = SUBGRAPH_TEMPLATES.find((t) => t.id === subId);
+            if (tpl) {
+              addSubgraph(tpl, { x, y });
+              queueMicrotask(() => runAll());
+            }
+          }
+        }}
         defaultViewport={{ x: 80, y: 60, zoom: 0.9 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.4}

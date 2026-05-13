@@ -1,0 +1,25 @@
+{
+  "rule_id": "basic-pension",
+  "category": "복지",
+  "title": "기초연금 수급 자격",
+  "formula_type": "conditional",
+  "formula_expression": "만 65세 이상 + 소득인정액 ≤ 기준중위소득 70%",
+  "params": {
+    "ageThreshold": 65,
+    "incomeRatio": 0.70
+  },
+  "eligibility": [
+    { "variable": "age", "op": "gte", "value": 65, "message": "만 65세 이상이어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "주민등록등본",
+      "issuer": "정부24",
+      "online_issuance": true,
+      "submit_to": "관할 주민센터·국민연금공단",
+      "note": "연령 및 가구원수 확인"
+    }
+  ],
+  "submission_channels": ["주민센터 방문", "복지로 온라인 신청", "국민연금공단"],
+  "legal_source": "「기초연금법」제5조 — 수급자격 (만 65세 이상 + 소득기준)"
+}

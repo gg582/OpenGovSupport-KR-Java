@@ -1,0 +1,27 @@
+{
+  "rule_id": "disability-pension",
+  "category": "복지",
+  "title": "장애인연금 수급 자격",
+  "formula_type": "conditional",
+  "formula_expression": "만 18세 이상 중증장애인 + 소득인정액 ≤ 기준중위소득 70%",
+  "params": {
+    "ageThreshold": 18,
+    "severity": "중증",
+    "incomeRatio": 0.70
+  },
+  "eligibility": [
+    { "variable": "age", "op": "gte", "value": 18, "message": "만 18세 이상이어야 합니다." },
+    { "variable": "disabilityGrade", "op": "in", "value": ["1급","2급","3급"], "message": "중증장애인(1~3급)에 해당해야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "장애인등록증",
+      "issuer": "관할 시·군·구청",
+      "online_issuance": true,
+      "submit_to": "관할 주민센터",
+      "note": "중증장애인(1~3급) 확인"
+    }
+  ],
+  "submission_channels": ["주민센터 방문", "복지로 온라인 신청"],
+  "legal_source": "「장애인연금법」제5조 — 수급자격 (만 18세 이상 중증장애인 + 소득기준)"
+}

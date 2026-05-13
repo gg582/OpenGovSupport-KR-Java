@@ -42,15 +42,18 @@ public final class Features {
                                         .options(yearOptions()).defaultValue(yearStr).build(),
                                 Input.of("household", "가구원 수", "number")
                                         .defaultValue("1").help("법정 기준 중위소득 50% / 15% 표를 자동 적용합니다.").build(),
-                                Input.of("altLabel", "특수 가구 라벨", "text")
+                                Input.of("altLabel", "특수 가구 라벨", "select")
+                                        .options(List.of("차상위", "기초생활", "기초연금", "장애인연금", "맞춤형", "일반", "그외"))
                                         .defaultValue("차상위").help("B열 가구구분이 이 라벨과 같으면 횟수초과(15%) 기준 적용.").build(),
                                 Input.of("rows", "입력 데이터", "rows")
                                         .columns(List.of(
-                                                Input.of("household", "B 가구구분", "text").build(),
-                                                Input.of("month", "C 입금월", "text").build(),
-                                                Input.of("depositor", "D 입금자", "text").build(),
-                                                Input.of("amount", "E 입금액", "number").build(),
-                                                Input.of("exclude", "F 제외액", "number").build()
+                                                Input.of("household", "B 가구구분", "select")
+                                                        .options(List.of("차상위", "기초생활", "기초연금", "장애인연금", "맞춤형", "일반", "그외"))
+                                                        .defaultValue("차상위").build(),
+                                                Input.of("month", "C 입금월", "text").defaultValue("2026-01").build(),
+                                                Input.of("depositor", "D 입금자", "text").defaultValue("김모씨").build(),
+                                                Input.of("amount", "E 입금액", "number").defaultValue("500000").build(),
+                                                Input.of("exclude", "F 제외액", "number").defaultValue("0").build()
                                         )).build()
                         )),
                 new Feature(

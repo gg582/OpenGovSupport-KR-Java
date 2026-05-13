@@ -13,6 +13,7 @@ import {
 } from "../lib/api";
 import type { DashMode } from "../lib/types";
 import { downloadScript, type ShellType } from "../lib/exportScript";
+import { exportGraphToJson, exportGraphToXml, exportGraphToXlsx } from "../lib/exportData";
 
 const MODE_LABELS: Record<DashMode, string> = {
   normal: "정상",
@@ -225,6 +226,25 @@ export default function Toolbar() {
         <option value="bash">Bash (.sh)</option>
         <option value="zsh">Zsh (.zsh)</option>
         <option value="powershell">PowerShell (.ps1)</option>
+      </select>
+
+      <div className="sep" />
+      <select
+        className="tpl"
+        value=""
+        onChange={async (e) => {
+          const v = e.target.value as "json" | "xml" | "xlsx";
+          if (v === "json") exportGraphToJson(doc);
+          else if (v === "xml") exportGraphToXml(doc);
+          else if (v === "xlsx") await exportGraphToXlsx(doc);
+          e.currentTarget.value = "";
+        }}
+        title="자료 추출"
+      >
+        <option value="">▼ 추출</option>
+        <option value="json">JSON (.json)</option>
+        <option value="xml">XML (.xml)</option>
+        <option value="xlsx">Excel (.xlsx)</option>
       </select>
 
       <div className="sep" />

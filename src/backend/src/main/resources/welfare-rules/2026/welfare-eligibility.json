@@ -1,0 +1,36 @@
+{
+  "rule_id": "welfare-eligibility",
+  "category": "복지",
+  "title": "기초생활보장 급여별 선정기준 (2026년도)",
+  "formula_type": "conditional",
+  "formula_expression": "소득인정액 ≤ 기준중위소득 × 비율 (생계 32% / 의료 40% / 주거 48% / 교육 50%)",
+  "params": {
+    "ratios": {
+      "생계급여": 0.32,
+      "의료급여": 0.40,
+      "주거급여": 0.48,
+      "교육급여": 0.50
+    }
+  },
+  "eligibility": [
+    { "variable": "recognizedIncome", "op": "gt", "value": 0, "message": "소득인정액이 산정되어야 합니다." }
+  ],
+  "required_documents": [
+    {
+      "name": "주민등록등본",
+      "issuer": "정부24",
+      "online_issuance": true,
+      "submit_to": "관할 주민센터",
+      "note": "가구원수 및 동거 여부 확인"
+    },
+    {
+      "name": "소득·재산 신고서",
+      "issuer": "수급희망자 작성",
+      "online_issuance": false,
+      "submit_to": "관할 주민센터",
+      "note": "급여 신청 시 소득·재산 현황 신고"
+    }
+  ],
+  "submission_channels": ["주민센터 방문 신청", "복지로 온라인 신청"],
+  "legal_source": "「국민기초생활 보장법」제8조의2 — 급여별 선정기준 (생계 32%·의료 40%·주거 48%·교육 50%)"
+}

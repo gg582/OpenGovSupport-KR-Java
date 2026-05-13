@@ -67,6 +67,11 @@ export default function Palette() {
               key={tpl.id}
               className="chip subgraph-chip"
               data-kind="formula"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("application/opengov-subgraph", tpl.id);
+                e.dataTransfer.effectAllowed = "copy";
+              }}
               onClick={() => {
                 addSubgraph(tpl);
                 queueMicrotask(() => runAll());
@@ -112,6 +117,11 @@ export default function Palette() {
                 key={k}
                 className="chip"
                 data-kind={tpl.kind}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("application/opengov-node", JSON.stringify(tpl));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 onClick={() => {
                   addNodeFromTemplate(tpl, { x: 3 * 32, y: 3 * 32 });
                   queueMicrotask(() => runAll());
