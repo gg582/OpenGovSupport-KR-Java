@@ -10,7 +10,7 @@
     "spouseRate": 500000
   },
   "eligibility": [
-    { "variable": "isMarriedInPeriod", "op": "eq", "value": true, "message": "2024~2026년 기간 내 혼인신고 필수" }
+    { "variable": "isMarriedInPeriod", "op": "eq", "value": 1, "message": "2024~2026년 기간 내 혼인신고 필수" }
   ],
   "required_documents": [
     {
