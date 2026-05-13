@@ -21,6 +21,10 @@ spring:
       # 모든 floating-point JSON 값을 BigDecimal로 파싱 → 세무 산식 정밀도 보존
       use-big-decimal-for-floats: true
 
+llm:
+  service:
+    url: ${LLM_SERVICE_URL:http://llm:8000}
+
 opengov:
   pool:
     workers: ${POOL_WORKERS:0}            # 0 = Runtime.availableProcessors()

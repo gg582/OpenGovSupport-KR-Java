@@ -1,81 +1,47 @@
 /**
- * WebGPU 기반 브라우저 내 Qwen 실행 클라이언트.
+ * 서버 사이드 Qwen 실행 클라이언트.
  *
- * <p>@huggingface/transformers 를 npm 에서 import 하지 않고
- * 런타임 CDN 로드로 번들링 문제를 완전히 회피한다.
+ * <p>브라우저 내 WebGPU/CNN 실행 대신 백엔드 /api/llm/generate 를 호출한다.
  * 이 파일만 삭제하면 AX 모듈 전체를 쉽게 제거할 수 있다.</p>
  */
 
 import { FORMULA_RULES } from "../lib/registry";
 
-let generator: any = null;
-let loading = false;
-
 export function isQwenLoading(): boolean {
-  return loading;
+  return false;
 }
 
-/** 브라우저가 WebGPU 를 지원하는지 확인. */
+/** 브라우저가 WebGPU 를 지원하는지 확인. (서버 사이드에서는 항상 true) */
 export function isWebGpuSupported(): boolean {
-  return typeof navigator !== "undefined" && "gpu" in navigator;
+  return true;
 }
 
-/**
- * ESM CDN 을 통해 transformers.js 를 런타임 로드.
- * webpackIgnore 로 번들링에서 완전히 제외된다.
- */
-async function loadTransformersFromCDN(): Promise<any> {
-  const cacheKey = "__ax_transformers_cdn";
-  const w = window as any;
-  if (w[cacheKey]) return w[cacheKey];
-
-  const urls = [
-    "https://esm.sh/@huggingface/transformers@3.0.0",
-    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm",
-  ];
-
-  let lastErr: Error | undefined;
-  for (const url of urls) {
-    try {
-      const mod = await import(/* webpackIgnore: true */ url);
-      w[cacheKey] = mod;
-      return mod;
-    } catch (e) {
-      lastErr = e as Error;
-    }
-  }
-  throw lastErr ?? new Error("Transformers.js CDN 로드 실패 — 네트워크를 확인하세요.");
+export async function loadQwen(_modelId?: string) {
+  // 서버 사이드 모델이므로 클라이언트에서 로드할 필요 없음
+  return true;
 }
 
-export async function loadQwen(modelId = "onnx-community/Qwen2.5-1.5B-ONNX") {
-  if (generator) return generator;
-  loading = true;
-  try {
-    const { pipeline, env } = await loadTransformersFromCDN();
-    env.allowLocalModels = false;
-    env.useBrowserCache = true;
-    generator = await pipeline("text-generation", modelId, {
-      device: "webgpu",
-      dtype: "q4",
-    });
-    return generator;
-  } finally {
-    loading = false;
+async function callGenerate(prompt: string, max_new_tokens: number): Promise<string> {
+  const res = await fetch("/api/llm/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, max_new_tokens }),
+  });
+  if (!res.ok) {
+    throw new Error(`LLM 요청 실패 (${res.status}): ${await res.text()}`);
   }
+  const data = await res.json();
+  const text: string = data.generated_text ?? "";
+  return text;
 }
 
 export async function generateAxPlan(
   userRequest: string,
   endpointsInfo: string,
-  modelId?: string,
+  _modelId?: string,
 ): Promise<string> {
-  const gen = await loadQwen(modelId);
   const prompt = buildPlanPrompt(userRequest, endpointsInfo);
-  const output = await gen(prompt, {
-    max_new_tokens: 1024,
-    do_sample: false,
-  });
-  const text: string = output[0]?.generated_text ?? "";
+  const text = await callGenerate(prompt, 1024);
   return text.slice(prompt.length).trim();
 }
 
@@ -83,14 +49,12 @@ export async function reportToQwen(
   success: boolean,
   resultJson: string,
   originalRequest: string,
-  modelId?: string,
+  _modelId?: string,
 ): Promise<string> {
-  const gen = await loadQwen(modelId);
   const prompt = success
     ? buildSuccessPrompt(originalRequest, resultJson)
     : buildFailurePrompt(originalRequest, resultJson);
-  const output = await gen(prompt, { max_new_tokens: 512, do_sample: false });
-  const text: string = output[0]?.generated_text ?? "";
+  const text = await callGenerate(prompt, 512);
   return text.slice(prompt.length).trim();
 }
 
@@ -119,15 +83,10 @@ function buildTaxEndpointInfo(): string {
  */
 export async function generateTaxChatResponse(
   messages: ChatMessage[],
-  modelId?: string,
+  _modelId?: string,
 ): Promise<string> {
-  const gen = await loadQwen(modelId);
   const prompt = buildTaxChatPrompt(messages);
-  const output = await gen(prompt, {
-    max_new_tokens: 1024,
-    do_sample: false,
-  });
-  const text: string = output[0]?.generated_text ?? "";
+  const text = await callGenerate(prompt, 1024);
   return text.slice(prompt.length).trim();
 }
 
