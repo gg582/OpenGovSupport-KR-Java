@@ -1,4 +1,4 @@
-import { listFeatures } from "../../lib/api";
+import { listFeatures, findFeatureById } from "../../lib/api";
 import FeatureForm from "../../components/FeatureForm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -13,7 +13,7 @@ export default async function FeaturePage({
   const { id } = await params;
   const fullId = id.map((seg) => decodeURIComponent(seg)).join("/");
   const features = await listFeatures();
-  const feature = features.find((f) => f.id === fullId);
+  const feature = findFeatureById(features, fullId);
   if (!feature) notFound();
 
   return (

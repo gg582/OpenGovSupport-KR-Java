@@ -35,6 +35,8 @@ export const FORMULA_RULES: Record<
      * 이 키로 백엔드 요청 본문에 매핑한다.
      */
     inputMap: Record<string, string>;
+    /** Parent group label for palette tree rendering. */
+    parent?: string;
   }
 > = {
   "earned-income-deduction": {
@@ -44,6 +46,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제47조",
     inputMap: { grossSalary: "grossSalary" },
+    parent: "근로소득",
   },
   "comprehensive-income-tax": {
     label: "종합소득세 산출세액",
@@ -52,6 +55,53 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "산출세액")],
     legalBasis: "「소득세법」 제55조",
     inputMap: { taxableIncome: "taxableIncome" },
+    parent: "종합소득세",
+  },
+  "comprehensive-income-refund": {
+    label: "종합소득세 환급/추징",
+    endpoint: "/api/tax/comprehensive-income-refund",
+    inputs: [p("taxableIncome", "과세표준"), p("prepaidTax", "기납부세액")],
+    outputs: [p("amount", "환급/추징액")],
+    legalBasis: "「소득세법」 제55조·제120조",
+    inputMap: { taxableIncome: "taxableIncome", prepaidTax: "prepaidTax" },
+    parent: "종합소득세",
+  },
+  "year-end-settlement": {
+    label: "연말정산 통합",
+    endpoint: "/api/tax/year-end-settlement",
+    inputs: [
+      p("grossSalary", "총급여"),
+      p("dependentCount", "인원수"),
+      p("childCount", "자녀수"),
+      p("insurancePremium", "보험료"),
+      p("medicalExpense", "의료비"),
+      p("educationExpense", "교육비"),
+      p("rentPaid", "월세"),
+      p("pensionContribution", "연금납입"),
+      p("donation", "기부금"),
+      p("prepaidTax", "기납부세액"),
+      p("isMarriedInPeriod", "혼인해당"),
+      p("claimedBefore", "이전수령"),
+      p("spouseClaim", "배우자공제"),
+    ],
+    outputs: [p("amount", "결정세액"), p("refund", "환급/추징액")],
+    legalBasis: "「소득세법」 제47·55·59조의2·59조의3·59조의4·120조",
+    inputMap: {
+      grossSalary: "grossSalary",
+      dependentCount: "dependentCount",
+      childCount: "childCount",
+      insurancePremium: "insurancePremium",
+      medicalExpense: "medicalExpense",
+      educationExpense: "educationExpense",
+      rentPaid: "rentPaid",
+      pensionContribution: "pensionContribution",
+      donation: "donation",
+      prepaidTax: "prepaidTax",
+      isMarriedInPeriod: "isMarriedInPeriod",
+      claimedBefore: "claimedBefore",
+      spouseClaim: "spouseClaim",
+    },
+    parent: "연말정산",
   },
   "corporate-tax": {
     label: "법인세",
@@ -60,6 +110,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "산출세액")],
     legalBasis: "「법인세법」 제55조",
     inputMap: { taxableIncome: "taxableIncome" },
+    parent: "법인세",
   },
   "inheritance-tax": {
     label: "상속세",
@@ -68,6 +119,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "산출세액")],
     legalBasis: "「상속세 및 증여세법」 제26조",
     inputMap: { inheritanceBase: "inheritanceBase" },
+    parent: "상속세",
   },
   "gift-tax": {
     label: "증여세",
@@ -76,6 +128,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "산출세액")],
     legalBasis: "「상속세 및 증여세법」 제56조",
     inputMap: { giftBase: "giftBase" },
+    parent: "증여세",
   },
   "medical-expense-credit": {
     label: "의료비 세액공제",
@@ -84,6 +137,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제59조의4 ①",
     inputMap: { salary: "salary", medicalExpense: "medicalExpense" },
+    parent: "세액공제",
   },
   "education-credit": {
     label: "교육비 세액공제",
@@ -92,6 +146,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제59조의4 ②",
     inputMap: { educationExpense: "educationExpense" },
+    parent: "세액공제",
   },
   "rent-credit": {
     label: "월세 세액공제",
@@ -100,6 +155,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「조세특례제한법」 제95조의2",
     inputMap: { salary: "salary", rentPaid: "rentPaid" },
+    parent: "세액공제",
   },
   "pension-credit": {
     label: "연금계좌 세액공제",
@@ -108,6 +164,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제59조의3",
     inputMap: { salary: "salary", pensionContribution: "pensionContribution" },
+    parent: "세액공제",
   },
   "donation-credit": {
     label: "기부금 세액공제",
@@ -116,6 +173,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제59조의4 ④",
     inputMap: { donation: "donation" },
+    parent: "세액공제",
   },
   "child-credit": {
     label: "자녀 세액공제",
@@ -124,6 +182,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제59조의2",
     inputMap: { childCount: "childCount" },
+    parent: "세액공제",
   },
   "earned-income-credit": {
     label: "근로장려금",
@@ -132,6 +191,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "장려금")],
     legalBasis: "「조세특례제한법」 제100조의3",
     inputMap: { householdIncome: "householdIncome" },
+    parent: "근로장려금",
   },
   "simple-expense-rate": {
     label: "단순경비율",
@@ -140,6 +200,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "필요경비")],
     legalBasis: "「소득세법 시행령」 제143조",
     inputMap: { revenue: "revenue" },
+    parent: "사업소득",
   },
   "vat-payable": {
     label: "부가가치세 (룰 기반)",
@@ -148,6 +209,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "납부세액")],
     legalBasis: "「부가가치세법」 제30·37·38조",
     inputMap: { supplyValue: "supplyValue", purchaseValue: "purchaseValue" },
+    parent: "부가가치세",
   },
   "recognized-income": {
     label: "소득인정액",
@@ -176,6 +238,7 @@ export const FORMULA_RULES: Record<
       vehicleAssets: "vehicleAssets",
       debt: "debt",
     },
+    parent: "정통산식",
   },
   "median-ratio": {
     label: "중위소득 비율",
@@ -190,6 +253,7 @@ export const FORMULA_RULES: Record<
       recognizedIncome: "recognizedIncome",
       householdSize: "householdSize",
     },
+    parent: "정통산식",
   },
   "eligibility-flow": {
     label: "복지 자격 통합",
@@ -206,6 +270,7 @@ export const FORMULA_RULES: Record<
       householdSize: "householdSize",
       overseasDays: "overseasDays",
     },
+    parent: "정통산식",
   },
   "inheritance-priority": {
     label: "상속 우선순위",
@@ -224,6 +289,7 @@ export const FORMULA_RULES: Record<
       childCount: "childCount",
       parentCount: "parentCount",
     },
+    parent: "정통산식",
   },
   "vat-delta": {
     label: "부가가치세 차분",
@@ -238,6 +304,7 @@ export const FORMULA_RULES: Record<
       salesSupplyAmount: "salesSupplyAmount",
       purchaseSupplyAmount: "purchaseSupplyAmount",
     },
+    parent: "정통산식",
   },
   "deduction-ladder/earned-income": {
     label: "근로소득공제 사다리",
@@ -246,22 +313,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("deduction", "공제액")],
     legalBasis: "「소득세법」 제47조 (5단계 piecewise-linear)",
     inputMap: { salary: "salary" },
-  },
-  "marriage-credit": {
-    label: "결혼 세액공제",
-    endpoint: "/api/tax/marriage-credit",
-    inputs: [
-      p("isMarriedInPeriod", "혼인해당"),
-      p("claimedBefore", "이전공제"),
-      p("spouseClaim", "배우자공제"),
-    ],
-    outputs: [p("amount", "공제액")],
-    legalBasis: "「소득세법」 제59조의4 ⑩",
-    inputMap: {
-      isMarriedInPeriod: "isMarriedInPeriod",
-      claimedBefore: "claimedBefore",
-      spouseClaim: "spouseClaim",
-    },
+    parent: "정통산식",
   },
   "sports-credit": {
     label: "체육시설 이용료 공제",
@@ -270,6 +322,7 @@ export const FORMULA_RULES: Record<
     outputs: [p("amount", "공제액")],
     legalBasis: "「소득세법」 제59조의4 ⑪",
     inputMap: { sportsExpense: "sportsExpense" },
+    parent: "세액공제",
   },
 };
 
@@ -356,6 +409,29 @@ export function allFormulaTemplates(): NodeTemplate[] {
       hint: r.legalBasis,
     };
   });
+}
+
+/** Formula templates grouped by parent — for tree rendering in palette / mobile sheets. */
+export function formulaTemplatesByParent(): Array<{
+  parent: string;
+  items: NodeTemplate[];
+}> {
+  const map = new Map<string, NodeTemplate[]>();
+  (Object.keys(FORMULA_RULES) as FormulaRule[]).forEach((rule) => {
+    const r = FORMULA_RULES[rule];
+    const parent = r.parent ?? "기타";
+    if (!map.has(parent)) map.set(parent, []);
+    map.get(parent)!.push({
+      kind: "formula",
+      label: r.label,
+      group: "compute" as const,
+      inputs: r.inputs,
+      outputs: r.outputs,
+      rule,
+      hint: r.legalBasis,
+    });
+  });
+  return Array.from(map.entries()).map(([parent, items]) => ({ parent, items }));
 }
 
 export const ALL_TEMPLATES: NodeTemplate[] = [

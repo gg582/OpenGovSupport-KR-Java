@@ -49,6 +49,9 @@ public class YearEndSettlement {
         BigDecimal pension      = num(input, "pensionContribution");
         BigDecimal donation     = num(input, "donation");
         BigDecimal prepaidTax   = num(input, "prepaidTax");
+        String isMarried        = text(input, "isMarriedInPeriod");
+        String claimedBefore    = text(input, "claimedBefore");
+        String spouseClaim      = text(input, "spouseClaim");
 
         // 1) 근로소득공제 → 근로소득금액
         BigDecimal earnedDeduction = TaxStandards.earnedIncomeDeduction(salary);
@@ -86,8 +89,20 @@ public class YearEndSettlement {
         BigDecimal childCredit = amountOf(year, "child-credit",
                 Map.of("childCount", children));
 
+        // 5.5) 결혼 세액공제 — 「소득세법」제59조의4 ⑩
+        // 2024.1.1.~2026.12.31. 혼인신고 시 1인당 연 50만원(생애 1회).
+        // 배우자도 동일 기간 혼인신고 시 추가 50만원.
+        BigDecimal marriageCredit = BigDecimal.ZERO;
+        if ("해당".equals(isMarried) && !"예".equals(claimedBefore)) {
+            BigDecimal marriageRate = new BigDecimal("500000");
+            marriageCredit = marriageCredit.add(marriageRate); // 본인 50만원
+            if ("배우자도".equals(spouseClaim)) {
+                marriageCredit = marriageCredit.add(marriageRate); // 배우자 추가 50만원
+            }
+        }
+
         // 6) 결정세액 + 환급/추징
-        BigDecimal determinedTax = tax.subtract(effectiveCredits).subtract(childCredit)
+        BigDecimal determinedTax = tax.subtract(effectiveCredits).subtract(childCredit).subtract(marriageCredit)
                 .max(BigDecimal.ZERO)
                 .setScale(0, RoundingMode.HALF_UP);
         BigDecimal refundOrDue = prepaidTax.subtract(determinedTax)
@@ -124,9 +139,11 @@ public class YearEndSettlement {
         b.append(String.format("  · 적용: %s = %s%n",
                 useStandard ? "표준세액공제" : "특별세액공제 합계", won(effectiveCredits)));
         b.append(String.format("  · 자녀세액공제 %s%n", won(childCredit)));
+        b.append(String.format("  · 결혼세액공제 %s (조건: %s / 이전수령: %s / 배우자: %s)%n",
+                won(marriageCredit), isMarried, claimedBefore, spouseClaim));
         b.append("[6단계 결정세액]\n");
-        b.append(String.format("  · max(0, 산출세액 %s − 세액공제 %s − 자녀공제 %s) = %s%n",
-                won(tax), won(effectiveCredits), won(childCredit), won(determinedTax)));
+        b.append(String.format("  · max(0, 산출세액 %s − 세액공제 %s − 자녀공제 %s − 결혼공제 %s) = %s%n",
+                won(tax), won(effectiveCredits), won(childCredit), won(marriageCredit), won(determinedTax)));
         b.append("[7단계 환급/추징]\n");
         b.append(String.format("  · 기납부세액 %s − 결정세액 %s = %s%n",
                 won(prepaidTax), won(determinedTax),
@@ -152,6 +169,7 @@ public class YearEndSettlement {
         data.put("standardTaxCredit", standardCredit);
         data.put("effectiveCredits", effectiveCredits);
         data.put("childCredit", childCredit);
+        data.put("marriageCredit", marriageCredit);
         data.put("determinedTax", determinedTax);
         data.put("prepaidTax", prepaidTax);
         data.put("refundOrDue", refundOrDue);
@@ -187,6 +205,11 @@ public class YearEndSettlement {
     private static String won(BigDecimal v) {
         BigDecimal rounded = v.setScale(0, RoundingMode.HALF_UP);
         return String.format("%,d원", rounded.toBigInteger());
+    }
+
+    private static String text(Map<String, Object> m, String k) {
+        Object v = m == null ? null : m.get(k);
+        return v == null ? "" : v.toString();
     }
 
     private static String countStr(BigDecimal v) {

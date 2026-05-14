@@ -220,6 +220,17 @@ async function evaluateNode(
         const rule = node.data.rule as FormulaRule | undefined;
         if (!rule || !FORMULA_RULES[rule]) throw new Error(`formula rule 미설정`);
         const map = FORMULA_RULES[rule].inputMap;
+        const requiredPorts = FORMULA_RULES[rule].inputs.map((inp) => inp.id);
+        const hasAnyInput = requiredPorts.some((pid) => inputs[pid] !== undefined);
+        if (!hasAnyInput) {
+          return {
+            output: undefined,
+            epoch,
+            durationMs: 0,
+            logMessage: "prerequisite 미연결 — 실행 생략",
+            status: "skipped",
+          };
+        }
 
         // Reverse 모드 — 목표 출력 → 입력 역산.
         if (node.data.direction === "reverse" && node.data.targetOutput != null) {

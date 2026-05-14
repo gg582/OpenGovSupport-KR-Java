@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useGraphStore } from "../lib/store";
 import { TEMPLATES } from "../lib/templates";
-import { ALL_TEMPLATES } from "../lib/registry";
+import { ALL_TEMPLATES, formulaTemplatesByParent } from "../lib/registry";
 import { autoLayoutEasy } from "../lib/elk";
 import { listGraphs, loadGraph, saveGraph, deleteGraph, timeMachineYears } from "../lib/api";
 import { exportGraphToXlsx } from "../lib/exportData";
@@ -148,14 +148,22 @@ export default function EasyToolbar() {
         }}
       >
         <option value="">＋ 노드 추가</option>
-        {ALL_TEMPLATES.map((t) => {
-          const k = t.kind === "formula" ? `formula:${t.rule}` : t.kind;
-          return (
-            <option key={k} value={k}>
-              {t.label}
-            </option>
-          );
-        })}
+        {/* 비-formula 기본 노드 */}
+        {ALL_TEMPLATES.filter((t) => t.kind !== "formula").map((t) => (
+          <option key={t.kind} value={t.kind}>
+            {t.label}
+          </option>
+        ))}
+        {/* formula 노드 — parent 그룹 */}
+        {formulaTemplatesByParent().map(({ parent, items }) => (
+          <optgroup key={parent} label={parent}>
+            {items.map((t) => (
+              <option key={`formula:${t.rule}`} value={`formula:${t.rule}`}>
+                {t.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
       </select>
 
       <select

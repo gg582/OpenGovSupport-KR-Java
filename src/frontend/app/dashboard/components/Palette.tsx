@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ALL_TEMPLATES, type NodeTemplate } from "../lib/registry";
+import {
+  ALL_TEMPLATES,
+  formulaTemplatesByParent,
+  type NodeTemplate,
+} from "../lib/registry";
 import { useGraphStore } from "../lib/store";
 import {
   SUBGRAPH_GROUP_LABEL,
@@ -40,6 +44,9 @@ export default function Palette() {
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const runAll = useGraphStore((s) => s.runAll);
   const [query, setQuery] = useState("");
+  const [openParents, setOpenParents] = useState<Set<string>>(
+    new Set(["근로소득", "종합소득세", "연말정산", "세액공제", "정통산식"])
+  );
 
   const q = query.trim().toLowerCase();
 
@@ -53,15 +60,37 @@ export default function Palette() {
     }),
   })).filter(({ items }) => items.length > 0);
 
-  // 일반 노드 팔레트.
+  // 비-formula 노드 팔레트.
+  const baseNodes = ALL_TEMPLATES.filter((t) => t.kind !== "formula");
   const nodesByGroup = NODE_GROUP_ORDER.map((g) => ({
     group: g,
-    items: ALL_TEMPLATES.filter((t) => {
+    items: baseNodes.filter((t) => {
       if (!q) return t.group === g;
       const hay = `${t.label} ${t.hint ?? ""} ${t.citation ?? ""}`.toLowerCase();
       return hay.includes(q);
     }),
   })).filter(({ items }) => items.length > 0);
+
+  // formula 노드 — parent 트리.
+  const formulaGroups = formulaTemplatesByParent()
+    .map(({ parent, items }) => ({
+      parent,
+      items: q
+        ? items.filter((t) =>
+            `${t.label} ${t.hint ?? ""}`.toLowerCase().includes(q)
+          )
+        : items,
+    }))
+    .filter(({ items }) => items.length > 0);
+
+  const toggleParent = (p: string) => {
+    setOpenParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  };
 
   return (
     <aside className="dash-palette">
@@ -135,8 +164,7 @@ export default function Palette() {
             ㆍ {GROUP_LABEL[group]}
           </div>
           {items.map((tpl) => {
-            const k =
-              tpl.kind === "formula" ? `formula:${tpl.rule}` : `${tpl.kind}`;
+            const k = `${tpl.kind}`;
             return (
               <button
                 key={k}
@@ -163,6 +191,56 @@ export default function Palette() {
           })}
         </div>
       ))}
+
+      {/* ── Formula 노드 — parent 트리 ─────────── */}
+      {formulaGroups.map(({ parent, items }) => {
+        const open = openParents.has(parent) || !!q;
+        return (
+          <div key={parent}>
+            <button
+              className="group palette-parent"
+              onClick={() => toggleParent(parent)}
+              style={{ paddingTop: 8, fontSize: 9, width: "100%", textAlign: "left" }}
+            >
+              <span style={{ display: "inline-block", width: 14 }}>
+                {open ? "▼" : "▶"}
+              </span>
+              ㆍ {parent}
+            </button>
+            {open &&
+              items.map((tpl) => {
+                const k = `formula:${tpl.rule}`;
+                return (
+                  <button
+                    key={k}
+                    className="chip"
+                    data-kind="formula"
+                    draggable
+                    style={{ paddingLeft: 22 }}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/opengov-node",
+                        JSON.stringify(tpl)
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => {
+                      addNodeFromTemplate(tpl, { x: 3 * 32, y: 3 * 32 });
+                      queueMicrotask(() => runAll());
+                    }}
+                    title={tpl.hint}
+                  >
+                    <span className="dot" />
+                    <span>
+                      <span className="lbl">{tpl.label}</span>
+                      {tpl.hint && <span className="hint">{tpl.hint}</span>}
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        );
+      })}
     </aside>
   );
 }

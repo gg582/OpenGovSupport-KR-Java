@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import type { Feature } from "../lib/api";
 
 export default function SectionListing({
@@ -74,7 +77,7 @@ function DomainSection({
           {title}
         </span>
         <span className="ml-auto text-xs font-mono text-navy/50 font-normal">
-          {items.length}건
+          {countLeaves(items)}건
         </span>
       </div>
       <table className="gov-table">
@@ -88,31 +91,90 @@ function DomainSection({
         </thead>
         <tbody>
           {items.map((f, i) => (
-            <tr key={f.id}>
-              <td className="text-center font-mono text-navy/70 hidden md:table-cell">
-                {String(i + 1).padStart(2, "0")}
-              </td>
-              <td>
-                <Link
-                  href={`/features/${encodeURI(f.id)}`}
-                  className="font-semibold text-navy hover:text-accent"
-                >
-                  ▶ {f.title}
-                </Link>
-              </td>
-              <td className="text-navy/80">{f.summary}</td>
-              <td className="text-center hidden md:table-cell">
-                <Link
-                  href={`/features/${encodeURI(f.id)}`}
-                  className="btn-secondary !py-1 !px-2 text-xs"
-                >
-                  실행 →
-                </Link>
-              </td>
-            </tr>
+            <TreeRow key={f.id} feature={f} index={i + 1} />
           ))}
         </tbody>
       </table>
     </section>
   );
+}
+
+function TreeRow({
+  feature,
+  index,
+  depth = 0,
+}: {
+  feature: Feature;
+  index: number;
+  depth?: number;
+}) {
+  const [open, setOpen] = useState(true);
+  const hasChildren = feature.children && feature.children.length > 0;
+  const isLeaf = !hasChildren;
+  const href = `/features/${encodeURI(feature.id)}`;
+
+  return (
+    <>
+      <tr className={depth > 0 ? "bg-navy/[0.02]" : ""}>
+        <td className="text-center font-mono text-navy/70 hidden md:table-cell">
+          {String(index).padStart(2, "0")}
+        </td>
+        <td>
+          <div className="flex items-center" style={{ paddingLeft: `${depth * 16}px` }}>
+            {hasChildren && (
+              <button
+                onClick={() => setOpen((v) => !v)}
+                className="mr-1.5 text-[10px] text-navy/40 w-4 text-center"
+                aria-label={open ? "접기" : "펼치기"}
+              >
+                {open ? "▼" : "▶"}
+              </button>
+            )}
+            {isLeaf ? (
+              <Link
+                href={href}
+                className="font-semibold text-navy hover:text-accent"
+              >
+                ▶ {feature.title}
+              </Link>
+            ) : (
+              <span className="font-semibold text-navy/80">{feature.title}</span>
+            )}
+          </div>
+        </td>
+        <td className="text-navy/80">{feature.summary}</td>
+        <td className="text-center hidden md:table-cell">
+          {isLeaf && (
+            <Link
+              href={href}
+              className="btn-secondary !py-1 !px-2 text-xs"
+            >
+              실행 →
+            </Link>
+          )}
+        </td>
+      </tr>
+      {hasChildren && open &&
+        feature.children!.map((child, ci) => (
+          <TreeRow
+            key={child.id}
+            feature={child}
+            index={index}
+            depth={depth + 1}
+          />
+        ))}
+    </>
+  );
+}
+
+function countLeaves(features: Feature[]): number {
+  let n = 0;
+  for (const f of features) {
+    if (!f.children || f.children.length === 0) {
+      n++;
+    } else {
+      n += countLeaves(f.children);
+    }
+  }
+  return n;
 }

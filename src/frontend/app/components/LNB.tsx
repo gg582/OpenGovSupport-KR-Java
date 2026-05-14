@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import type { Feature } from "../lib/api";
 
 export default function LNB({
@@ -46,24 +47,9 @@ export default function LNB({
               {title}
             </div>
             <ul>
-              {items.map((f) => {
-                const href = `/features/${encodeURI(f.id)}`;
-                const active = pathname === href;
-                return (
-                  <li key={f.id}>
-                    <Link
-                      href={href}
-                      className="lnb-link"
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <span className="truncate">{f.title}</span>
-                      <span className="text-[11px] font-mono text-navy/40 shrink-0 ml-2">
-                        {f.id.split("/")[1]}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
+              {items.map((f) => (
+                <TreeItem key={f.id} feature={f} pathname={pathname} />
+              ))}
             </ul>
           </li>
         ))}
@@ -74,5 +60,66 @@ export default function LNB({
         )}
       </ul>
     </nav>
+  );
+}
+
+function TreeItem({
+  feature,
+  pathname,
+  depth = 0,
+}: {
+  feature: Feature;
+  pathname: string;
+  depth?: number;
+}) {
+  const [open, setOpen] = useState(true);
+  const hasChildren = feature.children && feature.children.length > 0;
+  const href = `/features/${encodeURI(feature.id)}`;
+  const active = pathname === href;
+  const isLeaf = !hasChildren;
+
+  return (
+    <li>
+      <div
+        className="lnb-link"
+        style={{ paddingLeft: `${12 + depth * 14}px` }}
+      >
+        {hasChildren && (
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="mr-1 text-[10px] text-navy/40 w-4 text-center"
+            aria-label={open ? "접기" : "펼치기"}
+          >
+            {open ? "▼" : "▶"}
+          </button>
+        )}
+        {isLeaf ? (
+          <Link
+            href={href}
+            className="flex-1 truncate"
+            aria-current={active ? "page" : undefined}
+          >
+            {feature.title}
+          </Link>
+        ) : (
+          <span className="flex-1 truncate font-medium">{feature.title}</span>
+        )}
+        <span className="text-[11px] font-mono text-navy/40 shrink-0 ml-2">
+          {feature.id.split("/").pop()}
+        </span>
+      </div>
+      {hasChildren && open && (
+        <ul>
+          {feature.children!.map((child) => (
+            <TreeItem
+              key={child.id}
+              feature={child}
+              pathname={pathname}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }

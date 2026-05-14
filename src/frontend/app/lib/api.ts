@@ -18,6 +18,10 @@ export type Feature = {
   title: string;
   summary: string;
   inputs: Input[];
+  /** Tree children — present on group / composite nodes. */
+  children?: Feature[];
+  /** true if this is a composite scenario node (has its own inputs + children). */
+  composite?: boolean;
 };
 
 export type Result = {
@@ -67,4 +71,50 @@ export const SECTIONS: { key: "welfare" | "tax"; label: string; href: string }[]
 export function sectionOf(pathname: string): "welfare" | "tax" {
   if (pathname.startsWith("/welfare") || pathname.includes("/welfare/")) return "welfare";
   return "tax";
+}
+
+/** Recursively find a feature by id in a tree. */
+export function findFeatureById(
+  features: Feature[],
+  id: string
+): Feature | undefined {
+  for (const f of features) {
+    if (f.id === id) return f;
+    if (f.children) {
+      const found = findFeatureById(f.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+/** Recursively collect every leaf and group node with its depth. */
+export function flattenFeatures(
+  features: Feature[],
+  depth = 0,
+  out: Array<{ feature: Feature; depth: number }> = []
+): Array<{ feature: Feature; depth: number }> {
+  for (const f of features) {
+    out.push({ feature: f, depth });
+    if (f.children) {
+      flattenFeatures(f.children, depth + 1, out);
+    }
+  }
+  return out;
+}
+
+/** Collect only leaf nodes (no children) with their depth. */
+export function flattenLeaves(
+  features: Feature[],
+  depth = 0,
+  out: Array<{ feature: Feature; depth: number }> = []
+): Array<{ feature: Feature; depth: number }> {
+  for (const f of features) {
+    if (!f.children || f.children.length === 0) {
+      out.push({ feature: f, depth });
+    } else {
+      flattenLeaves(f.children, depth + 1, out);
+    }
+  }
+  return out;
 }

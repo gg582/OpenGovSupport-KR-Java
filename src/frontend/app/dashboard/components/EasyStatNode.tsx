@@ -91,8 +91,11 @@ export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>
   const runFrom = useGraphStore((s) => s.runFrom);
   const execState = useGraphStore((s) => s.execState);
 
+  const edges = useGraphStore((s) => s.doc.edges);
   const inputs = data.inputs ?? [];
   const outputs = data.outputs ?? [];
+  const hasUpstream = edges.some((e) => e.target === id);
+  const isActive = data.kind === "input" || data.kind === "manual" || hasUpstream;
 
   const debouncedRun = useMemo(
     () => debounce((nodeId: string) => runFrom(nodeId), 320),
@@ -114,7 +117,7 @@ export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>
   return (
     <>
       <div
-        className={`easy-stat-node ${selected ? "selected" : ""} ${isRunning ? "running" : ""}`}
+        className={`easy-stat-node ${selected ? "selected" : ""} ${isRunning ? "running" : ""} ${isActive ? "" : "inactive"}`}
         data-kind={data.kind}
       >
         <div className="easy-head">

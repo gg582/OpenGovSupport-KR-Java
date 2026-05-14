@@ -12,7 +12,33 @@ public record Feature(
         String domainTitle,
         String title,
         String summary,
-        List<Input> inputs) {
+        List<Input> inputs,
+        List<Feature> children,
+        Boolean composite) {
+
+    /** Leaf feature — 실제 계산기 (children 없음). */
+    public static Feature leaf(String id, String section, String domainKey,
+                               String domainTitle, String title, String summary,
+                               List<Input> inputs) {
+        return new Feature(id, section, domainKey, domainTitle, title, summary,
+                           inputs, null, null);
+    }
+
+    /** Group feature — 하위 children 만 보유하는 그룹핑 노드. */
+    public static Feature group(String id, String section, String domainKey,
+                                String domainTitle, String title, String summary,
+                                List<Feature> children) {
+        return new Feature(id, section, domainKey, domainTitle, title, summary,
+                           List.of(), children, null);
+    }
+
+    /** Composite feature — 합성 시나리오. 자체 입력 + 하위 children 동시 보유. */
+    public static Feature composite(String id, String section, String domainKey,
+                                    String domainTitle, String title, String summary,
+                                    List<Input> inputs, List<Feature> children) {
+        return new Feature(id, section, domainKey, domainTitle, title, summary,
+                           inputs, children, Boolean.TRUE);
+    }
 
     public static final String SECTION_WELFARE = "welfare";
     public static final String SECTION_TAX = "tax";

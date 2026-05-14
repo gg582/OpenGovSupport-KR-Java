@@ -33,10 +33,13 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
   const toggleNodeDirection = useGraphStore((s) => s.toggleNodeDirection);
   const execState = useGraphStore((s) => s.execState);
 
+  const edges = useGraphStore((s) => s.doc.edges);
   const inputs = data.inputs ?? [];
   const outputs = data.outputs ?? [];
   const reverseMode = data.direction === "reverse";
   const isRunning = execState === "running";
+  const hasUpstream = edges.some((e) => e.target === id);
+  const isActive = data.kind === "input" || data.kind === "manual" || hasUpstream;
 
   const debouncedRun = useMemo(
     () => debounce((nodeId: string) => runFrom(nodeId), 320),
@@ -70,7 +73,7 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
     <>
       <ResultPopover nodeId={id} data={data} isSelected={!!selected} />
       <div
-        className={`stat-node ${selected ? "selected" : ""} ${reverseMode ? "reverse" : ""} ${isRunning ? "running" : ""}`}
+        className={`stat-node ${selected ? "selected" : ""} ${reverseMode ? "reverse" : ""} ${isRunning ? "running" : ""} ${isActive ? "" : "inactive"}`}
         data-kind={data.kind}
       >
       {/* head */}

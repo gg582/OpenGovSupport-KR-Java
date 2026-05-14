@@ -27,6 +27,8 @@ export type NodeKind =
 export type FormulaRule =
   | "earned-income-deduction"
   | "comprehensive-income-tax"
+  | "comprehensive-income-refund"
+  | "year-end-settlement"
   | "corporate-tax"
   | "inheritance-tax"
   | "gift-tax"
@@ -45,7 +47,6 @@ export type FormulaRule =
   | "inheritance-priority"
   | "vat-delta"
   | "deduction-ladder/earned-income"
-  | "marriage-credit"
   | "sports-credit";
 
 export type Port = { id: string; name: string; label: string };

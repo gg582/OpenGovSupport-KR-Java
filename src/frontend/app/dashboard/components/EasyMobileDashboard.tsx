@@ -28,7 +28,11 @@ import "reactflow/dist/style.css";
 
 import { useGraphStore } from "../lib/store";
 import { GRID, type GraphDoc } from "../lib/types";
-import { ALL_TEMPLATES, type NodeTemplate } from "../lib/registry";
+import {
+  ALL_TEMPLATES,
+  formulaTemplatesByParent,
+  type NodeTemplate,
+} from "../lib/registry";
 import { SUBGRAPH_TEMPLATES, type SubgraphTemplate } from "../lib/subgraphTemplates";
 import {
   listGraphs,
@@ -1008,6 +1012,20 @@ function AddSheet({
   onAddTemplate: (t: NodeTemplate) => void;
   onAddSubgraph: (t: SubgraphTemplate) => void;
 }) {
+  const [openParents, setOpenParents] = useState<Set<string>>(
+    new Set(["근로소득", "종합소득세", "연말정산", "세액공제", "정통산식"])
+  );
+  const toggleParent = (p: string) => {
+    setOpenParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  };
+  const baseNodes = ALL_TEMPLATES.filter((t) => t.kind !== "formula");
+  const formulaGroups = formulaTemplatesByParent();
+
   return (
     <div className="m-add">
       <div className="m-add-section">정형 패턴</div>
@@ -1023,23 +1041,52 @@ function AddSheet({
           </button>
         ))}
       </div>
-      <div className="m-add-section">단일 노드</div>
+      <div className="m-add-section">기본 노드</div>
       <div className="m-chip-grid">
-        {ALL_TEMPLATES.map((t) => {
-          const k = t.kind === "formula" ? `formula:${t.rule}` : t.kind;
-          return (
-            <button
-              key={k}
-              className="m-chip"
-              data-kind={t.kind}
-              onClick={() => onAddTemplate(t)}
-            >
-              <span className="m-chip-lbl">{t.label}</span>
-              {t.hint && <span className="m-chip-hint">{t.hint}</span>}
-            </button>
-          );
-        })}
+        {baseNodes.map((t) => (
+          <button
+            key={t.kind}
+            className="m-chip"
+            data-kind={t.kind}
+            onClick={() => onAddTemplate(t)}
+          >
+            <span className="m-chip-lbl">{t.label}</span>
+            {t.hint && <span className="m-chip-hint">{t.hint}</span>}
+          </button>
+        ))}
       </div>
+      {formulaGroups.map(({ parent, items }) => {
+        const open = openParents.has(parent);
+        return (
+          <div key={parent}>
+            <button
+              className="m-add-section"
+              onClick={() => toggleParent(parent)}
+              style={{ textAlign: "left", width: "100%" }}
+            >
+              <span style={{ display: "inline-block", width: 16 }}>
+                {open ? "▼" : "▶"}
+              </span>
+              {parent}
+            </button>
+            {open && (
+              <div className="m-chip-grid">
+                {items.map((t) => (
+                  <button
+                    key={`formula:${t.rule}`}
+                    className="m-chip"
+                    data-kind="formula"
+                    onClick={() => onAddTemplate(t)}
+                  >
+                    <span className="m-chip-lbl">{t.label}</span>
+                    {t.hint && <span className="m-chip-hint">{t.hint}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
