@@ -1581,6 +1581,56 @@
   outline-offset: 0;
   border-color: #0f766e;
 }
+.easy-stat-node .easy-field select {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+.easy-stat-node .easy-field select:focus {
+  outline: 2px solid #0f766e;
+  outline-offset: 0;
+  border-color: #0f766e;
+}
+
+/* 객체/배열 시각화 */
+.easy-object {
+  display: grid;
+  row-gap: 6px;
+}
+.easy-object-row {
+  display: grid;
+  grid-template-columns: auto 8px 1fr;
+  column-gap: 4px;
+  align-items: start;
+  font-size: 13px;
+}
+.easy-object-key {
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.easy-object-sep {
+  color: #94a3b8;
+}
+.easy-object-value {
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-all;
+}
+.easy-array {
+  display: grid;
+  row-gap: 4px;
+}
+.easy-array-item {
+  padding-left: 8px;
+  border-left: 2px solid #e2e8f0;
+}
 
 .easy-stat-node .easy-result {
   display: grid;

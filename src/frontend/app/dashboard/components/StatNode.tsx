@@ -22,6 +22,7 @@ const KIND_LABEL: Record<string, string> = {
 function fmt(v: unknown): string {
   if (v == null) return "—";
   if (typeof v === "number") return v.toLocaleString("ko-KR");
+  if (typeof v === "boolean") return v ? "예" : "아니오";
   if (typeof v === "object") return "{…}";
   return String(v).slice(0, 20);
 }
@@ -109,12 +110,24 @@ export default function StatNode({ id, data, selected }: NodeProps<NodeData>) {
       {/* body */}
       <div className="body">
         {(data.kind === "input" || data.kind === "manual") && (
-          <input
-            type="number"
-            value={typeof data.value === "number" ? data.value : (data.value as string) ?? ""}
-            onChange={(e) => onValueChange(e.target.value)}
-            className="nodrag"
-          />
+          Array.isArray(data.options) && data.options.length > 0 ? (
+            <select
+              value={typeof data.value === "string" ? data.value : (data.options[0] ?? "")}
+              onChange={(e) => onValueChange(e.target.value)}
+              className="nodrag"
+            >
+              {data.options.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="number"
+              value={typeof data.value === "number" ? data.value : (data.value as string) ?? ""}
+              onChange={(e) => onValueChange(e.target.value)}
+              className="nodrag"
+            />
+          )
         )}
         {data.kind === "threshold" && data.threshold && (
           <>

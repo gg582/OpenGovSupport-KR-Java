@@ -672,18 +672,43 @@ export const TEMPLATES: GraphDoc[] = [
       {
         id: "n1",
         type: "stat",
-        position: cell(2, 8),
+        position: cell(2, 2),
         data: {
           kind: "input",
           label: "혼인신고 해당",
           value: "해당",
+          options: ["해당", "미해당"],
           outputs: [{ id: "v", name: "v", label: "값" }],
         },
       },
       {
         id: "n2",
         type: "stat",
-        position: cell(16, 8),
+        position: cell(2, 8),
+        data: {
+          kind: "input",
+          label: "이전 공제 여부",
+          value: "false",
+          options: ["false", "true"],
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n3",
+        type: "stat",
+        position: cell(2, 14),
+        data: {
+          kind: "input",
+          label: "배우자 공제 여부",
+          value: "배우자도",
+          options: ["본인만", "배우자도"],
+          outputs: [{ id: "v", name: "v", label: "값" }],
+        },
+      },
+      {
+        id: "n4",
+        type: "stat",
+        position: cell(18, 8),
         data: {
           kind: "formula",
           label: "결혼공제액",
@@ -697,9 +722,9 @@ export const TEMPLATES: GraphDoc[] = [
         },
       },
       {
-        id: "n3",
+        id: "n5",
         type: "stat",
-        position: cell(32, 8),
+        position: cell(34, 8),
         data: {
           kind: "output",
           label: "공제금액",
@@ -707,9 +732,9 @@ export const TEMPLATES: GraphDoc[] = [
         },
       },
       {
-        id: "n4",
+        id: "n6",
         type: "stat",
-        position: cell(32, 14),
+        position: cell(34, 14),
         data: {
           kind: "legal",
           label: "「소득세법」§59조의4 ⑩",
@@ -718,8 +743,10 @@ export const TEMPLATES: GraphDoc[] = [
       },
     ],
     edges: [
-      { id: "e1", source: "n1", sourceHandle: "v", target: "n2", targetHandle: "isMarriedInPeriod" },
-      { id: "e2", source: "n2", sourceHandle: "amount", target: "n3", targetHandle: "v" },
+      { id: "e1", source: "n1", sourceHandle: "v", target: "n4", targetHandle: "isMarriedInPeriod" },
+      { id: "e2", source: "n2", sourceHandle: "v", target: "n4", targetHandle: "claimedBefore" },
+      { id: "e3", source: "n3", sourceHandle: "v", target: "n4", targetHandle: "spouseClaim" },
+      { id: "e4", source: "n4", sourceHandle: "amount", target: "n5", targetHandle: "v" },
     ],
   },
   {

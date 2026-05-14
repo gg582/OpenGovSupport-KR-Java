@@ -727,6 +727,7 @@ const EASY_KIND: Record<string, string> = {
 function formatOutput(v: unknown): string {
   if (v == null) return "—";
   if (typeof v === "number") return v.toLocaleString("ko-KR");
+  if (typeof v === "boolean") return v ? "예" : "아니오";
   if (typeof v === "object") {
     if (Array.isArray(v)) return `목록 ${v.length}건`;
     return `데이터 ${Object.keys(v).length}항`;

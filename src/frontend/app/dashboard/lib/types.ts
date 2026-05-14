@@ -63,6 +63,8 @@ export type NodeData = {
   reverseSweepVar?: string;
   /** input/manual nodes — current value. */
   value?: number | string | null;
+  /** input nodes — select options (string values). */
+  options?: string[];
   /** lookup nodes — table key + value. */
   lookup?: {
     table: "median-income" | "welfare-tier" | "overseas-threshold" | "custom";

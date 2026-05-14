@@ -50,6 +50,23 @@ public final class FormulaContext {
         }
         String s = v.toString();
         texts.put(name, s);
+        // 한국어/영문 boolean 매핑 — select 입력값을 수치로 해석
+        if ("해당".equals(s) || "예".equals(s) || "true".equalsIgnoreCase(s) || "yes".equalsIgnoreCase(s)) {
+            nums.put(name, BigDecimal.ONE);
+            return this;
+        }
+        if ("미해당".equals(s) || "아니오".equals(s) || "false".equalsIgnoreCase(s) || "no".equalsIgnoreCase(s)) {
+            nums.put(name, BigDecimal.ZERO);
+            return this;
+        }
+        if ("배우자도".equals(s)) {
+            nums.put(name, BigDecimal.ONE);
+            return this;
+        }
+        if ("본인만".equals(s)) {
+            nums.put(name, BigDecimal.ZERO);
+            return this;
+        }
         try {
             nums.put(name, new BigDecimal(s.replace(",", "").trim()));
         } catch (NumberFormatException ignored) {

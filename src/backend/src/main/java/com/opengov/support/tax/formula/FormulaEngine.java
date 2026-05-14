@@ -88,10 +88,32 @@ public class FormulaEngine {
         Map<String, Object> p = params(rule);
         String varName = str(p, "variable");
         BigDecimal x = ctx.num(varName);
+
+        // 이전 공제 이력이 있으면 0원
+        if (p.containsKey("claimedBefore")) {
+            BigDecimal claimed = ctx.num(str(p, "claimedBefore"));
+            if (claimed.signum() != 0) {
+                Map<String, Object> mid = new LinkedHashMap<>();
+                mid.put("claimedBefore", claimed);
+                mid.put("formula", "credit = 0 (이전 공제 이력)");
+                return new FormulaResult(BigDecimal.ZERO, mid);
+            }
+        }
+
         BigDecimal cap = resolveCap(p, ctx);
         BigDecimal rate = resolveRate(p, ctx);
         BigDecimal base = cap.signum() > 0 ? x.min(cap) : x;
         BigDecimal credit = base.multiply(rate, MC).setScale(0, RoundingMode.HALF_UP);
+
+        // 배우자 공제 추가
+        if (p.containsKey("spouseRate")) {
+            String spouseVar = str(p, "spouseClaim");
+            BigDecimal spouse = ctx.num(spouseVar);
+            if (spouse.signum() != 0) {
+                BigDecimal spouseCredit = spouse.multiply(bd(p, "spouseRate"), MC).setScale(0, RoundingMode.HALF_UP);
+                credit = credit.add(spouseCredit, MC);
+            }
+        }
 
         Map<String, Object> mid = new LinkedHashMap<>();
         mid.put("x", x);

@@ -18,11 +18,72 @@ const EASY_LABELS: Record<string, string> = {
   pdf: "출력",
 };
 
-function fmt(v: unknown): string {
-  if (v == null) return "—";
-  if (typeof v === "number") return v.toLocaleString("ko-KR");
-  if (typeof v === "object") return "{…}";
-  return String(v).slice(0, 20);
+/** 객체 키 → 한국어 라벨 규칙 매핑 */
+const KEY_LABELS: Record<string, string> = {
+  perPerson: "1인당 분배액",
+  count: "인원수",
+  total: "합계액",
+  근거: "근거",
+  shares: "상속분",
+  reservedShare: "유류분",
+  allocatedTotal: "배정 총액",
+  appliedTier: "적용 순위",
+  error: "오류",
+  durationMs: "소요시간(ms)",
+  rawFormula: "산식",
+  legalBasis: "근거법령",
+  substituted: "치환변수",
+  intermediate: "중간값",
+  eligibility: "자격",
+  qualified: "충족여부",
+  reasons: "통과사유",
+  blockers: "미충족사유",
+  amount: "금액",
+  deduction: "공제액",
+  payable: "납부세액",
+  ratio: "비율(%)",
+  recognizedIncome: "소득인정액",
+  eligible: "해당여부",
+  stage: "교육단계",
+  industry: "업종",
+  year: "기준연도",
+};
+
+function FmtValue({ v }: { v: unknown }) {
+  if (v == null) return <span>—</span>;
+  if (typeof v === "number") return <span>{v.toLocaleString("ko-KR")}</span>;
+  if (typeof v === "boolean") return <span>{v ? "예" : "아니오"}</span>;
+  if (typeof v === "string") return <span>{v}</span>;
+  if (Array.isArray(v)) {
+    return (
+      <div className="easy-array">
+        {v.map((item, i) => (
+          <div key={i} className="easy-array-item">
+            <FmtValue v={item} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (typeof v === "object") {
+    const obj = v as Record<string, unknown>;
+    const entries = Object.entries(obj);
+    if (entries.length === 0) return <span>—</span>;
+    return (
+      <div className="easy-object">
+        {entries.map(([key, val]) => (
+          <div key={key} className="easy-object-row">
+            <span className="easy-object-key">{KEY_LABELS[key] ?? key}</span>
+            <span className="easy-object-sep">:</span>
+            <span className="easy-object-value">
+              <FmtValue v={val} />
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return <span>{String(v)}</span>;
 }
 
 export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>) {
@@ -48,6 +109,7 @@ export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>
   const isEditable = data.kind === "input" || data.kind === "manual";
   const showResult = data.runtime != null;
   const isRunning = execState === "running";
+  const hasOptions = Array.isArray(data.options) && data.options.length > 0;
 
   return (
     <>
@@ -62,7 +124,24 @@ export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>
         </div>
 
         <div className="easy-body">
-          {isEditable && (
+          {isEditable && hasOptions && (
+            <div className="easy-field">
+              <label>값 선택</label>
+              <select
+                value={typeof data.value === "string" ? data.value : (data.options![0] ?? "")}
+                onChange={(e) => onValueChange(e.target.value)}
+                className="nodrag"
+              >
+                {data.options!.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {isEditable && !hasOptions && (
             <div className="easy-field">
               <label>값 입력</label>
               <input
@@ -80,7 +159,7 @@ export default function EasyStatNode({ id, data, selected }: NodeProps<NodeData>
                 {data.kind === "output" || data.kind === "pdf" ? "최종 결과" : "계산 결과"}
               </span>
               <span className="easy-result-value">
-                {data.runtime!.error ? "계산 오류" : fmt(data.runtime!.output)}
+                {data.runtime!.error ? "계산 오류" : <FmtValue v={data.runtime!.output} />}
               </span>
             </div>
           )}

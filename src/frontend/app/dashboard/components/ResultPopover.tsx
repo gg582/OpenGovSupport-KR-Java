@@ -141,7 +141,7 @@ function fmt(v: unknown): string {
   if (v == null) return "—";
   if (typeof v === "number") return v.toLocaleString("ko-KR");
   if (typeof v === "string") return v;
-  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "boolean") return v ? "예" : "아니오";
   try {
     return JSON.stringify(v);
   } catch {
