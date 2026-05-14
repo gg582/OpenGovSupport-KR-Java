@@ -131,7 +131,7 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
         else None,
         pad_token_id=tokenizer.pad_token_id,
     )
-    # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자륍면 토큰/문자 불일치로 결과가 망가짐)
+    # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자르면 토큰/문자 불일치로 결과가 망가짐)
     input_length = inputs.input_ids.shape[1]
     new_tokens = outputs[0][input_length:]
     return tokenizer.decode(new_tokens, skip_special_tokens=True)
@@ -174,8 +174,9 @@ Chain-of-Thought (생성 전 반드시 수행):
 6. outputKey는 플랜 전체에서 고유한 영문 문자열이다.
 7. description은 20자 이내 한국어 요약이다.
 8. year 필드는 필요할 때만 포함하며 1900~2100 사이 정수이다.
-9. 지원 불가 요청은 steps를 빈 배열 [] 로 하고 message에 "지원하지 않는 요청입니다." 만 적는다.
+9. 지원 불가 요청은 가장 유사도가 높은 항목으로 가정하고 JSON을 적는다. 사용자에게는 "가장 가까운 항목은 '<requestType>입니다. 진행하시겠습니까? 라고 해.
 10. 이전 단계 결과를 참조할 때만 "__prev_<outputKey>__" 형태의 placeholder를 사용한다.
+11. 단계 별로 이전 단계와 다음 단계의 계산 정합성이 맞아야 한다.
 
 JSON 형식:
 {{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}]}}
