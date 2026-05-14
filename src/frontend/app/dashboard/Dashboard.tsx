@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ReactFlowProvider } from "reactflow";
 import Canvas from "./components/Canvas";
 import Palette from "./components/Palette";
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const mode = useGraphStore((s) => s.mode);
   const uiMode = useGraphStore((s) => s.uiMode);
   const isMobile = useIsMobile();
+  const [mounted, setMounted] = useState(false);
   const selectedId = useGraphStore((s) => s.selectedId);
   const select = useGraphStore((s) => s.select);
   const removeNode = useGraphStore((s) => s.removeNode);
@@ -35,6 +36,10 @@ export default function Dashboard() {
   const toggleHelp = useGraphStore((s) => s.toggleHelp);
   const triggerFitView = useGraphStore((s) => s.triggerFitView);
   const showHelp = useGraphStore((s) => s.showHelp);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 첫 진입 시 빈 그래프 → 기본 템플릿으로 부트스트랩.
   useEffect(() => {
@@ -88,7 +93,7 @@ export default function Dashboard() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [runAll, selectedId, removeNode, select, setShowHelp, toggleHelp, doc, triggerFitView]);
 
-  if (isMobile) {
+  if (mounted && isMobile) {
     return uiMode === "easy" ? <EasyMobileDashboard /> : <MobileDashboard />;
   }
 

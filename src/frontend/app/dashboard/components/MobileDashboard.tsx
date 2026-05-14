@@ -46,7 +46,6 @@ import { TEMPLATES } from "../lib/templates";
 import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
 import OverlayPanel from "./OverlayPanel";
-import { clearReactFlowSelection } from "../lib/clearSelection";
 
 const nodeTypes = { stat: StatNode } as const;
 const edgeTypes = { ortho: OrthoEdge } as const;
@@ -331,8 +330,7 @@ function MobileBody() {
   const clearAllSelection = useCallback(() => {
     select(null);
     setTab(null);
-    clearReactFlowSelection(rf);
-  }, [rf, select]);
+  }, [select]);
 
   return (
     <div className="dash-mobile">

@@ -23,7 +23,6 @@ import StatNode from "./StatNode";
 import OrthoEdge from "./OrthoEdge";
 import { useGraphStore } from "../lib/store";
 import { GRID, snapXY } from "../lib/types";
-import { clearReactFlowSelection } from "../lib/clearSelection";
 import type { NodeTemplate } from "../lib/registry";
 import { SUBGRAPH_TEMPLATES } from "../lib/subgraphTemplates";
 
@@ -40,6 +39,7 @@ type Props = {
 export default function Canvas({ mobile = false }: Props) {
   const rf = useReactFlow();
   const doc = useGraphStore((s) => s.doc);
+  const selectedId = useGraphStore((s) => s.selectedId);
   const connect = useGraphStore((s) => s.connect);
   const select = useGraphStore((s) => s.select);
   const setNodes = useGraphStore((s) => s.setNodes);
@@ -83,6 +83,7 @@ export default function Canvas({ mobile = false }: Props) {
         position: n.position,
         data: n.data,
         draggable: true,
+        selected: n.id === selectedId,
         className:
           connectingFrom && isValidTarget(connectingFrom, n.id)
             ? "valid-target"
@@ -90,7 +91,7 @@ export default function Canvas({ mobile = false }: Props) {
               ? "invalid-target"
               : undefined,
       })),
-    [doc.nodes, connectingFrom, isValidTarget],
+    [doc.nodes, selectedId, connectingFrom, isValidTarget],
   );
 
   const rfEdges: Edge[] = useMemo(
@@ -203,8 +204,7 @@ export default function Canvas({ mobile = false }: Props) {
   const clearAllSelection = useCallback(() => {
     select(null);
     setMode("normal");
-    clearReactFlowSelection(rf);
-  }, [rf, select, setMode]);
+  }, [select, setMode]);
 
   return (
     <div
