@@ -17,8 +17,7 @@ export default function TaxAxChatPanel() {
   }, [messages, phase]);
 
   const handleSend = () => {
-    if (!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying")
-      return;
+    if (!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting") return;
     sendMessage(input);
     setInput("");
   };
@@ -96,27 +95,35 @@ export default function TaxAxChatPanel() {
                   </div>
                 </div>
               );
-            case "plan":
+            case "plan": {
+              const hasSteps = msg.plan.steps && msg.plan.steps.length > 0;
               return (
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
                   <div className="tax-ax-avatar">AX</div>
                   <div className="tax-ax-bubble tax-ax-bubble-bot">
                     <p>산출 플랜을 생성했습니다. 아래 내용을 확인하고 실행해 주세요.</p>
                     <pre className="tax-ax-plan-code">{msg.content}</pre>
-                    <button
-                      className="btn btn-accent tax-ax-run-btn"
-                      onClick={() => executeChatPlan(msg.plan, lastUserContent)}
-                      disabled={phase === "executing" || phase === "reporting"}
-                    >
-                      {phase === "executing"
-                        ? "실행 중…"
-                        : phase === "reporting"
-                          ? "보고서 작성 중…"
-                          : "플랜 실행"}
-                    </button>
+                    {hasSteps ? (
+                      <button
+                        className="btn btn-accent tax-ax-run-btn"
+                        onClick={() => executeChatPlan(msg.plan, lastUserContent)}
+                        disabled={phase === "executing" || phase === "reporting"}
+                      >
+                        {phase === "executing"
+                          ? "실행 중…"
+                          : phase === "reporting"
+                            ? "보고서 작성 중…"
+                            : "플랜 실행"}
+                      </button>
+                    ) : (
+                      <p className="tax-ax-plan-no-steps" style={{ color: "#b45309", fontSize: 14, marginTop: 8 }}>
+                        ⚠️ 실행 가능한 계산 단계가 없습니다. 필요한 정보가 부족하거나 지원하지 않는 요청일 수 있습니다.
+                      </p>
+                    )}
                   </div>
                 </div>
               );
+            }
             case "result":
               return (
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
@@ -158,7 +165,7 @@ export default function TaxAxChatPanel() {
           }
         })}
 
-        {(phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying") && (
+        {(phase === "thinking" || phase === "executing" || phase === "reporting") && (
           <div className="tax-ax-msg tax-ax-msg-bot">
             <div className="tax-ax-avatar">AX</div>
             <div className="tax-ax-bubble tax-ax-bubble-bot">
@@ -177,16 +184,16 @@ export default function TaxAxChatPanel() {
         <textarea
           className="tax-ax-textarea"
           rows={2}
-          placeholder="세법 계산을 요청해 보세요… (예: 연봉 6000만원 직장인 근로소득공제 금액)"
+          placeholder={phase === "clarifying" ? "질문에 답변해 주세요…" : "세법 계산을 요청해 보세요… (예: 연봉 6000만원 직장인 근로소득공제 금액)"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying"}
+          disabled={phase === "thinking" || phase === "executing" || phase === "reporting"}
         />
         <button
           className="btn btn-accent tax-ax-send"
           onClick={handleSend}
-          disabled={!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying"}
+          disabled={!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting"}
         >
           ➤
         </button>

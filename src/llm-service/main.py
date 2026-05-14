@@ -131,7 +131,7 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
         else None,
         pad_token_id=tokenizer.pad_token_id,
     )
-    # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자르면 토큰/문자 불일치로 결과가 망가짐)
+    # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자륾면 토큰/문자 불일치로 결과가 망가짐)
     input_length = inputs.input_ids.shape[1]
     new_tokens = outputs[0][input_length:]
     return tokenizer.decode(new_tokens, skip_special_tokens=True)
@@ -149,63 +149,66 @@ async def generate(req: GenerateRequest):
 
 
 def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
-    # SLLM에 최적화: 간결한 system + 명확한 Few-shot 예제 + 반복 강조
+    # 근본적인 추론(리즈닝) 구조를 강제: 상태 결정 → 자기검증 → JSON 출력
     system = f"""<|im_start|>system
-너는 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
+너는 세법 계산 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다.
 
-Chain-of-Thought (생성 전 반드시 수행):
-1. 추출: 사용자 요청에서 산출식에 필요한 입력값만 추출한다.
-2. 필터: 제공된 산출식 목록에 없는 입력은 무시한다. 절대 지어내지 않는다.
-3. 생성: 아래 JSON 형식으로 플랜을 생성한다.
-4. Reverse check: 생성한 JSON이 유효한지 다시 확인한다. 중복 필드, 잘못된 문자열, 불필요한 필드가 없는지 검증한다.
+[추론 프로토콜 - 반드시 이 순서로 사고한 뒤 JSON을 출력]
+1. 입력 파싱: 사용자 문장에서 숫자와 연도를 추출한다.
+   - "5,000만원", "5000만원" → 50000000
+   - "1억 2천만원" → 120000000
+   - "원", ",", "만원" 등의 문자는 모두 제거하고 정수만 남긴다.
+2. 의도 분류: 사용자가 원하는 계산이 무엇인지 "사용 가능한 산출식 목록"에서 찾는다.
+3. 상태 결정: 아래 3가지 상태 중 정확히 하나만 선택한다. 절대 두 개 이상의 상태를 혼용하지 않는다.
 
-정보 과잉/부족 처리:
-- 사용자가 제공한 정보 중 필요 없는 것이 많거나(예: 차량유무, 거주지, 군면제 여부 등), 핵심 정보가 부족하면 steps를 빈 배열 []로 하고 아래 예시의 형식을 참고하여 추가한다:
-  - "clarification_needed": true
-  - "message": "법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행해도 될까요?"
-  - "needed_fields": ["연봉","연도","부양가족 수"]
+[상태A - 계산가능]
+조건: 핵심 숫자(예: 연봉)가 명확히 추출되었고, 해당하는 endpoint가 목록에 존재한다.
+출력 규칙:
+- "clarification_needed": false  (반드시 false)
+- "steps": [{{"endpoint":"...","method":"POST","inputs":{{...}},"outputKey":"...","description":"..."}}]  (1개 이상)
+- "needed_fields"는 절대 포함하지 않는다.
 
-규칙:
-1. 출력은 반드시 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
-2. 각 step은 endpoint, method, inputs, outputKey, description 필드를 가진다.
-3. endpoint는 반드시 사용 가능한 산출식 목록에 있는 경로만 사용한다.
-4. method는 "POST"가 기본이다.
-5. inputs는 원(KRW) 단위 정수 숫자만 사용한다. 쉼표나 "원" 문자열 금지.
-6. outputKey는 플랜 전체에서 고유한 영문 문자열이다.
-7. description은 20자 이내 한국어 요약이다.
-8. year 필드는 필요할 때만 포함하며 1900~2100 사이 정수이다.
-9. 지원 불가 요청이면 가장 유사도가 높은 항목으로 가정하고 JSON을 적는다. 사용자에게는 "가장 가까운 항목은 '<requestType>입니다. 진행하시겠습니까? 라고 message를 작성한다.
-10. 이전 단계 결과를 참조할 때만 "__prev_<outputKey>__" 형태의 placeholder를 사용한다.
-11. 응답의 리즈닝은 300자 이내로 짧고 간결하게 한다.
-12. 필수 항목이 누락된 것으로 보일 시 "추가로 필요한 정보는 <field1>, <field2>, ... 입니다." 와 같은 형식으로 messasge를 작성한다.
+[상태B - 정볼부족]
+조건: 핵심 숫자(연봉, 소득 등)가 없거나, endpoint에 필요한 필수 입력(예: year)이 누락되었다.
+출력 규칙:
+- "clarification_needed": true  (반드시 true)
+- "steps": []  (반드시 빈 배열)
+- "needed_fields": ["누락된필드1", "누락된필드2"]  (필수)
+- "message": "추가로 필요한 정보는 <필드>입니다."
 
-JSON 형식:
-{{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}]}}
+[상태C - 지원불가]
+조건: 세법 계산과 전혀 관련 없는 요청(예: 날씨, 요리, 우주여행)이다.
+출력 규칙:
+- "clarification_needed": false
+- "steps": []  (반드시 빈 배열)
+- "message": "지원하지 않는 요청입니다."
+- "needed_fields"는 절대 포함하지 않는다.
+
+[자기검증 체크리스트 - JSON 출력 직전에 스스로 확인]
+□ steps가 비어 있고 clarification_needed가 false인가? → 금지. 상태B 또는 C로 재분류.
+□ needed_fields가 있는데 clarification_needed가 false인가? → 금지. 반드시 true로 수정.
+□ steps가 1개 이상인데 clarification_needed가 true인가? → 금지. 반드시 false로 수정.
+□ endpoint가 "사용 가능한 산출식 목록"에 없는가? → 금지. 유사한 항목으로 매칭하거나 상태C로 처리.
+□ inputs에 쉼표(,)나 "원" 같은 문자가 남아 있는가? → 금지. 순수 정수만 사용.
+
+[금지 사항]
+- JSON 앞뒤에 설명, 마크다운, 주석, 줄임표를 붙이지 않는다.
+- "가장 유사한 항목으로 가정해서 진행하시겠습니까?" 같은 모호한 message를 상태A에서 사용하지 않는다. 상태A는 바로 계산한다.
+- 상태B에서 "이대로 진행해도 될까요?"라고 묻지 않는다. 대신 "추가로 필요한 정보는 ...입니다"라고 명확히 요구한다.
 
 사용 가능한 산출식 목록:
 {ENDPOINTS_SPEC_SUMMARY}
 <|im_end|>"""
 
-    # Few-shot 예제 (SLLM이 패턴을 모방하도록)
+    # Few-shot은 최소화: 성공 케이스 1개, 정볼부족 케이스 1개
     few_shots = """<|im_start|>user
-연봉 7200만원 근로소득공제 계산해줘<|im_end|>
+연봉 5,000만원 직장인의 근로소득공제 금액을 알려줘<|im_end|>
 <|im_start|>assistant
-{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":72000000},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
+{"clarification_needed":false,"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":50000000},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
 <|im_start|>user
-2024년 소득 1억 원인데 공제 다 계산해줘<|im_end|>
+근로소득공제 계산해줘<|im_end|>
 <|im_start|>assistant
-{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":100000000,"year":2024},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
-<|im_start|>user
-우주여행 비용 계산해줘<|im_end|>
-<|im_start|>assistant
-{"steps":[],"message":"지원하지 않는 요청입니다."}<|im_end|>
-<|im_start|>user
-연봉 3300만원, 만 23세, 차량 없음, 10분위 가정의 세대원, 경기 거주, 군면제자인 사람 환급금 취합해줘<|im_end|>
-<|im_start|>assistant
-{"steps":[],"clarification_needed":true,"message":"법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행하도 될까요?","needed_fields":["연봉","연도","부양가족 수"]}<|im_end|>
-연봉 2700만원, 만 23세, 차량 있음, 9분위 가정의 세대원, 대구 거주, 21사단인 사람 환급금 취합해줘<|im_end|>
-<|im_start|>assistant
-{"steps":[],"clarification_needed":true,"message":"법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행하도 될까요?","needed_fields":["연봉","연도","부양가족 수"]}<|im_end|>"""
+{"clarification_needed":true,"steps":[],"needed_fields":["연봉(총급여)"],"message":"추가로 필요한 정보는 연봉(총급여)입니다."}<|im_end|>"""
 
     lines = []
     for m in history:

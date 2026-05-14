@@ -110,41 +110,71 @@ function buildResultTable(result: AxExecutionResult): string {
   </table>`;
 }
 
+const STORAGE_KEY = "opengov-tax-ax-chat-history";
+
+const initialAssistantMessage: ChatMessage = {
+  id: "msg_0",
+  role: "assistant",
+  content:
+    "안녕하세요! 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산이 필요하시면 편하게 말씀해 주세요. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려줘'",
+};
+
+function loadMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return [initialAssistantMessage];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [initialAssistantMessage];
+    const parsed = JSON.parse(raw) as ChatMessage[];
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch {
+    // ignore parse errors
+  }
+  return [initialAssistantMessage];
+}
+
+type WizardState = {
+  originalRequest: string;
+  neededFields: string[];
+  collected: Record<string, string>;
+};
+
+function buildEnrichedRequest(original: string, collected: Record<string, string>): string {
+  const parts = Object.entries(collected)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(", ");
+  return `${original} (${parts})`;
+}
+
 export function useTaxAxChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: nextId(),
-      role: "assistant",
-      content:
-        "안녕하세요! 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산이 필요하시면 편하게 말씀해 주세요. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려줘'",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const messagesRef = useRef<ChatMessage[]>(messages);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
+  // persist to localStorage on every change
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      // ignore quota errors
+    }
+  }, [messages]);
+
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [error, setError] = useState("");
   const abortRef = useRef(false);
-  const pendingClarificationRef = useRef<{ content: string; neededFields: string[]; originalRequest: string } | null>(null);
+  const wizardRef = useRef<WizardState | null>(null);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim()) return;
+  // 내부: 플랜 생성 후 자동 실행까지 한 번에 처리
+  const generateAndExecute = useCallback(
+    async (userText: string) => {
       abortRef.current = false;
       setError("");
-
-      const userMsg: ChatMessage = {
-        id: nextId(),
-        role: "user",
-        content: text.trim(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
       setPhase("thinking");
 
       try {
@@ -158,7 +188,7 @@ export function useTaxAxChat() {
             }
             return { role: "assistant", content: m.content } as const;
           }),
-          { role: "user" as const, content: text.trim() },
+          { role: "user" as const, content: userText.trim() },
         ];
 
         const raw = await generateTaxChatResponse(history);
@@ -166,13 +196,11 @@ export function useTaxAxChat() {
 
         const { json, plain } = extractJson(raw);
 
-        // JSON 플랜이 있으면 plan 메시지 + 평문이 있으면 assistant 메시지
         if (json) {
           let parsedJson: Record<string, unknown>;
           try {
             parsedJson = JSON.parse(json);
           } catch {
-            // JSON 파싱 실패 시 평문으로 처리
             addMessage({
               id: nextId(),
               role: "assistant",
@@ -182,34 +210,38 @@ export function useTaxAxChat() {
             return;
           }
 
-          // 정보 과잉/부족 확인 응답 처리
+          // 정보 부족 → wizard 모드 진입
           if (parsedJson.clarification_needed === true) {
             const neededFields = Array.isArray(parsedJson.needed_fields)
               ? parsedJson.needed_fields.map(String)
               : [];
+            if (neededFields.length > 0) {
+              wizardRef.current = {
+                originalRequest: userText.trim(),
+                neededFields: [...neededFields],
+                collected: {},
+              };
+              const firstField = neededFields[0];
+              addMessage({
+                id: nextId(),
+                role: "assistant",
+                content: `계산을 위해 ${firstField}이(가) 필요합니다. 알려주시겠어요?`,
+              });
+              setPhase("clarifying");
+              return;
+            }
+            // needed_fields가 비었으면 평문으로 처리
             const msg = typeof parsedJson.message === "string" ? parsedJson.message : plain || raw;
-            addMessage({
-              id: nextId(),
-              role: "clarification",
-              content: msg,
-              neededFields,
-              originalRequest: text.trim(),
-            });
-            pendingClarificationRef.current = {
-              content: msg,
-              neededFields,
-              originalRequest: text.trim(),
-            };
-            setPhase("clarifying");
+            addMessage({ id: nextId(), role: "assistant", content: msg });
+            setPhase("done");
             return;
           }
 
-          // steps가 있으면 플랜 메시지
+          // steps가 있으면 플랜 메시지 + 자동 실행
           const steps = parsedJson.steps;
           if (Array.isArray(steps)) {
             const plan = parsedJson as unknown as AxPlan;
 
-            // 평문 설명이 있으면 먼저 보여주고
             if (plain) {
               addMessage({
                 id: nextId(),
@@ -224,11 +256,17 @@ export function useTaxAxChat() {
               content: JSON.stringify(plan, null, 2),
               plan,
             });
-            setPhase("done");
+
+            if (plan.steps && plan.steps.length > 0) {
+              // 자동 실행
+              await executeChatPlan(plan, userText.trim());
+            } else {
+              setPhase("done");
+            }
             return;
           }
 
-          // steps가 없는 기타 JSON 응답 (지원 불가 등)
+          // 기타 JSON
           addMessage({
             id: nextId(),
             role: "assistant",
@@ -236,7 +274,6 @@ export function useTaxAxChat() {
           });
           setPhase("done");
         } else {
-          // 일반 대화 응답
           addMessage({
             id: nextId(),
             role: "assistant",
@@ -255,14 +292,67 @@ export function useTaxAxChat() {
     [addMessage],
   );
 
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      abortRef.current = false;
+      setError("");
+
+      const userMsg: ChatMessage = {
+        id: nextId(),
+        role: "user",
+        content: text.trim(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+
+      // wizard 모드: 단계적 질문 답변 수집
+      const wizard = wizardRef.current;
+      if (wizard && wizard.neededFields.length > 0) {
+        const currentField = wizard.neededFields[0];
+        wizard.collected[currentField] = text.trim();
+        wizard.neededFields.shift(); // 현재 필드 제거
+
+        if (wizard.neededFields.length > 0) {
+          const nextField = wizard.neededFields[0];
+          addMessage({
+            id: nextId(),
+            role: "assistant",
+            content: `그럼 ${nextField}은(는) 어떻게 되시나요?`,
+          });
+          setPhase("clarifying");
+          return;
+        }
+
+        // 모든 필드 수집 완료 → 자동 플랜 생성 및 실행
+        wizardRef.current = null;
+        const enriched = buildEnrichedRequest(wizard.originalRequest, wizard.collected);
+        await generateAndExecute(enriched);
+        return;
+      }
+
+      // 일반 모드
+      await generateAndExecute(text.trim());
+    },
+    [addMessage, generateAndExecute],
+  );
+
   const executeChatPlan = useCallback(
     async (plan: AxPlan, originalRequest: string) => {
       abortRef.current = false;
       setError("");
+
+      if (!plan.steps || plan.steps.length === 0) {
+        const noStepMsg =
+          "실행할 계산 단계가 없습니다. 요청하신 내용에 필요한 정보가 부족하거나 지원하지 않는 항목일 수 있습니다.";
+        addMessage({ id: nextId(), role: "error", content: noStepMsg });
+        setPhase("error");
+        return;
+      }
+
       setPhase("executing");
 
       const startTime = Date.now();
-      const deadline = startTime + 180_000; // 180초
+      const deadline = startTime + 180_000;
       let currentPlan = plan;
       let attempt = 0;
 
@@ -306,7 +396,11 @@ export function useTaxAxChat() {
           return;
         } catch (e) {
           if (abortRef.current) return;
-          const errMsg = (e as Error).message;
+          let errMsg = (e as Error).message;
+
+          if (errMsg.includes("Failed to fetch") || errMsg.includes("NetworkError")) {
+            errMsg = "서버와의 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+          }
 
           if (Date.now() > deadline) {
             setError(errMsg);
@@ -389,16 +483,14 @@ export function useTaxAxChat() {
 
   const confirmClarification = useCallback(
     async (originalRequest: string) => {
-      pendingClarificationRef.current = null;
-      // "예"라고 입력한 것처럼 다음 턴으로 진행
-      // 이때 history에 clarification 질문이 포함되어 있어 LLM이 플랜을 생성할 가능성이 높아짐
+      wizardRef.current = null;
       await sendMessage("예, 이대로 진행해줘");
     },
     [sendMessage],
   );
 
   const rejectClarification = useCallback(() => {
-    pendingClarificationRef.current = null;
+    wizardRef.current = null;
     addMessage({
       id: nextId(),
       role: "assistant",
