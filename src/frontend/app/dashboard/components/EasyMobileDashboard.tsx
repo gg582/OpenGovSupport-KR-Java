@@ -435,10 +435,10 @@ function EasyMobileBody() {
         <button
           className={`m-ax-float ${mode === "ax" ? "active" : ""}`}
           onClick={() => setMode(mode === "ax" ? "normal" : "ax")}
-          aria-label="세무 AX"
-          title="세무 AX"
+          aria-label="AI"
+          title="AI"
         >
-          AX
+          AI
         </button>
 
         <span

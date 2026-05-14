@@ -198,7 +198,7 @@ export default function EasyToolbar() {
       </select>
 
       <div className="sep" />
-      <button className="btn btn-accent" onClick={() => setMode("ax")} title="세무 AX 챗봇"><span className="ico">AX</span><span className="label"> 세무 AX</span></button>
+      <button className="btn btn-accent" onClick={() => setMode("ax")} title="AI 챗봇">AI</button>
       <button className="btn" onClick={() => toggleHelp()} title="도움말"><span className="ico">?</span></button>
 
       <div className="sep" />

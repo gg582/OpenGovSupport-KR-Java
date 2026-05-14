@@ -63,7 +63,7 @@ const MODE_LABELS: Record<DashMode, string> = {
   conflict: "충돌",
   timeline: "연도",
   audit: "감사",
-  ax: "AX",
+  ax: "AI",
 };
 
 export default function MobileDashboard() {
