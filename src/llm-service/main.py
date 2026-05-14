@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForCausalLM
 
-MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-1.5B-Instruct")
+MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
@@ -151,19 +151,13 @@ async def generate(req: GenerateRequest):
 def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
     # SLLM에 최적화: 간결한 system + 명확한 Few-shot 예제 + 반복 강조
     system = f"""<|im_start|>system
-너는 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
+너는 JSON 플랜 생성기야. 오직 유효한 JSON 객체만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
 
 Chain-of-Thought (생성 전 반드시 수행):
 1. 추출: 사용자 요청에서 산출식에 필요한 입력값만 추출한다.
 2. 필터: 제공된 산출식 목록에 없는 입력은 무시한다. 절대 지어내지 않는다.
 3. 생성: 아래 JSON 형식으로 플랜을 생성한다.
 4. Reverse check: 생성한 JSON이 유효한지 다시 확인한다. 중복 필드, 잘못된 문자열, 불필요한 필드가 없는지 검증한다.
-
-정보 과잉/부족 처리:
-- 사용자가 제공한 정보 중 필요 없는 것이 많거나(예: 차량유무, 거주지, 군면제 여부 등), 핵심 정보가 부족하면 steps를 빈 배열 []로 하고 아래 예시의 형식을 참고하여 추가한다:
-  - "clarification_needed": true
-  - "message": "법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행해도 될까요?"
-  - "needed_fields": ["연봉","연도","부양가족 수"]
 
 규칙:
 1. 출력은 반드시 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
@@ -174,10 +168,8 @@ Chain-of-Thought (생성 전 반드시 수행):
 6. outputKey는 플랜 전체에서 고유한 영문 문자열이다.
 7. description은 20자 이내 한국어 요약이다.
 8. year 필드는 필요할 때만 포함하며 1900~2100 사이 정수이다.
-9. 지원 불가 요청이면 가장 유사도가 높은 항목으로 가정하고 JSON을 적는다. 사용자에게는 "가장 가까운 항목은 '<requestType>입니다. 진행하시겠습니까? 라고 message를 작성한다.
+9. 지원 불가 요청이면 어떤 필드가 더 필요한지 말해주거나, 아니면 "죄송합니다, 더 명확하게 지시해 주세요." 라고 해.
 10. 이전 단계 결과를 참조할 때만 "__prev_<outputKey>__" 형태의 placeholder를 사용한다.
-11. 응답의 리즈닝은 300자 이내로 짧고 간결하게 한다.
-12. 필수 항목이 누락된 것으로 보일 시 "추가로 필요한 정보는 <field1>, <field2>, ... 입니다." 와 같은 형식으로 messasge를 작성한다.
 
 JSON 형식:
 {{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}]}}
@@ -188,13 +180,9 @@ JSON 형식:
 
     # Few-shot 예제 (SLLM이 패턴을 모방하도록)
     few_shots = """<|im_start|>user
-연봉 7200만원 근로소득공제 계산해줘<|im_end|>
+2024년 연봉 7200만원 근로소득공제 계산해줘<|im_end|>
 <|im_start|>assistant
 {"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":72000000},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
-<|im_start|>user
-2024년 소득 1억 원인데 공제 다 계산해줘<|im_end|>
-<|im_start|>assistant
-{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":100000000,"year":2024},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
 <|im_start|>user
 우주여행 비용 계산해줘<|im_end|>
 <|im_start|>assistant
@@ -202,10 +190,7 @@ JSON 형식:
 <|im_start|>user
 연봉 3300만원, 만 23세, 차량 없음, 10분위 가정의 세대원, 경기 거주, 군면제자인 사람 환급금 취합해줘<|im_end|>
 <|im_start|>assistant
-{"steps":[],"clarification_needed":true,"message":"법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행하도 될까요?","needed_fields":["연봉","연도","부양가족 수"]}<|im_end|>
-연봉 2700만원, 만 23세, 차량 있음, 9분위 가정의 세대원, 대구 거주, 21사단인 사람 환급금 취합해줘<|im_end|>
-<|im_start|>assistant
-{"steps":[],"clarification_needed":true,"message":"법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행하도 될까요?","needed_fields":["연봉","연도","부양가족 수"]}<|im_end|>"""
+{"steps":[],"clarification_needed":true,"message":"구체적으로 어떤 환급금을 말씀하시는지 모르겠습니다. 일반 세무 항목에 지원되는 항목으로 다시 질문해 주세요.","needed_fields":[]}<|im_end|>"""
 
     lines = []
     for m in history:
@@ -217,7 +202,7 @@ JSON 형식:
 
 def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str) -> str:
     system = f"""<|im_start|>system
-너는 JSON 플랜 수정기야. 오직 수정된 유효한 JSON 객첼만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
+너는 JSON 플랜 수정기야. 오직 수정된 유효한 JSON 객체만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
 
 규칙:
 1. 출력은 반드시 아래 형식의 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
