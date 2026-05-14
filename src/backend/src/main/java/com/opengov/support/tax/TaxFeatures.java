@@ -64,17 +64,89 @@ public final class TaxFeatures {
                         "12_근로소득", "근로소득",
                         "근로소득", "근로소득공제 및 연말정산 세액공제.",
                         List.of(
-                                Feature.leaf("tax/earned-income-deduction", s,
+                                Feature.composite("tax/earned-income-deduction", s,
                                         "12_근로소득", "근로소득",
                                         "근로소득공제",
-                                        "「소득세법」제47조 5단계 누진율표로 총급여에서 차감할 근로소득공제액을 계산합니다.",
+                                        "「소득세법」제47조 5단계 누진율표로 총급여에서 차감할 근로소득공제액을 계산하며, 선택적 세액공제 항목을 함께 평가합니다.",
                                         List.of(
                                                 Input.of("year", "기준 연도", "select")
                                                         .options(yearOptions()).defaultValue(yearStr).build(),
                                                 Input.of("grossSalary", "총급여 (원, 연간)", "number")
                                                         .defaultValue("0")
                                                         .help("비과세소득을 제외한 연간 총급여. 5,000만원 이하 70%부터 1억 초과 2%까지 5단계.")
-                                                        .required(true).build()
+                                                        .required(true).build(),
+                                                Input.of("medicalExpense", "의료비 지출액 (원)", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 의료비 세액공제가 활성화됩니다.").build(),
+                                                Input.of("educationExpense", "교육비 지출액 (원)", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 교육비 세액공제가 활성화됩니다.").build(),
+                                                Input.of("rentPaid", "월세 지출액 (원, 연간)", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 월세 세액공제가 활성화됩니다.").build(),
+                                                Input.of("pensionContribution", "연금계좌 납입액 (원)", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 연금계좌 세액공제가 활성화됩니다.").build(),
+                                                Input.of("donation", "기부금 (원)", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 기부금 세액공제가 활성화됩니다.").build(),
+                                                Input.of("childCount", "기본공제대상 자녀 수", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 자녀 세액공제가 활성화됩니다.").build(),
+                                                Input.of("isMarriedInPeriod", "혼인신고 시기 해당", "select")
+                                                        .options(List.of("해당", "미해당")).defaultValue("미해당")
+                                                        .help("2024.1.1.~2026.12.31. 사이 혼인신고 시 해당. '해당' 선택 시 결혼 세액공제가 활성화됩니다.").build(),
+                                                Input.of("claimedBefore", "결혼세액공제 이전 수령 이력", "select")
+                                                        .options(List.of("아니오", "예")).defaultValue("아니오")
+                                                        .help("생애 1회 한도. 이전에 받은 적 있으면 0원.").build(),
+                                                Input.of("spouseClaim", "배우자 결혼세액공제 여부", "select")
+                                                        .options(List.of("본인만", "배우자도")).defaultValue("본인만")
+                                                        .help("배우자도 2024~2026년 혼인신고 시 합산 최대 100만원.").build(),
+                                                Input.of("sportsExpense", "체육시설 이용료 (원, 연간)", "number")
+                                                        .defaultValue("0")
+                                                        .help("0보다 큰 값을 입력하면 체육시설 이용료 공제가 활성화됩니다.").build()
+                                        ),
+                                        List.of(
+                                                Feature.leaf("tax/settlement/medical", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "의료비 세액공제",
+                                                        "「소득세법」제59조의4 ① — 총급여 3% 초과분 15%.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/education", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "교육비 세액공제",
+                                                        "「소득세법」제59조의4 ② — 교육비의 15%.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/rent", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "월세 세액공제",
+                                                        "「조세특례제한법」제95조의2 — 무주택 세대주.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/pension", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "연금계좌 세액공제",
+                                                        "「소득세법」제59조의3 — 연금저축·IRP.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/donation", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "기부금 세액공제",
+                                                        "「소득세법」제59조의4 ④ — 1,000만원 이하 15% + 초과분 30%.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/child", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "자녀 세액공제",
+                                                        "「소득세법」제59조의2 — 1~2번째 25만원 + 3번째 이상 40만원.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/marriage", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "결혼 세액공제",
+                                                        "「소득세법」제59조의4 ⑩ — 2024~2026 혼인신고 1인당 50만원.",
+                                                        List.of()),
+                                                Feature.leaf("tax/settlement/sports", s,
+                                                        "12_근로소득", "연말정산",
+                                                        "체육시설 이용료 공제",
+                                                        "「소득세법」제59조의4 ③ — 9세 미만·초등 2학년 이하 15%.",
+                                                        List.of())
                                         )),
                                 Feature.composite("tax/year-end-settlement", s,
                                         "12_근로소득", "근로소득",

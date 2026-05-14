@@ -3,6 +3,7 @@ package com.opengov.support.web.controller;
 import com.opengov.support.tax.TaxCalculation;
 import com.opengov.support.tax.TaxStandards;
 import com.opengov.support.tax.composite.ComprehensiveRefund;
+import com.opengov.support.tax.composite.EarnedIncomeDeductionComposite;
 import com.opengov.support.tax.composite.YearEndSettlement;
 import com.opengov.support.tax.rule.RuleRegistry;
 import com.opengov.support.tax.rule.TaxRule;
@@ -39,15 +40,18 @@ public class TaxController {
     private final TaxCalculation calculation;
     private final YearEndSettlement yearEnd;
     private final ComprehensiveRefund refund;
+    private final EarnedIncomeDeductionComposite earnedComposite;
     private final RuleRegistry registry;
 
     public TaxController(TaxCalculation calculation,
                          YearEndSettlement yearEnd,
                          ComprehensiveRefund refund,
+                         EarnedIncomeDeductionComposite earnedComposite,
                          RuleRegistry registry) {
         this.calculation = calculation;
         this.yearEnd = yearEnd;
         this.refund = refund;
+        this.earnedComposite = earnedComposite;
         this.registry = registry;
     }
 
@@ -82,6 +86,14 @@ public class TaxController {
         int year = JsonBody.integer(body, "year");
         if (year == 0) year = TaxStandards.currentYear();
         return refund.run(year, body);
+    }
+
+    @PostMapping("/earned-income-deduction")
+    public Result earnedIncomeDeduction(@RequestBody(required = false) Map<String, Object> body) {
+        if (body == null) body = Map.of();
+        int year = JsonBody.integer(body, "year");
+        if (year == 0) year = TaxStandards.currentYear();
+        return earnedComposite.run(year, body);
     }
 
     @PostMapping("/{ruleId}")

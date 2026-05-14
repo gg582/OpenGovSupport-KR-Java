@@ -25,6 +25,20 @@ function defaultValues(inputs: Input[]): Record<string, unknown> {
   return v;
 }
 
+/** 근로소득공제 composite 의 세액공제 상세 필드 목록. */
+const CREDIT_FIELDS = new Set([
+  "medicalExpense",
+  "educationExpense",
+  "rentPaid",
+  "pensionContribution",
+  "donation",
+  "childCount",
+  "isMarriedInPeriod",
+  "claimedBefore",
+  "spouseClaim",
+  "sportsExpense",
+]);
+
 export default function FeatureForm({ feature }: { feature: Feature }) {
   const initial = useMemo(() => defaultValues(feature.inputs), [feature]);
   const [values, setValues] = useState<Record<string, unknown>>(initial);
@@ -32,10 +46,39 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const isEarnedComposite = feature.id === "tax/earned-income-deduction";
+  const grossSalaryVal = Number(values["grossSalary"] || 0);
+  const hasGrossSalary = grossSalaryVal > 0;
+
+  function validate(name: string, value: string): string | undefined {
+    if (!isEarnedComposite) return undefined;
+    if (name === "grossSalary") {
+      const n = Number(value);
+      if (!value || n <= 0) return "총급여를 0보다 큰 값으로 입력해야 합니다.";
+    }
+    const input = feature.inputs.find((i) => i.name === name);
+    if (input?.kind === "number") {
+      const n = Number(value);
+      if (value !== "" && value !== undefined && Number.isFinite(n) && n < 0) {
+        return "유효하지 않은 값입니다. 0 이상을 입력하세요.";
+      }
+    }
+    return undefined;
+  }
 
   function setScalar(name: string, value: string) {
     setValues((v) => ({ ...v, [name]: value }));
+    const err = validate(name, value);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (err) next[name] = err;
+      else delete next[name];
+      return next;
+    });
   }
+
   function setRowCell(name: string, idx: number, col: string, value: string) {
     setValues((v) => {
       const rows = [...((v[name] as Record<string, string>[]) ?? [])];
@@ -61,13 +104,39 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
     setValues(initial);
     setResult(null);
     setError(null);
+    setFieldErrors({});
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setResult(null);
+
+    // ── 클라이언트 사이드 검증 ──
+    if (isEarnedComposite) {
+      if (!hasGrossSalary) {
+        setError("총급여를 먼저 입력해야 계산할 수 있습니다.");
+        return;
+      }
+      const firstInvalid = feature.inputs.find((i) => {
+        if (i.kind !== "number") return false;
+        const v = Number(values[i.name]);
+        return (
+          values[i.name] !== "" &&
+          values[i.name] !== undefined &&
+          Number.isFinite(v) &&
+          v < 0
+        );
+      });
+      if (firstInvalid) {
+        setError(
+          `유효하지 않은 값입니다. ${firstInvalid.label}는 0 이상이어야 합니다.`
+        );
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const r = await callFeature(feature.id, values);
       setResult(r);
@@ -93,6 +162,12 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
   const scalarInputs = feature.inputs.filter((i) => i.kind !== "rows");
   const rowInputs = feature.inputs.filter((i) => i.kind === "rows");
 
+  const creditSectionHeader = isEarnedComposite ? (
+    <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-900">
+      값을 입력하면 해당 세액공제가 활성화됩니다. 총급여를 먼저 입력해야 세액공제 항목을 입력할 수 있습니다.
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-5">
       <form onSubmit={onSubmit} className="space-y-5">
@@ -100,15 +175,24 @@ export default function FeatureForm({ feature }: { feature: Feature }) {
         {scalarInputs.length > 0 && (
           <section className="panel">
             <div className="panel-header">입력 정보</div>
+            {creditSectionHeader}
             <div className="px-4 py-4 space-y-4">
-              {scalarInputs.map((input) => (
-                <ScalarField
-                  key={input.name}
-                  input={input}
-                  value={(values[input.name] as string) ?? ""}
-                  onChange={(v) => setScalar(input.name, v)}
-                />
-              ))}
+              {scalarInputs.map((input) => {
+                const disabled =
+                  isEarnedComposite &&
+                  CREDIT_FIELDS.has(input.name) &&
+                  !hasGrossSalary;
+                return (
+                  <ScalarField
+                    key={input.name}
+                    input={input}
+                    value={(values[input.name] as string) ?? ""}
+                    onChange={(v) => setScalar(input.name, v)}
+                    disabled={disabled}
+                    error={fieldErrors[input.name]}
+                  />
+                );
+              })}
             </div>
           </section>
         )}
@@ -230,13 +314,17 @@ function ScalarField({
   input,
   value,
   onChange,
+  disabled,
+  error,
 }: {
   input: Input;
   value: string;
   onChange: (v: string) => void;
+  disabled?: boolean;
+  error?: string;
 }) {
   return (
-    <div className="scalar-field">
+    <div className={`scalar-field ${disabled ? "opacity-50" : ""}`}>
       <label htmlFor={input.name} className="scalar-label">
         {input.label}
         {input.required && <span className="text-red-600 ml-1">*</span>}
@@ -248,6 +336,7 @@ function ScalarField({
             className="field-input"
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
           >
             {(input.options ?? []).map((o) => (
               <option key={o} value={o}>{o}</option>
@@ -261,22 +350,28 @@ function ScalarField({
             onChange={(e) => onChange(e.target.value)}
             placeholder={input.placeholder}
             rows={3}
+            disabled={disabled}
           />
         ) : (
           <input
             id={input.name}
             type={input.kind === "date" ? "date" : input.kind === "number" ? "number" : "text"}
-            step={input.kind === "number" ? "any" : undefined}
+            step={input.kind === "number" ? "1" : undefined}
+            min={input.kind === "number" ? "0" : undefined}
             className="field-input"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={input.placeholder}
             required={input.required}
+            disabled={disabled}
           />
         )}
       </div>
-      {input.help && (
+      {input.help && !error && (
         <p className="scalar-help">{input.help}</p>
+      )}
+      {error && (
+        <p className="text-red-600 text-xs mt-1">{error}</p>
       )}
     </div>
   );
@@ -350,7 +445,8 @@ function RowsField({
                   ) : (
                     <input
                       type={c.kind === "date" ? "date" : c.kind === "number" ? "number" : "text"}
-                      step={c.kind === "number" ? "any" : undefined}
+                      step={c.kind === "number" ? "1" : undefined}
+                      min={c.kind === "number" ? "0" : undefined}
                       className="field-input"
                       value={row[c.name] ?? ""}
                       onChange={(e) => onSet(idx, c.name, e.target.value)}

@@ -1,7 +1,7 @@
 export type Input = {
   name: string;
   label: string;
-  kind: "text" | "number" | "date" | "textarea" | "select" | "rows";
+  kind: "text" | "number" | "date" | "textarea" | "select" | "rows" | "checkbox";
   placeholder?: string;
   default?: string;
   help?: string;
