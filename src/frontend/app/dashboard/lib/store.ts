@@ -133,7 +133,7 @@ export const useGraphStore = create<State>((set, get) => ({
   execState: "idle",
   pendingExec: 0,
   mode: "normal",
-  uiMode: "expert",
+  uiMode: "easy",
   timeMachine: { years: [], results: [] },
   conflicts: { activeBefore: [], suppressed: [], activeAfter: [], pairs: [] },
   savedResults: loadSavedResults(),
