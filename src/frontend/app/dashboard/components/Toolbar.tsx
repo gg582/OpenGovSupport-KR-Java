@@ -23,6 +23,14 @@ const MODE_LABELS: Record<DashMode, string> = {
   audit: "감사",
   ax: "세무 AX",
 };
+const MODE_ICONS: Record<DashMode, string> = {
+  normal: "정",
+  reverse: "역",
+  conflict: "충",
+  timeline: "연",
+  audit: "감",
+  ax: "AX",
+};
 
 export default function Toolbar() {
   const doc = useGraphStore((s) => s.doc);
@@ -132,12 +140,10 @@ export default function Toolbar() {
       <span className="pill" title="현재 그래프 ID">{doc.id || "(미저장)"}</span>
       <div className="sep" />
 
-      <button className="btn btn-accent" onClick={onSave}>
-        ▣ 저장
-      </button>
-      <button className="btn" onClick={newDoc}>＋ 새로</button>
+      <button className="btn btn-accent" onClick={onSave}><span className="ico">▣</span><span className="label"> 저장</span></button>
+      <button className="btn" onClick={newDoc}><span className="ico">＋</span><span className="label"> 새로</span></button>
       <button className="btn btn-danger" onClick={onDelete} disabled={!doc.id}>
-        × 삭제
+        <span className="ico">×</span><span className="label"> 삭제</span>
       </button>
 
       <div className="sep" />
@@ -174,8 +180,8 @@ export default function Toolbar() {
       </select>
 
       <div className="sep" />
-      <button className="btn" onClick={onAutoLayout}>⌗ 자동 정렬</button>
-      <button className="btn btn-accent" onClick={() => runAll()}>▶ 재실행</button>
+      <button className="btn" onClick={onAutoLayout}><span className="ico">⌗</span><span className="label"> 자동 정렬</span></button>
+      <button className="btn btn-accent" onClick={() => runAll()}><span className="ico">▶</span><span className="label"> 재실행</span></button>
 
       <div className="sep" />
       <select
@@ -207,7 +213,8 @@ export default function Toolbar() {
             onClick={() => setMode(m)}
             title={`overlay: ${m}`}
           >
-            {MODE_LABELS[m]}
+            <span className="ico">{MODE_ICONS[m]}</span>
+            <span className="label">{MODE_LABELS[m]}</span>
           </button>
         ),
       )}
@@ -249,7 +256,7 @@ export default function Toolbar() {
       </select>
 
       <div className="sep" />
-      <button className="btn" onClick={() => toggleHelp()} title="도움말">?</button>
+      <button className="btn" onClick={() => toggleHelp()} title="도움말"><span className="ico">?</span></button>
 
       <div className="sep" />
       <button
@@ -260,7 +267,7 @@ export default function Toolbar() {
         }}
         title="계산 결과 저장"
       >
-        ▣ 결과 저장
+        <span className="ico">▣</span><span className="label"> 결과 저장</span>
       </button>
       <select
         className="saved"
@@ -290,11 +297,12 @@ export default function Toolbar() {
       </select>
 
       <div className="grow" />
-      <span className={`pill ${execState === "ok" ? "ok" : execState === "error" ? "error" : execState === "running" ? "run" : ""}`}>
-        {execState.toUpperCase()}
-      </span>
+      {execState !== "ok" && (
+        <span className={`pill ${execState === "error" ? "error" : execState === "running" ? "run" : ""}`}>
+          {execState.toUpperCase()}
+        </span>
+      )}
       {savingHint && <span className="pill">{savingHint}</span>}
-      <span className="pill">JAVA EXEC</span>
     </header>
   );
 }

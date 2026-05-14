@@ -62,6 +62,7 @@
 /* ── Toolbar ─────────────────────────────────────────────────────── */
 .dash-toolbar {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
   padding: 0 8px;
@@ -73,6 +74,8 @@
   overflow-x: auto;
   scrollbar-width: none;
   white-space: nowrap;
+  height: 44px;
+  min-height: 44px;
 }
 .dash-toolbar::-webkit-scrollbar { display: none; }
 
@@ -97,6 +100,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.dash-toolbar .btn .ico { display: inline; }
+.dash-toolbar .btn .label { display: inline; }
 .dash-toolbar .btn:hover { background: #283044; border-color: #3b4659; }
 .dash-toolbar .btn-accent { background: #134075; border-color: #1f5da3; color: #fff; }
 .dash-toolbar .btn-accent:hover { background: #1a508f; }
@@ -124,6 +129,20 @@
 .dash-toolbar .pill.ok    { color: #6fde8c; border-color: #2a4a32; }
 .dash-toolbar .pill.error { color: #ee7d7d; border-color: #5a2424; }
 .dash-toolbar .pill.run   { color: #f6c668; border-color: #594028; }
+
+/* ── Toolbar responsive ──────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .dash-toolbar { gap: 2px; padding: 0 4px; }
+  .dash-toolbar .btn { padding: 3px 4px; font-size: 10px; }
+  .dash-toolbar input.title { flex-basis: 120px; min-width: 80px; }
+  .dash-toolbar select.tpl, .dash-toolbar select.saved { max-width: 100px; }
+}
+
+@media (max-width: 900px) {
+  .dash-toolbar .btn .label { display: none; }
+  .dash-toolbar input.title { flex-basis: 80px; min-width: 60px; }
+  .dash-toolbar select.tpl, .dash-toolbar select.saved { max-width: 80px; font-size: 10px; }
+}
 
 /* ── Palette ─────────────────────────────────────────────────────── */
 .dash-palette {
@@ -1390,6 +1409,17 @@
 .easy-toolbar .pill.ok    { color: #047857; border-color: #a7f3d0; background: #ecfdf5; }
 .easy-toolbar .pill.error { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
 .easy-toolbar .pill.run   { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+
+/* Easy-toolbar responsive */
+@media (max-width: 1100px) {
+  .easy-toolbar .btn { padding: 4px 8px; font-size: 12px; }
+  .easy-toolbar select.tpl, .easy-toolbar select.saved { max-width: 100px; font-size: 12px; }
+}
+@media (max-width: 900px) {
+  .easy-toolbar .btn { padding: 4px 6px; font-size: 12px; }
+  .easy-toolbar .btn .label { display: none; }
+  .easy-toolbar select.tpl, .easy-toolbar select.saved { max-width: 80px; font-size: 11px; }
+}
 
 /* Canvas */
 .easy-canvas {
