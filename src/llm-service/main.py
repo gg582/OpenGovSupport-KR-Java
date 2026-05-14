@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForCausalLM
 
-MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-1B-Instruct")
+MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-1.5B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
