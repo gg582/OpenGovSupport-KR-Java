@@ -799,7 +799,7 @@ function MenuSheet({
         <div className="m-menu-label">모드</div>
         <div className="m-mode-grid">
           {(
-            ["normal", "reverse", "conflict", "timeline", "audit"] as DashMode[]
+            ["normal", "reverse", "conflict", "timeline", "audit", "ax"] as DashMode[]
           ).map((m) => (
             <button
               key={m}

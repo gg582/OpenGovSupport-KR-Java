@@ -23,14 +23,6 @@ const MODE_LABELS: Record<DashMode, string> = {
   audit: "감사",
   ax: "세무 AX",
 };
-const MODE_ICONS: Record<DashMode, string> = {
-  normal: "정",
-  reverse: "역",
-  conflict: "충",
-  timeline: "연",
-  audit: "감",
-  ax: "AX",
-};
 
 export default function Toolbar() {
   const doc = useGraphStore((s) => s.doc);
@@ -213,8 +205,7 @@ export default function Toolbar() {
             onClick={() => setMode(m)}
             title={`overlay: ${m}`}
           >
-            <span className="ico">{MODE_ICONS[m]}</span>
-            <span className="label">{MODE_LABELS[m]}</span>
+            {MODE_LABELS[m]}
           </button>
         ),
       )}

@@ -1159,6 +1159,39 @@
   outline-offset: -2px;
 }
 
+.dash-mobile .m-ax-float {
+  position: absolute;
+  right: 8px;
+  bottom: 176px;
+  width: 40px;
+  height: 40px;
+  background: rgba(15, 118, 110, 0.92);
+  border: 1px solid #0f766e;
+  color: #fff;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(6px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  touch-action: manipulation;
+}
+.dash-mobile .m-ax-float:active {
+  background: #115e59;
+}
+.dash-mobile .m-ax-float.active {
+  background: #047857;
+  border-color: #047857;
+  box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.35);
+}
+
 /* ── 모드 배지 (캔버스 좌상단) ──────────────────────────────────── */
 .dash-mobile .m-mode-badge {
   position: absolute;
@@ -2658,6 +2691,83 @@
 }
 
 .easy-shell .tax-ax-textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* Mobile AX panel */
+.dash-mobile .tax-ax-chat-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  border-left: none;
+}
+.dash-mobile.easy-mobile .tax-ax-chat-panel {
+  background: #fff;
+  color: #1e293b;
+}
+.dash-mobile.easy-mobile .tax-ax-header {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+}
+.dash-mobile.easy-mobile .tax-ax-header h3 {
+  color: #0f766e;
+}
+.dash-mobile.easy-mobile .tax-ax-close {
+  color: #64748b;
+}
+.dash-mobile.easy-mobile .tax-ax-close:hover {
+  color: #1e293b;
+}
+.dash-mobile.easy-mobile .tax-ax-messages {
+  background: #f8fafc;
+}
+.dash-mobile.easy-mobile .tax-ax-avatar {
+  background: #0f766e;
+  color: #fff;
+}
+.dash-mobile.easy-mobile .tax-ax-bubble-user {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+.dash-mobile.easy-mobile .tax-ax-bubble-bot {
+  background: #fff;
+  border-color: #e2e8f0;
+  color: #334155;
+}
+.dash-mobile.easy-mobile .tax-ax-bubble-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.dash-mobile.easy-mobile .tax-ax-plan-code {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+.dash-mobile.easy-mobile .tax-ax-result-table-wrap th {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+.dash-mobile.easy-mobile .tax-ax-result-table-wrap td {
+  border-color: #e2e8f0;
+  color: #334155;
+}
+.dash-mobile.easy-mobile .tax-ax-input-area {
+  background: #f8fafc;
+  border-top-color: #e2e8f0;
+}
+.dash-mobile.easy-mobile .tax-ax-textarea {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+.dash-mobile.easy-mobile .tax-ax-textarea::placeholder {
   color: #94a3b8;
 }
 

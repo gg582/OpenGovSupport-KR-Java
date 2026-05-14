@@ -41,6 +41,7 @@ import { autoLayoutEasy } from "../lib/elk";
 import { TEMPLATES } from "../lib/templates";
 import EasyStatNode from "./EasyStatNode";
 import EasyConnectionLine from "./EasyConnectionLine";
+import TaxAxChatPanel from "../ax/TaxAxChatPanel";
 
 const nodeTypes = { easyStat: EasyStatNode } as const;
 const defaultEdgeOptions = { type: "smoothstep" } as const;
@@ -78,6 +79,8 @@ function EasyMobileBody() {
   const addNodeFromTemplate = useGraphStore((s) => s.addNodeFromTemplate);
   const addSubgraph = useGraphStore((s) => s.addSubgraph);
   const removeNode = useGraphStore((s) => s.removeNode);
+  const mode = useGraphStore((s) => s.mode);
+  const setMode = useGraphStore((s) => s.setMode);
 
   const [tab, setTab] = useState<Tab | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -429,6 +432,15 @@ function EasyMobileBody() {
 
         <ZoomControls onShowToast={showToast} />
 
+        <button
+          className={`m-ax-float ${mode === "ax" ? "active" : ""}`}
+          onClick={() => setMode(mode === "ax" ? "normal" : "ax")}
+          aria-label="세무 AX"
+          title="세무 AX"
+        >
+          AX
+        </button>
+
         <span
           className={`m-mode-badge ${editMode ? "m-mode-edit" : "m-mode-view"}`}
           aria-label={`현재 상태: ${editMode ? "편집" : "보기"}`}
@@ -436,6 +448,8 @@ function EasyMobileBody() {
           {editMode ? "편집" : "보기"}
         </span>
       </div>
+
+      {mode === "ax" && <TaxAxChatPanel />}
 
       {tab && (
         <section className="m-sheet easy-m-sheet" role="dialog" aria-label={tab}>
