@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { generateTaxChatResponse, reportToQwen, fixAxPlan } from "./qwen-client";
 import { executePlan } from "./ax-api";
 import type { AxPlan, AxExecutionResult } from "./types";
 
-export type ChatMessageRole = "user" | "assistant" | "plan" | "result" | "error";
+export type ChatMessageRole = "user" | "assistant" | "plan" | "result" | "error" | "clarification";
 
 export type ChatMessage =
   | { id: string; role: "user"; content: string }
   | { id: string; role: "assistant"; content: string }
+  | { id: string; role: "clarification"; content: string; neededFields: string[]; originalRequest: string }
   | { id: string; role: "plan"; content: string; plan: AxPlan }
   | {
       id: string;
@@ -25,7 +26,8 @@ export type ChatPhase =
   | "executing"
   | "reporting"
   | "done"
-  | "error";
+  | "error"
+  | "clarifying";
 
 let msgId = 0;
 function nextId() {
@@ -117,9 +119,15 @@ export function useTaxAxChat() {
         "안녕하세요! 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산이 필요하시면 편하게 말씀해 주세요. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려줘'",
     },
   ]);
+  const messagesRef = useRef<ChatMessage[]>(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [error, setError] = useState("");
   const abortRef = useRef(false);
+  const pendingClarificationRef = useRef<{ content: string; neededFields: string[]; originalRequest: string } | null>(null);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
@@ -141,11 +149,11 @@ export function useTaxAxChat() {
 
       try {
         const history = [
-          ...messages.map((m) => {
+          ...messagesRef.current.map((m) => {
             if (m.role === "user" || m.role === "assistant") {
               return { role: m.role, content: m.content } as const;
             }
-            if (m.role === "plan") {
+            if (m.role === "plan" || m.role === "clarification") {
               return { role: "assistant", content: m.content } as const;
             }
             return { role: "assistant", content: m.content } as const;
@@ -160,9 +168,9 @@ export function useTaxAxChat() {
 
         // JSON 플랜이 있으면 plan 메시지 + 평문이 있으면 assistant 메시지
         if (json) {
-          let plan: AxPlan;
+          let parsedJson: Record<string, unknown>;
           try {
-            plan = JSON.parse(json);
+            parsedJson = JSON.parse(json);
           } catch {
             // JSON 파싱 실패 시 평문으로 처리
             addMessage({
@@ -174,21 +182,57 @@ export function useTaxAxChat() {
             return;
           }
 
-          // 평문 설명이 있으면 먼저 보여주고
-          if (plain) {
+          // 정보 과잉/부족 확인 응답 처리
+          if (parsedJson.clarification_needed === true) {
+            const neededFields = Array.isArray(parsedJson.needed_fields)
+              ? parsedJson.needed_fields.map(String)
+              : [];
+            const msg = typeof parsedJson.message === "string" ? parsedJson.message : plain || raw;
             addMessage({
               id: nextId(),
-              role: "assistant",
-              content: plain,
+              role: "clarification",
+              content: msg,
+              neededFields,
+              originalRequest: text.trim(),
             });
+            pendingClarificationRef.current = {
+              content: msg,
+              neededFields,
+              originalRequest: text.trim(),
+            };
+            setPhase("clarifying");
+            return;
           }
 
-          // 플랜 메시지 추가
+          // steps가 있으면 플랜 메시지
+          const steps = parsedJson.steps;
+          if (Array.isArray(steps)) {
+            const plan = parsedJson as unknown as AxPlan;
+
+            // 평문 설명이 있으면 먼저 보여주고
+            if (plain) {
+              addMessage({
+                id: nextId(),
+                role: "assistant",
+                content: plain,
+              });
+            }
+
+            addMessage({
+              id: nextId(),
+              role: "plan",
+              content: JSON.stringify(plan, null, 2),
+              plan,
+            });
+            setPhase("done");
+            return;
+          }
+
+          // steps가 없는 기타 JSON 응답 (지원 불가 등)
           addMessage({
             id: nextId(),
-            role: "plan",
-            content: JSON.stringify(plan, null, 2),
-            plan,
+            role: "assistant",
+            content: plain || raw,
           });
           setPhase("done");
         } else {
@@ -208,7 +252,7 @@ export function useTaxAxChat() {
         setPhase("error");
       }
     },
-    [messages, addMessage],
+    [addMessage],
   );
 
   const executeChatPlan = useCallback(
@@ -343,6 +387,26 @@ export function useTaxAxChat() {
     [],
   );
 
+  const confirmClarification = useCallback(
+    async (originalRequest: string) => {
+      pendingClarificationRef.current = null;
+      // "예"라고 입력한 것처럼 다음 턴으로 진행
+      // 이때 history에 clarification 질문이 포함되어 있어 LLM이 플랜을 생성할 가능성이 높아짐
+      await sendMessage("예, 이대로 진행해줘");
+    },
+    [sendMessage],
+  );
+
+  const rejectClarification = useCallback(() => {
+    pendingClarificationRef.current = null;
+    addMessage({
+      id: nextId(),
+      role: "assistant",
+      content: "알겠습니다. 정확한 계산을 위해 필요한 정보만 다시 입력해 주세요.",
+    });
+    setPhase("idle");
+  }, [addMessage]);
+
   const exportResultToPdf = useCallback(
     (result: AxExecutionResult, filename = "세무AX_산출결과") => {
       const rows = result.stepResults
@@ -412,6 +476,8 @@ export function useTaxAxChat() {
     error,
     sendMessage,
     executeChatPlan,
+    confirmClarification,
+    rejectClarification,
     exportResultToXlsx,
     exportResultToPdf,
   };

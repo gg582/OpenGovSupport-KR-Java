@@ -6,7 +6,7 @@ import type { AxPlan } from "./types";
 import { useGraphStore } from "../lib/store";
 
 export default function TaxAxChatPanel() {
-  const { messages, phase, sendMessage, executeChatPlan, exportResultToXlsx, exportResultToPdf } =
+  const { messages, phase, sendMessage, executeChatPlan, confirmClarification, rejectClarification, exportResultToXlsx, exportResultToPdf } =
     useTaxAxChat();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -17,7 +17,7 @@ export default function TaxAxChatPanel() {
   }, [messages, phase]);
 
   const handleSend = () => {
-    if (!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting")
+    if (!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying")
       return;
     sendMessage(input);
     setInput("");
@@ -66,6 +66,33 @@ export default function TaxAxChatPanel() {
                     {msg.content.split("\n").map((line, i) => (
                       <p key={i}>{line}</p>
                     ))}
+                  </div>
+                </div>
+              );
+            case "clarification":
+              return (
+                <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
+                  <div className="tax-ax-avatar">AX</div>
+                  <div className="tax-ax-bubble tax-ax-bubble-bot">
+                    {msg.content.split("\n").map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                    <div className="tax-ax-clarify-actions" style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                      <button
+                        className="btn btn-accent btn-sm"
+                        onClick={() => confirmClarification(msg.originalRequest)}
+                        disabled={phase === "thinking" || phase === "executing" || phase === "reporting"}
+                      >
+                        예
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={rejectClarification}
+                        disabled={phase === "thinking" || phase === "executing" || phase === "reporting"}
+                      >
+                        아니오
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -131,7 +158,7 @@ export default function TaxAxChatPanel() {
           }
         })}
 
-        {(phase === "thinking" || phase === "executing" || phase === "reporting") && (
+        {(phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying") && (
           <div className="tax-ax-msg tax-ax-msg-bot">
             <div className="tax-ax-avatar">AX</div>
             <div className="tax-ax-bubble tax-ax-bubble-bot">
@@ -154,12 +181,12 @@ export default function TaxAxChatPanel() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={phase === "thinking" || phase === "executing" || phase === "reporting"}
+          disabled={phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying"}
         />
         <button
           className="btn btn-accent tax-ax-send"
           onClick={handleSend}
-          disabled={!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting"}
+          disabled={!input.trim() || phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "clarifying"}
         >
           ➤
         </button>

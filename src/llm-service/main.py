@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 import os
 import json
 import asyncio
+import re
+from collections import OrderedDict
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -55,6 +57,18 @@ print(f"[LLM] Endpoints spec: {len(ENDPOINTS_SPEC)} chars -> summary {len(ENDPOI
 
 model = None
 tokenizer = None
+
+# ------------------------------------------------------------------
+# 원시적·휘발적 인메모리 RAG 캐시 (토큰 과소비 방지)
+# ------------------------------------------------------------------
+GENERATION_CACHE: OrderedDict[str, str] = OrderedDict()
+CACHE_MAX_SIZE = 50
+
+
+def _cache_key(user_request: str, history_len: int = 0) -> str:
+    """요청 텍스트를 정규화하여 캐시 키 생성."""
+    normalized = re.sub(r"\s+", " ", user_request.strip().lower())
+    return f"{history_len}:{normalized}"
 
 
 @asynccontextmanager
@@ -139,8 +153,20 @@ def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
     system = f"""<|im_start|>system
 너는 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
 
+Chain-of-Thought (생성 전 반드시 수행):
+1. 추출: 사용자 요청에서 산출식에 필요한 입력값만 추출한다.
+2. 필터: 제공된 산출식 목록에 없는 입력은 무시한다. 절대 지어내지 않는다.
+3. 생성: 아래 JSON 형식으로 플랜을 생성한다.
+4. Reverse check: 생성한 JSON이 유효한지 다시 확인한다. 중복 필드, 잘못된 문자열, 불필요한 필드가 없는지 검증한다.
+
+정보 과잉/부족 처리:
+- 사용자가 제공한 정보 중 필요 없는 것이 많거나(예: 차량유무, 거주지, 군면제 여부 등), 핵심 정보가 부족하면 steps를 빈 배열 []로 하고 아래 필드를 추가한다:
+  - "clarification_needed": true
+  - "message": "법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행하도 될까요?"
+  - "needed_fields": ["연봉","연도","부양가족 수"]
+
 규칙:
-1. 출력은 반드시 아래 형식의 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
+1. 출력은 반드시 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
 2. 각 step은 endpoint, method, inputs, outputKey, description 필드를 가진다.
 3. endpoint는 반드시 사용 가능한 산출식 목록에 있는 경로만 사용한다.
 4. method는 "POST"가 기본이다.
@@ -170,7 +196,11 @@ JSON 형식:
 <|im_start|>user
 우주여행 비용 계산해줘<|im_end|>
 <|im_start|>assistant
-{"steps":[],"message":"지원하지 않는 요청입니다."}<|im_end|>"""
+{"steps":[],"message":"지원하지 않는 요청입니다."}<|im_end|>
+<|im_start|>user
+연봉 3300만원, 만 23세, 차량 없음, 10분위 가정의 세대원, 대구 거주, 군면제자인 사람 환급금 취합해줘<|im_end|>
+<|im_start|>assistant
+{"steps":[],"clarification_needed":true,"message":"법령 계산에 필요없는 정보가 너무 많아요. 필요한 정보는 [연봉, 연도, 부양가족 수]입니다. 이대로 진행하도 될까요?","needed_fields":["연봉","연도","부양가족 수"]}<|im_end|>"""
 
     lines = []
     for m in history:
@@ -211,8 +241,22 @@ JSON 형식:
 @app.post("/ax/plan")
 async def ax_plan(req: PlanRequest):
     prompt = _build_plan_prompt(req.user_request, req.history)
+
+    # 원시적 인메모리 캐시 조회
+    cache_key = _cache_key(req.user_request, len(req.history))
+    cached = GENERATION_CACHE.get(cache_key)
+    if cached:
+        print(f"[LLM] Cache hit {cache_key[:16]}...", flush=True)
+        return {"generated_text": cached}
+
     generated_text = await _generate_async(prompt, req.max_new_tokens)
     result = generated_text.strip()
+
+    # 캐시 저장 (LRU)
+    GENERATION_CACHE[cache_key] = result
+    if len(GENERATION_CACHE) > CACHE_MAX_SIZE:
+        GENERATION_CACHE.popitem(last=False)
+
     return {"generated_text": result}
 
 
