@@ -7,6 +7,7 @@ LLM 이 생성한 AX 실행 플랜(JSON)을 해석하여 백엔드 API 를 순�
 - ```json 블록 자동 추출
 - __prev_<outputKey>__ / __prev_<outputKey>.field.sub__ placeholder 해석
 - GET/POST/PUT/DELETE 및 기타 HTTP method 지원
+- 플랜 sanity check + LLM feedback retry (최대 5회)
 """
 
 import json
@@ -20,8 +21,26 @@ from pydantic import BaseModel
 
 BASE_URL = os.getenv("BASE_URL", "http://backend:8080").rstrip("/")
 DEFAULT_TIMEOUT = int(os.getenv("DEFAULT_TIMEOUT", "30"))
+LLM_SERVICE_URL = os.getenv("LLM_SERVICE_URL", "http://llm:8000").rstrip("/")
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
 
 app = FastAPI()
+
+# ------------------------------------------------------------------
+# Load endpoints spec for sanity-check
+# ------------------------------------------------------------------
+ENDPOINTS_SPEC_PATH = os.path.join(os.path.dirname(__file__), "endpoints_spec.json")
+VALID_ENDPOINTS: set[str] = set()
+try:
+    with open(ENDPOINTS_SPEC_PATH, "r", encoding="utf-8") as f:
+        spec = json.load(f)
+    for ep in spec.get("endpoints", []):
+        endpoint = ep.get("endpoint", "")
+        if endpoint:
+            VALID_ENDPOINTS.add(endpoint)
+    print(f"[NetworkAgent] Loaded {len(VALID_ENDPOINTS)} endpoints from spec.", flush=True)
+except Exception as e:
+    print(f"[NetworkAgent] Warning: could not load endpoints_spec.json: {e}", flush=True)
 
 
 # ------------------------------------------------------------------
@@ -45,6 +64,8 @@ class ExecuteResponse(BaseModel):
 # ------------------------------------------------------------------
 def _extract_json(text: str) -> Optional[dict]:
     """마크다운 코드 블록(```json ... ```) 또는 중괄호 최외곽 매칭으로 JSON 을 추출."""
+    if not text:
+        return None
     # 1) 코드 블록
     m = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     if m:
@@ -182,6 +203,128 @@ def _resolve_placeholders(value: Any, context: dict) -> Any:
 
 
 # ------------------------------------------------------------------
+# Sanity Check
+# ------------------------------------------------------------------
+_ALLOWED_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
+
+
+def _sanity_check_plan(steps: list[dict]) -> tuple[bool, str]:
+    """플랜 구조/문법 sanity check.
+
+    Returns:
+        (ok, error_message)
+    """
+    if not isinstance(steps, list):
+        return False, f"'steps' must be a list, got {type(steps).__name__}"
+
+    # 빈 배열은 지원 불가 응답으로 간주 → 유효
+    if len(steps) == 0:
+        return True, ""
+
+    output_keys: set[str] = set()
+
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
+            return False, f"Step {idx} is not an object."
+
+        # 필수 필드
+        endpoint = step.get("endpoint")
+        method = step.get("method", "POST")
+        inputs = step.get("inputs", {})
+        output_key = step.get("outputKey") or step.get("output_key")
+        description = step.get("description", "")
+
+        if not endpoint:
+            return False, f"Step {idx}: 'endpoint' is missing."
+        if not isinstance(endpoint, str):
+            return False, f"Step {idx}: 'endpoint' must be a string."
+        if not endpoint.startswith("/"):
+            return False, f"Step {idx}: 'endpoint' must start with '/': {endpoint}"
+
+        # endpoint가 spec에 있는지 확인 (spec 로드 실패 시 스킵)
+        if VALID_ENDPOINTS and endpoint not in VALID_ENDPOINTS:
+            return False, f"Step {idx}: unknown endpoint '{endpoint}'."
+
+        method_str = (method or "POST").upper()
+        if method_str not in _ALLOWED_METHODS:
+            return False, f"Step {idx}: unsupported method '{method_str}'."
+
+        if not isinstance(inputs, dict):
+            return False, f"Step {idx}: 'inputs' must be an object."
+
+        if not output_key:
+            return False, f"Step {idx}: 'outputKey' is missing."
+        if not isinstance(output_key, str):
+            return False, f"Step {idx}: 'outputKey' must be a string."
+        if output_key in output_keys:
+            return False, f"Step {idx}: duplicate outputKey '{output_key}'."
+        output_keys.add(output_key)
+
+        if not isinstance(description, str):
+            return False, f"Step {idx}: 'description' must be a string."
+
+        # year 필드 범위 검사
+        year = inputs.get("year")
+        if year is not None:
+            try:
+                year_int = int(year)
+                if not (1900 <= year_int <= 2100):
+                    return False, f"Step {idx}: 'year' must be between 1900 and 2100, got {year}."
+            except (ValueError, TypeError):
+                return False, f"Step {idx}: 'year' must be an integer, got {year}."
+
+        # placeholder 문법 기본 검사
+        def _check_placeholders(v: Any, path: str = "inputs") -> Optional[str]:
+            if isinstance(v, str):
+                placeholders = re.findall(r"__prev_([a-zA-Z0-9_.-]+)__", v)
+                for ph in placeholders:
+                    # 중첩 경로는 절(.)으로 분리, 마지막은 키 이름
+                    parts = ph.split(".")
+                    key = parts[0]
+                    if key == output_key:
+                        return f"Step {idx}: placeholder '{v}' refers to its own outputKey '{key}' (circular)."
+            elif isinstance(v, dict):
+                for kk, vv in v.items():
+                    err = _check_placeholders(vv, f"{path}.{kk}")
+                    if err:
+                        return err
+            elif isinstance(v, list):
+                for i, vv in enumerate(v):
+                    err = _check_placeholders(vv, f"{path}[{i}]")
+                    if err:
+                        return err
+            return None
+
+        ph_err = _check_placeholders(inputs)
+        if ph_err:
+            return False, ph_err
+
+    return True, ""
+
+
+# ------------------------------------------------------------------
+# LLM feedback (call /ax/fix)
+# ------------------------------------------------------------------
+async def _call_llm_fix(original_request: str, failed_plan: str, error_info: str) -> Optional[str]:
+    """LLM Service 의 /ax/fix 를 호출하여 수정된 플랜을 받는다."""
+    payload = {
+        "original_request": original_request,
+        "failed_plan": failed_plan,
+        "error_info": error_info,
+        "max_new_tokens": 512,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+            resp = await client.post(f"{LLM_SERVICE_URL}/ax/fix", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("generated_text")
+    except Exception as e:
+        print(f"[NetworkAgent] LLM fix call failed: {e}", flush=True)
+        return None
+
+
+# ------------------------------------------------------------------
 # Endpoints
 # ------------------------------------------------------------------
 @app.get("/health")
@@ -193,32 +336,71 @@ def health():
 async def execute(req: ExecuteRequest):
     base_url = (req.base_url or BASE_URL).rstrip("/")
 
-    # ---------- steps 추출 ----------
-    steps: list[dict] = []
-    if req.steps:
-        steps = req.steps
-    elif req.plan:
-        parsed = _extract_json(req.plan)
-        if parsed and isinstance(parsed, dict):
-            steps = parsed.get("steps", [])
-        if not steps:
+    # ---------- steps 추출 & sanity check with retry ----------
+    raw_plan: Optional[str] = req.plan
+    steps: Optional[list[dict]] = req.steps
+    error_history: list[str] = []
+    parsed_steps: list[dict] = []
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        current_steps: list[dict] = []
+
+        if steps is not None and attempt == 1:
+            current_steps = steps
+        elif raw_plan:
+            parsed = _extract_json(raw_plan)
+            if parsed and isinstance(parsed, dict):
+                current_steps = parsed.get("steps", [])
+        else:
             return ExecuteResponse(
                 success=False,
                 results=[],
-                message="플랜에서 steps 를 추출할 수 없습니다. plan 이 유효한 JSON 이거나 ```json 블록을 포함해야 합니다.",
+                message="'plan' (원본 문자열) 또는 'steps' (파싱된 배열) 중 하나는 필수입니다.",
             )
-    else:
-        return ExecuteResponse(
-            success=False,
-            results=[],
-            message="'plan' (원본 문자열) 또는 'steps' (파싱된 배열) 중 하나는 필수입니다.",
-        )
 
+        ok, err = _sanity_check_plan(current_steps)
+        if ok:
+            parsed_steps = current_steps
+            break
+
+        error_history.append(f"시도 {attempt}: {err}")
+        print(f"[NetworkAgent] Sanity check failed (attempt {attempt}/{MAX_RETRIES}): {err}", flush=True)
+
+        if attempt >= MAX_RETRIES:
+            return ExecuteResponse(
+                success=False,
+                results=[],
+                message=f"Sanity check {MAX_RETRIES}회 실패. " + " | ".join(error_history),
+            )
+
+        # 피드백 → LLM fix 호출
+        failed_plan_text = raw_plan or json.dumps({"steps": current_steps}, ensure_ascii=False)
+        fix_context = err
+        if error_history[:-1]:
+            fix_context += "\n이전 오류:\n" + "\n".join(error_history[:-1])
+
+        fixed_text = await _call_llm_fix(
+            original_request="AX plan execution",
+            failed_plan=failed_plan_text,
+            error_info=fix_context,
+        )
+        if fixed_text:
+            raw_plan = fixed_text
+            steps = None
+        else:
+            # LLM fix 호출 실패 시 마지막 오류와 함께 중단
+            return ExecuteResponse(
+                success=False,
+                results=[],
+                message=f"LLM fix 호출 실패 (attempt {attempt}). " + " | ".join(error_history),
+            )
+
+    # ---------- 실행 ----------
     results: list[dict] = []
     context: dict[str, Any] = {}  # outputKey -> response data
 
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-        for idx, step in enumerate(steps):
+        for idx, step in enumerate(parsed_steps):
             endpoint = step.get("endpoint", "")
             method = (step.get("method", "POST") or "POST").upper()
             inputs = step.get("inputs", {})

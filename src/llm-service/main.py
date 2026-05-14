@@ -32,7 +32,7 @@ except Exception as e:
 
 
 def _summarize_spec(spec_text: str) -> str:
-    """43KB JSON 전체를 LLM 프롬프트에 넣으면 토큰이 폭증해 OOM/timeout 이 발생한다.
+    """43KB JSON 전체를 LLM 프롬프트에 넣으면 토큰이 폭발해 OOM/timeout 이 발생한다.
     endpoint/method/inputs/outputs 만 간결히 요약한다."""
     try:
         data = json.loads(spec_text)
@@ -111,6 +111,11 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
         **inputs,
         max_new_tokens=max_new_tokens,
         do_sample=False,
+        # SLLM이 지정된 형식에서 벗어나지 않도록 EOS 토큰을 강제
+        eos_token_id=tokenizer.encode("<|im_end|>", add_special_tokens=False)[0]
+        if tokenizer.encode("<|im_end|>", add_special_tokens=False)
+        else None,
+        pad_token_id=tokenizer.pad_token_id,
     )
     # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자륍면 토큰/문자 불일치로 결과가 망가짐)
     input_length = inputs.input_ids.shape[1]
@@ -130,82 +135,64 @@ async def generate(req: GenerateRequest):
 
 
 def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
+    # SLLM에 최적화: 간결한 system + 명확한 Few-shot 예제 + 반복 강조
     system = f"""<|im_start|>system
-너는 한국어 전문가이고, Spring Boot 기반의 복지 AX 서비스를 돕기 위한 웹 프로그래머야.
+너는 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
 
-역할:
-- 세법·복지·상속 분야의 산출식(formula)을 자동으로 연결하여 실행 플랜을 만든다.
-- 사용자의 자연어 요청을 정확히 이해하고, 아래 제공된 사용 가능한 산출식 목록만 참고한다.
-- 제공되지 않은 endpoint나 규칙은 절대 지어내지 않는다.
+규칙:
+1. 출력은 반드시 아래 형식의 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
+2. 각 step은 endpoint, method, inputs, outputKey, description 필드를 가진다.
+3. endpoint는 반드시 사용 가능한 산출식 목록에 있는 경로만 사용한다.
+4. method는 "POST"가 기본이다.
+5. inputs는 원(KRW) 단위 정수 숫자만 사용한다. 쉼표나 "원" 문자열 금지.
+6. outputKey는 플랜 전체에서 고유한 영문 문자열이다.
+7. description은 20자 이내 한국어 요약이다.
+8. year 필드는 필요할 때만 포함하며 1900~2100 사이 정수이다.
+9. 지원 불가 요청은 steps를 빈 배열 [] 로 하고 message에 "지원하지 않는 요청입니다." 만 적는다.
+10. 이전 단계 결과를 참조할 때만 "__prev_<outputKey>__" 형태의 placeholder를 사용한다.
 
-기본 URL: {BASE_URL}
-
-행동 지침:
-1. 반드시 유효한 JSON 오브젝트만 출력한다. 설명 문장, 마크다운 코드 블록( ``` ), 주석, 줄임표시(…), 또는 JSON 외 텍스트를 절대 포함하지 않는다.
-2. 각 단계의 outputKey는 전체 플랜 내에서 고유해야 한다.
-3. inputs의 값은 사용자 요청에서 직접 추출한 구체적인 숫자(예: 72000000)를 사용하며, 이전 단계 결과를 참조해야 할 경우에는 "__prev_<outputKey>__" 형태의 placeholder를 사용할 수 있다. 단, 기본적으로는 직접 값을 넣는다.
-4. method는 기본적으로 "POST"이다.
-5. description은 해당 단계가 무엇을 하는지 20자 이내 한국어로 요약한다.
-6. 플랜은 사용자가 요청한 논리적 순서대로 배열한다.
-7. 모든 입력값은 원(KRW) 단위의 숫자로 사용한다. 쉼표나 "원" 문자열은 제외한다.
-8. year 필드는 기본적으로 생략 가능하며, 생략 시 2025가 기본값이다. 특정 연도를 명시해야 할 때만 포함한다.
-9. 만약 사용자의 요청이 제공된 산출식으로 해결할 수 없다면, steps를 빈 배열로 두고 message 필드에 "지원하지 않는 요청입니다."라고만 한다.
-
-JSON 출력 형식:
-{{
-  "steps": [
-    {{
-      "endpoint": "/api/tax/earned-income-deduction",
-      "method": "POST",
-      "inputs": {{ "grossSalary": 72000000 }},
-      "outputKey": "earnedDeduction",
-      "description": "근로소득공제 계산"
-    }}
-  ]
-}}
+JSON 형식:
+{{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}]}}
 
 사용 가능한 산출식 목록:
 {ENDPOINTS_SPEC_SUMMARY}
 <|im_end|>"""
 
+    # Few-shot 예제 (SLLM이 패턴을 모방하도록)
+    few_shots = """<|im_start|>user
+연봉 7200만원 근로소득공제 계산해줘<|im_end|>
+<|im_start|>assistant
+{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":72000000},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
+<|im_start|>user
+2024년 소득 1억 원인데 공제 다 계산해줘<|im_end|>
+<|im_start|>assistant
+{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":100000000,"year":2024},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
+<|im_start|>user
+우주여행 비용 계산해줘<|im_end|>
+<|im_start|>assistant
+{"steps":[],"message":"지원하지 않는 요청입니다."}<|im_end|>"""
+
     lines = []
     for m in history:
         lines.append(f"<|im_start|>{m.role}\n{m.content}<|im_end|>")
     history_text = "\n".join(lines)
-    return f"{system}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n"
+
+    return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n"
 
 
 def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str) -> str:
     system = f"""<|im_start|>system
-너는 한국어 전문가이고, Spring Boot 기반의 복지 AX 서비스를 돕기 위한 웹 프로그래머야.
+너는 JSON 플랜 수정기야. 오직 수정된 유효한 JSON 객첼만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
 
-역할:
-- 이전에 생성한 AX 실행 플랜이 실패했을 때, 오류 원인을 분석하고 수정된 플랜을 생성한다.
-- 절대 새로운 endpoint나 규칙을 지어내지 않는다.
+규칙:
+1. 출력은 반드시 아래 형식의 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
+2. 오류 원인을 분석하여 입력값, endpoint, method, outputKey, inputs 등을 수정한다.
+3. 모든 입력값은 원(KRW) 단위 정수 숫자만 사용한다.
+4. 제공되지 않은 endpoint나 규칙은 절대 지어내지 않는다.
+5. 수정된 플랜만 출력한다.
 
-기본 URL: {BASE_URL}
-
-행동 지침:
-1. 반드시 유효한 JSON 오브젝트만 출력한다.
-2. 오류 원인을 분석하고, 입력값이 잘못되었으면 올바른 값으로 수정한다.
-3. endpoint가 잘못되었으면 올바른 endpoint로 수정한다.
-4. 입력값 타입이나 누락된 필드를 확인한다. 특히 year는 선택이나, 다른 필수 필드가 누락되지 않았는지 확인한다.
-5. 모든 입력값은 원(KRW) 단위의 숫자로 사용한다. 쉼표나 "원" 문자열은 제외한다.
-6. 수정된 플랜만 출력한다.
-
-JSON 출력 형식:
-{{
-  "steps": [
-    {{
-      "endpoint": "/api/tax/earned-income-deduction",
-      "method": "POST",
-      "inputs": {{ "grossSalary": 72000000 }},
-      "outputKey": "earnedDeduction",
-      "description": "근로소득공제 계산"
-    }}
-  ],
-  "analysis": "오류 원인 요약 (한 문장)"
-}}
+JSON 형식:
+{{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}],"analysis":"오류 원인 요약"}}
 
 사용 가능한 산출식 목록:
 {ENDPOINTS_SPEC_SUMMARY}
