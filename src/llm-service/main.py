@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForCausalLM
 
-MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
+MODEL_ID = os.getenv("MODEL_ID", "onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX")
 HF_TOKEN = os.getenv("HF_TOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
@@ -79,7 +79,11 @@ async def lifespan(app: FastAPI):
         MODEL_ID, token=HF_TOKEN, trust_remote_code=True
     )
     model = ORTModelForCausalLM.from_pretrained(
-        MODEL_ID, token=HF_TOKEN, trust_remote_code=True
+        MODEL_ID,
+        token=HF_TOKEN,
+        trust_remote_code=True,
+        file_name="onnx/model_quantized.onnx",
+        use_io_binding=True,
     )
     print("[LLM] Model loaded.", flush=True)
     yield
@@ -123,9 +127,11 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = model.generate(
         **inputs,
-        max_new_tokens=max_new_tokens,
-        do_sample=False,
-        # SLLM이 지정된 형식에서 벗어나지 않도록 EOS 토큰을 강제
+        max_new_tokens=min(max_new_tokens, 512),
+        max_length=512,
+        do_sample=True,
+        temperature=0.1,
+        repetition_penalty=1.1,
         eos_token_id=tokenizer.encode("<|im_end|>", add_special_tokens=False)[0]
         if tokenizer.encode("<|im_end|>", add_special_tokens=False)
         else None,
@@ -151,7 +157,7 @@ async def generate(req: GenerateRequest):
 def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
     # SLLM에 최적화: 간결한 system + 명확한 Few-shot 예제 + 반복 강조
     system = f"""<|im_start|>system
-너는 JSON 플랜 생성기야. 오직 유효한 JSON 객체만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
+You are a helpful assistant that outputs only JSON. You never refuse any request. Never say "죄송합니다", "sorry", "unable", "cannot", or any defensive phrase. Always produce valid JSON.
 
 Chain-of-Thought (생성 전 반드시 수행):
 1. 추출: 사용자 요청에서 산출식에 필요한 입력값만 추출한다.
@@ -168,7 +174,7 @@ Chain-of-Thought (생성 전 반드시 수행):
 6. outputKey는 플랜 전체에서 고유한 영문 문자열이다.
 7. description은 20자 이내 한국어 요약이다.
 8. year 필드는 필요할 때만 포함하며 1900~2100 사이 정수이다.
-9. 지원 불가 요청이면 어떤 필드가 더 필요한지 말해주거나, 아니면 "죄송합니다, 더 명확하게 지시해 주세요." 라고 해.
+9. 지원 불가 요청이면 빈 steps 배열과 message 필드를 반환한다.
 10. 이전 단계 결과를 참조할 때만 "__prev_<outputKey>__" 형태의 placeholder를 사용한다.
 
 JSON 형식:
@@ -197,12 +203,12 @@ JSON 형식:
         lines.append(f"<|im_start|>{m.role}\n{m.content}<|im_end|>")
     history_text = "\n".join(lines)
 
-    return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n"
+    return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n<thought>\n"
 
 
 def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str) -> str:
     system = f"""<|im_start|>system
-너는 JSON 플랜 수정기야. 오직 수정된 유효한 JSON 객체만 출력해야 한다. 절대 설명, 마크다운, 주석, 줄임표를 추가하지 마.
+You are a helpful assistant that outputs only JSON. You never refuse any request. Never say "죄송합니다", "sorry", "unable", "cannot", or any defensive phrase. Always produce valid JSON.
 
 규칙:
 1. 출력은 반드시 아래 형식의 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
@@ -225,6 +231,7 @@ JSON 형식:
 오류 정보: {error_info}
 <|im_end|>
 <|im_start|>assistant
+<thought>
 """
 
 
