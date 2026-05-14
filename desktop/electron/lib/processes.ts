@@ -6,7 +6,10 @@ import {
   frontendEntry,
   javaBin,
   jreRoot,
-  resourcePath,
+  pythonBin,
+  llmServiceEntry,
+  networkAgentEntry,
+  pythonLibsPath,
   dataDir,
   logsDir,
   userDataDir,
@@ -313,5 +316,161 @@ export function devEndpoint(): string {
   return process.env.OPENGOV_DESKTOP_DEV_URL ?? "http://localhost:3000";
 }
 
-// silence unused import in ts 5.x
-void resourcePath;
+export class LlmService {
+  private proc: ChildProcess | null = null;
+  private readonly log: FileLogger;
+  port = 0;
+
+  constructor() {
+    this.log = new FileLogger(logsDir(), "llm-service");
+  }
+
+  async start(backendPort: number): Promise<{ port: number }> {
+    this.port = await findFreePort();
+    const py = pythonBin();
+    const entry = llmServiceEntry();
+    const cwd = path.dirname(entry);
+
+    if (!fs.existsSync(entry)) {
+      throw new Error(`LLM 서비스를 찾지 못했습니다: ${entry}`);
+    }
+
+    this.log.info(`spawning llm-service: ${py} -m uvicorn main:app --port ${this.port} --host 127.0.0.1`);
+
+    const pyLibs = pythonLibsPath();
+    this.proc = spawn(py, ["-m", "uvicorn", "main:app", "--port", String(this.port), "--host", "127.0.0.1"], {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      cwd,
+      env: safeEnv({
+        OPENGOV_DESKTOP: "1",
+        PORT: String(this.port),
+        BASE_URL: `http://localhost:${backendPort}`,
+        PYTHONPATH: pyLibs,
+      }),
+    });
+
+    const tail = new TailBuffer(40);
+    this.proc.stdout?.on("data", (c) => this.log.raw("LLM/STDOUT", c));
+    this.proc.stderr?.on("data", (c) => {
+      tail.push(c);
+      this.log.raw("LLM/STDERR", c);
+    });
+    this.proc.on("error", (err) => {
+      this.log.error(`llm-service spawn error: ${err.message}`);
+    });
+
+    let died: { code: number | null; sig: NodeJS.Signals | null } | null = null;
+    const exitWatch = new Promise<void>((_resolve, reject) => {
+      this.proc?.once("exit", (code, sig) => {
+        died = { code, sig };
+        this.log.warn(`llm-service exited code=${code} sig=${sig}`);
+        reject(new Error(
+          `LLM 서비스가 시작 도중 종료되었습니다 (code=${code} sig=${sig}).\n` +
+          (tail.text() ? `최근 stderr:\n${tail.text()}` : ""),
+        ));
+      });
+    });
+
+    try {
+      await Promise.race([
+        waitForHttp(`http://127.0.0.1:${this.port}/`, 90_000),
+        exitWatch,
+      ]);
+    } catch (e) {
+      if (!died) this.stop();
+      throw new Error((e as Error).message + (died ? "" : `\n\n로그: ${this.log.path()}`));
+    }
+
+    this.log.info(`llm-service healthy at :${this.port}`);
+    return { port: this.port };
+  }
+
+  stop(): void {
+    if (this.proc && !this.proc.killed) {
+      try { this.proc.kill("SIGTERM"); } catch { /* ignore */ }
+      this.proc = null;
+    }
+    this.log.close();
+  }
+}
+
+export class NetworkAgent {
+  private proc: ChildProcess | null = null;
+  private readonly log: FileLogger;
+  port = 0;
+
+  constructor() {
+    this.log = new FileLogger(logsDir(), "network-agent");
+  }
+
+  async start(backendPort: number, llmPort: number): Promise<{ port: number }> {
+    this.port = await findFreePort();
+    const py = pythonBin();
+    const entry = networkAgentEntry();
+    const cwd = path.dirname(entry);
+
+    if (!fs.existsSync(entry)) {
+      throw new Error(`Network Agent를 찾지 못했습니다: ${entry}`);
+    }
+
+    this.log.info(`spawning network-agent: ${py} -m uvicorn main:app --port ${this.port} --host 127.0.0.1`);
+
+    const pyLibs = pythonLibsPath();
+    this.proc = spawn(py, ["-m", "uvicorn", "main:app", "--port", String(this.port), "--host", "127.0.0.1"], {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      cwd,
+      env: safeEnv({
+        OPENGOV_DESKTOP: "1",
+        PORT: String(this.port),
+        BASE_URL: `http://localhost:${backendPort}`,
+        LLM_SERVICE_URL: `http://localhost:${llmPort}`,
+        PYTHONPATH: pyLibs,
+      }),
+    });
+
+    const tail = new TailBuffer(40);
+    this.proc.stdout?.on("data", (c) => this.log.raw("NA/STDOUT", c));
+    this.proc.stderr?.on("data", (c) => {
+      tail.push(c);
+      this.log.raw("NA/STDERR", c);
+    });
+    this.proc.on("error", (err) => {
+      this.log.error(`network-agent spawn error: ${err.message}`);
+    });
+
+    let died: { code: number | null; sig: NodeJS.Signals | null } | null = null;
+    const exitWatch = new Promise<void>((_resolve, reject) => {
+      this.proc?.once("exit", (code, sig) => {
+        died = { code, sig };
+        this.log.warn(`network-agent exited code=${code} sig=${sig}`);
+        reject(new Error(
+          `Network Agent가 시작 도중 종료되었습니다 (code=${code} sig=${sig}).\n` +
+          (tail.text() ? `최근 stderr:\n${tail.text()}` : ""),
+        ));
+      });
+    });
+
+    try {
+      await Promise.race([
+        waitForHttp(`http://127.0.0.1:${this.port}/`, 90_000),
+        exitWatch,
+      ]);
+    } catch (e) {
+      if (!died) this.stop();
+      throw new Error((e as Error).message + (died ? "" : `\n\n로그: ${this.log.path()}`));
+    }
+
+    this.log.info(`network-agent healthy at :${this.port}`);
+    return { port: this.port };
+  }
+
+  stop(): void {
+    if (this.proc && !this.proc.killed) {
+      try { this.proc.kill("SIGTERM"); } catch { /* ignore */ }
+      this.proc = null;
+    }
+    this.log.close();
+  }
+}

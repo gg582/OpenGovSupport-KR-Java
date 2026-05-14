@@ -15,7 +15,7 @@ import { app, BrowserWindow, dialog, Menu, shell, ipcMain, Tray, nativeImage } f
 import * as fs from "fs";
 import * as path from "path";
 import { autoUpdater } from "electron-updater";
-import { Backend, Frontend, devEndpoint } from "./lib/processes";
+import { Backend, Frontend, LlmService, NetworkAgent, devEndpoint } from "./lib/processes";
 import { FileLogger } from "./lib/logger";
 import { logsDir, isDev, trayIconPath, windowIconPath } from "./lib/paths";
 import { runFirstRunInstallerIfNeeded } from "./installer/firstRun";
@@ -23,6 +23,8 @@ import { runFirstRunInstallerIfNeeded } from "./installer/firstRun";
 const log = new FileLogger(logsDir(), "main");
 const backend = new Backend();
 const frontend = new Frontend();
+const llmService = new LlmService();
+const networkAgent = new NetworkAgent();
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 /** 트레이 메뉴의 "종료" 또는 OS 가 정말 종료를 요청한 경우에만 true. */
@@ -172,7 +174,41 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // 2) 프런트엔드 기동.
+  // 2) LLM 서비스 기동.
+  await stage("starting-llm");
+  let llmPort = 0;
+  try {
+    const r = await llmService.start(backendPort);
+    llmPort = r.port;
+  } catch (e) {
+    const detail = (e as Error).message;
+    log.error(`llm-service start failed: ${detail}`);
+    dialog.showErrorBox(
+      "AI 엔진 시작 실패",
+      "AI 세법 계산 엔진을 시작하지 못했습니다. 일부 기능이 제한될 수 있습니다.\n\n" +
+      truncateForDialog(detail),
+    );
+    // 필수가 아니므로 계속 진행
+  }
+
+  // 3) Network Agent 기동.
+  await stage("starting-network-agent");
+  let networkPort = 0;
+  try {
+    const r = await networkAgent.start(backendPort, llmPort);
+    networkPort = r.port;
+  } catch (e) {
+    const detail = (e as Error).message;
+    log.error(`network-agent start failed: ${detail}`);
+    dialog.showErrorBox(
+      "네트워크 에이전트 시작 실패",
+      "백엔드 연결 에이전트를 시작하지 못했습니다. 일부 기능이 제한될 수 있습니다.\n\n" +
+      truncateForDialog(detail),
+    );
+    // 필수가 아니므로 계속 진행
+  }
+
+  // 4) 프런트엔드 기동.
   await stage("starting-ui");
   let frontendPort = 0;
   try {
@@ -190,7 +226,7 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // 3) 실제 UI 로 전환.
+  // 5) 실제 UI 로 전환.
   await stage("launching-dashboard");
   await mainWindow.loadURL(`http://localhost:${frontendPort}/dashboard`);
 
@@ -211,6 +247,8 @@ async function boot(): Promise<void> {
     platform: process.platform,
     backendPort,
     frontendPort,
+    llmPort,
+    networkPort,
     logsDir: logsDir(),
   }));
   ipcMain.handle("opengov:openLogs", () => shell.openPath(logsDir()));
@@ -243,6 +281,8 @@ function shutdown(): void {
   log.info("shutdown");
   backend.stop();
   frontend.stop();
+  llmService.stop();
+  networkAgent.stop();
   if (tray) {
     try { tray.destroy(); } catch { /* already destroyed */ }
     tray = null;

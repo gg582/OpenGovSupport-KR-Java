@@ -14,8 +14,9 @@
     "tsc:watch": "tsc -w",
     "prepare:icons": "node scripts/prepare-icons.mjs",
     "prepare:resources": "node scripts/prepare-resources.mjs",
+    "prepare:python": "node scripts/prepare-python.mjs",
     "prepare:jre": "node scripts/build-jre.mjs",
-    "build": "npm run tsc && npm run prepare:icons && npm run prepare:jre && npm run prepare:resources",
+    "build": "npm run tsc && npm run prepare:icons && npm run prepare:jre && npm run prepare:python && npm run prepare:resources",
     "package": "npm run build && electron-builder --publish never",
     "package:win": "npm run build && electron-builder --win --publish never",
     "package:mac": "npm run build && electron-builder --mac --publish never",
@@ -56,7 +57,10 @@
       { "from": "build/backend", "to": "backend", "filter": ["**/*"] },
       { "from": "build/frontend", "to": "frontend", "filter": ["**/*"] },
       { "from": "build/jre", "to": "jre", "filter": ["**/*"] },
-      { "from": "build/icons", "to": "icons", "filter": ["**/*"] }
+      { "from": "build/icons", "to": "icons", "filter": ["**/*"] },
+      { "from": "build/llm-service", "to": "llm-service", "filter": ["**/*"] },
+      { "from": "build/network-agent", "to": "network-agent", "filter": ["**/*"] },
+      { "from": "build/python-libs", "to": "python-libs", "filter": ["**/*"] }
     ],
     "asar": true,
     "asarUnpack": [

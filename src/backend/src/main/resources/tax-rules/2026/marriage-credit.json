@@ -7,7 +7,9 @@
   "params": {
     "variable": "isMarriedInPeriod",
     "rate": 500000,
-    "spouseRate": 500000
+    "spouseRate": 500000,
+    "claimedBefore": "claimedBefore",
+    "spouseClaim": "spouseClaim"
   },
   "eligibility": [
     { "variable": "isMarriedInPeriod", "op": "eq", "value": 1, "message": "2024~2026년 기간 내 혼인신고 필수" }

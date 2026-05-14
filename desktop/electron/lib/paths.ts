@@ -39,7 +39,7 @@ export function isDev(): boolean {
  * extraResources 로 함께 묶인 정적 자원의 절대경로.
  * 개발(dev) 모드에서는 desktop/build/{kind} 를 가리킨다.
  */
-export function resourcePath(kind: "backend" | "frontend" | "jre" | "icons"): string {
+export function resourcePath(kind: "backend" | "frontend" | "jre" | "icons" | "llm-service" | "network-agent" | "python-libs"): string {
   if (isDev()) {
     return path.join(__dirname, "..", "build", kind);
   }
@@ -101,4 +101,24 @@ export function backendJar(): string {
 /** Next standalone 서버 진입점 (server.js). */
 export function frontendEntry(): string {
   return path.join(resourcePath("frontend"), "server.js");
+}
+
+/** 시스템 Python 실행 파일 이름. */
+export function pythonBin(): string {
+  return process.platform === "win32" ? "python.exe" : "python3";
+}
+
+/** LLM 서비스 진입점 (main.py). */
+export function llmServiceEntry(): string {
+  return path.join(resourcePath("llm-service"), "main.py");
+}
+
+/** Network Agent 진입점 (main.py). */
+export function networkAgentEntry(): string {
+  return path.join(resourcePath("network-agent"), "main.py");
+}
+
+/** 내장 Python 라이브러리 경로 (pip --target). */
+export function pythonLibsPath(): string {
+  return resourcePath("python-libs");
 }

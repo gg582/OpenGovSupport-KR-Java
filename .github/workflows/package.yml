@@ -131,6 +131,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: backend jar
         shell: bash
         run: cd src/backend && mvn -B -DskipTests package
@@ -144,10 +147,11 @@ jobs:
         shell: bash
         working-directory: desktop
         run: npm ci --no-audit --no-fund
-      - name: prepare resources + jlink
+      - name: prepare resources + jlink + python
         shell: bash
         working-directory: desktop
         run: |
+          npm run prepare:python
           npm run prepare:resources
           npm run prepare:jre
       - name: electron-builder (win)
@@ -188,6 +192,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: backend jar
         run: cd src/backend && mvn -B -DskipTests package
       - name: frontend build
@@ -198,9 +205,10 @@ jobs:
       - name: desktop install
         working-directory: desktop
         run: npm ci --no-audit --no-fund
-      - name: prepare resources + jlink
+      - name: prepare resources + jlink + python
         working-directory: desktop
         run: |
+          npm run prepare:python
           npm run prepare:resources
           npm run prepare:jre
       - name: electron-builder (mac)
@@ -258,6 +266,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: AppImage tools
         run: |
           sudo apt-get update -qq
@@ -272,9 +283,10 @@ jobs:
       - name: desktop install
         working-directory: desktop
         run: npm ci --no-audit --no-fund
-      - name: prepare resources + jlink
+      - name: prepare resources + jlink + python
         working-directory: desktop
         run: |
+          npm run prepare:python
           npm run prepare:resources
           npm run prepare:jre
       - name: electron-builder (linux)
@@ -312,6 +324,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: backend jar
         run: cd src/backend && mvn -B -DskipTests package
       - name: frontend build
@@ -322,9 +337,10 @@ jobs:
       - name: desktop install
         working-directory: desktop
         run: npm ci --no-audit --no-fund
-      - name: prepare resources + jlink
+      - name: prepare resources + jlink + python
         working-directory: desktop
         run: |
+          npm run prepare:python
           npm run prepare:resources
           npm run prepare:jre
       - name: build freebsd bundle (linux-compat)

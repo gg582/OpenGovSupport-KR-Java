@@ -203,7 +203,7 @@ public final class TaxFeatures {
                                         .options(List.of("해당", "미해당")).defaultValue("해당")
                                         .help("2024.1.1.~2026.12.31. 사이 혼인신고 시 해당.").build(),
                                 Input.of("claimedBefore", "이전에 공제받은 적 있음", "select")
-                                        .options(List.of("false", "true")).defaultValue("false")
+                                        .options(List.of("아니오", "예")).defaultValue("아니오")
                                         .help("생애 1회 한도로 이전에 받은 적 있으면 0원.").build(),
                                 Input.of("spouseClaim", "배우자 공제 여부", "select")
                                         .options(List.of("본인만", "배우자도")).defaultValue("배우자도")

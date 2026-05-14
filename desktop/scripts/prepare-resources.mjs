@@ -22,9 +22,13 @@ const repoRoot = resolve(root, "..");
 const backendOut = join(root, "build", "backend");
 const frontendOut = join(root, "build", "frontend");
 const jreOut = join(root, "build", "jre");
+const llmServiceOut = join(root, "build", "llm-service");
+const networkAgentOut = join(root, "build", "network-agent");
 
 mkdirSync(backendOut, { recursive: true });
 mkdirSync(frontendOut, { recursive: true });
+mkdirSync(llmServiceOut, { recursive: true });
+mkdirSync(networkAgentOut, { recursive: true });
 
 // ── backend ──────────────────────────────────────────────────────
 const backendJar = join(backendOut, "backend.jar");
@@ -120,4 +124,23 @@ if (!existsSync(jreOut)) {
 } else {
   console.log(`[prepare] jre 확인 → ${jreOut}`);
 }
+
+// ── python services ──────────────────────────────────────────────
+const pythonSrcBase = join(repoRoot, "src");
+
+function copyPythonService(name, outDir) {
+  const src = join(pythonSrcBase, name);
+  if (!existsSync(src)) {
+    console.warn(`[prepare] WARN: ${name} 소스가 없습니다: ${src}`);
+    return;
+  }
+  // __pycache__ 제외
+  const filter = (srcPath) => !srcPath.includes("__pycache__");
+  cpSync(src, outDir, { recursive: true, filter });
+  console.log(`[prepare] ${name} → ${outDir}`);
+}
+
+copyPythonService("llm-service", llmServiceOut);
+copyPythonService("network-agent", networkAgentOut);
+
 console.log("[prepare] done");
