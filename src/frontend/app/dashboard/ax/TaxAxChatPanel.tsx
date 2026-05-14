@@ -43,7 +43,14 @@ export default function TaxAxChatPanel() {
       </div>
 
       <div className="tax-ax-messages">
-        {messages.map((msg) => {
+        {messages
+          .filter((msg) => {
+            if (msg.role === "user" || msg.role === "assistant") {
+              return msg.content.trim().length > 0;
+            }
+            return true;
+          })
+          .map((msg) => {
           switch (msg.role) {
             case "user":
               return (
