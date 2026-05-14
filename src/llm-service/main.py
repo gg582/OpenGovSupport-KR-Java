@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForCausalLM
 
-MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
+MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-1.5B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
@@ -149,66 +149,52 @@ async def generate(req: GenerateRequest):
 
 
 def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
-    # 근본적인 추론(리즈닝) 구조를 강제: 상태 결정 → 자기검증 → JSON 출력
+    # SLLM(1.5B)에 최적화: 단순 system + 다양한 Few-shot 패턴 + 핵심 규칙 반복
     system = f"""<|im_start|>system
-너는 세법 계산 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다.
+너는 세법 계산 JSON 플랜 생성기야. 오직 유효한 JSON 객첼만 출력해야 한다. 설명, 마크다운, 주석, 줄임표를 절대 붙이지 마.
 
-[추론 프로토콜 - 반드시 이 순서로 사고한 뒤 JSON을 출력]
-1. 입력 파싱: 사용자 문장에서 숫자와 연도를 추출한다.
-   - "5,000만원", "5000만원" → 50000000
-   - "1억 2천만원" → 120000000
-   - "원", ",", "만원" 등의 문자는 모두 제거하고 정수만 남긴다.
+[생각 순서]
+1. 숫자 추출: "5,000만원"→50000000, "1억 2천"→120000000. 쉼표,"원","만원"은 모두 제거하고 순수 정수만 남긴다.
 2. 의도 분류: 사용자가 원하는 계산이 무엇인지 "사용 가능한 산출식 목록"에서 찾는다.
-3. 상태 결정: 아래 3가지 상태 중 정확히 하나만 선택한다. 절대 두 개 이상의 상태를 혼용하지 않는다.
+3. 상태 결정 후 JSON만 출력:
 
-[상태A - 계산가능]
-조건: 핵심 숫자(예: 연봉)가 명확히 추출되었고, 해당하는 endpoint가 목록에 존재한다.
-출력 규칙:
-- "clarification_needed": false  (반드시 false)
-- "steps": [{{"endpoint":"...","method":"POST","inputs":{{...}},"outputKey":"...","description":"..."}}]  (1개 이상)
-- "needed_fields"는 절대 포함하지 않는다.
+- 계산가능: 핵심 숫자가 명확하고 endpoint가 목록에 있거나 유사하면 바로 매칭한다.
+  → "clarification_needed":false, steps:[{{"endpoint":"...","method":"POST","inputs":{{...}},"outputKey":"...","description":"..."}}]
+- 정볼부족: 핵심 숫자(연봉·소득 등)나 필수 입력(year 등)이 누락됐다.
+  → "clarification_needed":true, steps:[], "needed_fields":["필드명"], "message":"추가로 필요한 정보는 <필드>입니다."
+- 지원불가: 세법 계산과 전혀 관련 없는 요청(날씨·요리·우주여행 등).
+  → "clarification_needed":false, steps:[], "message":"지원하지 않는 요청입니다."
 
-[상태B - 정볼부족]
-조건: 핵심 숫자(연봉, 소득 등)가 없거나, endpoint에 필요한 필수 입력(예: year)이 누락되었다.
-출력 규칙:
-- "clarification_needed": true  (반드시 true)
-- "steps": []  (반드시 빈 배열)
-- "needed_fields": ["누락된필드1", "누락된필드2"]  (필수)
-- "message": "추가로 필요한 정보는 <필드>입니다."
-
-[상태C - 지원불가]
-조건: 세법 계산과 전혀 관련 없는 요청(예: 날씨, 요리, 우주여행)이다.
-출력 규칙:
-- "clarification_needed": false
-- "steps": []  (반드시 빈 배열)
-- "message": "지원하지 않는 요청입니다."
-- "needed_fields"는 절대 포함하지 않는다.
-
-[자기검증 체크리스트 - JSON 출력 직전에 스스로 확인]
-□ steps가 비어 있고 clarification_needed가 false인가? → 금지. 상태B 또는 C로 재분류.
-□ needed_fields가 있는데 clarification_needed가 false인가? → 금지. 반드시 true로 수정.
-□ steps가 1개 이상인데 clarification_needed가 true인가? → 금지. 반드시 false로 수정.
-□ endpoint가 "사용 가능한 산출식 목록"에 없는가? → 금지. 유사한 항목으로 매칭하거나 상태C로 처리.
-□ inputs에 쉼표(,)나 "원" 같은 문자가 남아 있는가? → 금지. 순수 정수만 사용.
-
-[금지 사항]
-- JSON 앞뒤에 설명, 마크다운, 주석, 줄임표를 붙이지 않는다.
-- "가장 유사한 항목으로 가정해서 진행하시겠습니까?" 같은 모호한 message를 상태A에서 사용하지 않는다. 상태A는 바로 계산한다.
-- 상태B에서 "이대로 진행해도 될까요?"라고 묻지 않는다. 대신 "추가로 필요한 정보는 ...입니다"라고 명확히 요구한다.
+[검증]
+- steps가 비고 clarification_needed가 false면 안 된다. 반드시 상태B 또는 C로 변경.
+- needed_fields가 있으면 clarification_needed는 반드시 true.
+- inputs에 쉼표나 "원" 문자가 남아 있으면 안 된다.
 
 사용 가능한 산출식 목록:
 {ENDPOINTS_SPEC_SUMMARY}
 <|im_end|>"""
 
-    # Few-shot은 최소화: 성공 케이스 1개, 정볼부족 케이스 1개
+    # Few-shot: SLLM이 패턴을 확실히 모방하도록 성공/정볼부족/지원불가/정보과잉 모두 포함
     few_shots = """<|im_start|>user
 연봉 5,000만원 직장인의 근로소득공제 금액을 알려줘<|im_end|>
 <|im_start|>assistant
 {"clarification_needed":false,"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":50000000},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
 <|im_start|>user
+2024년 소득 1억 원인데 공제 다 계산해줘<|im_end|>
+<|im_start|>assistant
+{"clarification_needed":false,"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":100000000,"year":2024},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}<|im_end|>
+<|im_start|>user
 근로소득공제 계산해줘<|im_end|>
 <|im_start|>assistant
-{"clarification_needed":true,"steps":[],"needed_fields":["연봉(총급여)"],"message":"추가로 필요한 정보는 연봉(총급여)입니다."}<|im_end|>"""
+{"clarification_needed":true,"steps":[],"needed_fields":["연봉(총급여)"],"message":"추가로 필요한 정보는 연봉(총급여)입니다."}<|im_end|>
+<|im_start|>user
+우주여행 비용 계산해줘<|im_end|>
+<|im_start|>assistant
+{"clarification_needed":false,"steps":[],"message":"지원하지 않는 요청입니다."}<|im_end|>
+<|im_start|>user
+연봉 3300만원, 만 23세, 차량 없음, 10분위 가정의 세대원, 경기 거주, 군면제자인 사람 환급금 취합해줘<|im_end|>
+<|im_start|>assistant
+{"clarification_needed":true,"steps":[],"needed_fields":["연도","부양가족 수","기납부세액"],"message":"추가로 필요한 정보는 연도, 부양가족 수, 기납부세액입니다."}<|im_end|>"""
 
     lines = []
     for m in history:
@@ -216,7 +202,6 @@ def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
     history_text = "\n".join(lines)
 
     return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n"
-
 
 def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str) -> str:
     system = f"""<|im_start|>system
