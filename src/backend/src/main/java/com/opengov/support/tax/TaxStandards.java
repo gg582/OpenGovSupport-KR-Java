@@ -132,25 +132,20 @@ public final class TaxStandards {
     public static final double DONATION_CREDIT_RATE_HIGH = 0.30;
     public static final double DONATION_THRESHOLD = 10_000_000;
 
-    /** 「소득세법」제59조의2 자녀 세액공제 단가 (2025년~). */
-    public static final long CHILD_CREDIT_FIRST_2025 = 250_000;
-    public static final long CHILD_CREDIT_SECOND_2025 = 250_000;
-    public static final long CHILD_CREDIT_THIRD_PLUS_2025 = 400_000;
+    /** 「소득세법」제59조의2 자녀 세액공제 단가 (2024년~2026년). */
+    public static final long CHILD_CREDIT_FIRST = 250_000;
+    public static final long CHILD_CREDIT_SECOND = 300_000;
+    public static final long CHILD_CREDIT_THIRD_PLUS = 400_000;
 
-    /** 2024년 이전 자녀 세액공제 단가. */
-    public static final long CHILD_CREDIT_FIRST_2024 = 150_000;
-    public static final long CHILD_CREDIT_SECOND_2024 = 150_000;
-    public static final long CHILD_CREDIT_THIRD_PLUS_2024 = 300_000;
-
-    /** 연도별 자녀 세액공제 단가 선택. */
+    /** 연도별 자녀 세액공제 단가 선택 (2024~2026 동일). */
     public static long childCreditFirst(int year) {
-        return year >= 2025 ? CHILD_CREDIT_FIRST_2025 : CHILD_CREDIT_FIRST_2024;
+        return CHILD_CREDIT_FIRST;
     }
     public static long childCreditSecond(int year) {
-        return year >= 2025 ? CHILD_CREDIT_SECOND_2025 : CHILD_CREDIT_SECOND_2024;
+        return CHILD_CREDIT_SECOND;
     }
     public static long childCreditThirdPlus(int year) {
-        return year >= 2025 ? CHILD_CREDIT_THIRD_PLUS_2025 : CHILD_CREDIT_THIRD_PLUS_2024;
+        return CHILD_CREDIT_THIRD_PLUS;
     }
 
     /** 「소득세법」제59조의4 ⑨ 표준세액공제 (특별세액공제 미신청 시). */

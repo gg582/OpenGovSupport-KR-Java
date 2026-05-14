@@ -56,7 +56,7 @@ public final class TaxFeatures {
                                                         .defaultValue("0")
                                                         .help("원천징수 + 중간예납 + 수시부과 합계.")
                                                         .required(true).build()
-                                        ))
+                                        ), List.of("tax/comprehensive-income-tax"))
                         )),
 
                 // ── 12 근로소득 ──
@@ -236,109 +236,100 @@ public final class TaxFeatures {
                                                         "체육시설 이용료 공제",
                                                         "「소득세법」제59조의4 ③ — 9세 미만·초등 2학년 이하 15%.",
                                                         List.of())
-                                        ))
-                        )),
-
-                // ── 13 특별세액공제 ──
-                Feature.group("tax/special-credit", s,
-                        "13_특별세액공제", "특별세액공제",
-                        "특별세액공제", "의료비·교육비·월세·연금·기부금 개별 공제.",
-                        List.of(
-                                Feature.leaf("tax/medical-expense-credit", s,
-                                        "13_특별세액공제", "특별세액공제",
-                                        "의료비 세액공제",
-                                        "「소득세법」제59조의4 ① — 총급여 3% 초과분의 15%를 산출세액에서 공제 (일반 700만원 한도).",
-                                        List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("salary", "총급여 (원, 연간)", "number")
-                                                        .defaultValue("0")
-                                                        .help("의료비 임계 산정 기준 (총급여 × 3%).")
-                                                        .required(true).build(),
-                                                Input.of("medicalExpense", "의료비 지출액 (원, 연간)", "number")
-                                                        .defaultValue("0")
-                                                        .help("본인·기본공제대상 부양가족이 지출한 의료비 합계. 연말정산 간소화 기준.")
-                                                        .required(true).build()
                                         )),
-                                Feature.leaf("tax/education-credit", s,
-                                        "13_특별세액공제", "특별세액공제",
-                                        "교육비 세액공제",
-                                        "「소득세법」제59조의4 ② — 단계별 한도 내에서 교육비의 15%를 세액공제.",
+                                Feature.group("tax/credits", s,
+                                        "12_근로소득", "세액공제",
+                                        "세액공제", "산출세액 기반 개별 세액공제.",
                                         List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("stage", "교육 단계", "select")
-                                                        .options(List.of("미취학·초중고", "대학·대학원", "본인(직장인 재교육)"))
-                                                        .defaultValue("대학·대학원")
-                                                        .help("단계별 1인당 한도: 미취학·초중고 300만원, 대학/본인 900만원.").build(),
-                                                Input.of("educationExpense", "교육비 지출액 (원, 연간)", "number")
-                                                        .defaultValue("0").required(true).build()
-                                        )),
-                                Feature.leaf("tax/rent-credit", s,
-                                        "13_특별세액공제", "특별세액공제",
-                                        "월세 세액공제",
-                                        "「조세특례제한법」제95조의2 — 무주택 세대주, 총급여 8천만원 이하. 5,500만원 이하 17% / 그 외 15%.",
-                                        List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("salary", "총급여 (원, 연간)", "number")
-                                                        .defaultValue("0").required(true)
-                                                        .help("총급여 5,500만원을 기준으로 공제율이 자동 분기됩니다.").build(),
-                                                Input.of("rentPaid", "연 월세 지출액 (원)", "number")
-                                                        .defaultValue("0").required(true)
-                                                        .help("연 1,000만원 한도. 한도 초과분은 자동 절사.").build()
-                                        )),
-                                Feature.leaf("tax/pension-credit", s,
-                                        "13_특별세액공제", "특별세액공제",
-                                        "연금계좌 세액공제",
-                                        "「소득세법」제59조의3 — 연금저축·IRP 납입액 900만원 한도. 5,500만원 이하 15% / 그 외 12%.",
-                                        List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("salary", "총급여 (원, 연간)", "number")
-                                                        .defaultValue("0").required(true).build(),
-                                                Input.of("pensionContribution", "연금계좌 납입액 (원, 연금저축+IRP)", "number")
-                                                        .defaultValue("0").required(true).build()
-                                        )),
-                                Feature.leaf("tax/donation-credit", s,
-                                        "13_특별세액공제", "특별세액공제",
-                                        "기부금 세액공제",
-                                        "「소득세법」제59조의4 ④ — 1,000만원 이하 15% + 초과분 30% (Type A 정규형).",
-                                        List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("donation", "기부금 합계 (원, 연간)", "number")
-                                                        .defaultValue("0").required(true)
-                                                        .help("법정·지정 기부금 합계.").build()
-                                        ))
-                        )),
-
-                // ── 14 기타세액공제 ──
-                Feature.group("tax/etc-credit", s,
-                        "14_기타세액공제", "기타세액공제",
-                        "기타세액공제", "자녀·체육시설 이용료 공제.",
-                        List.of(
-                                Feature.leaf("tax/child-credit", s,
-                                        "14_기타세액공제", "기타세액공제",
-                                        "자녀 세액공제",
-                                        "「소득세법」제59조의2 — 1~2번째 자녀 1인 25만원 + 3번째 이상 1인 40만원 (8세 이상).",
-                                        List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("childCount", "기본공제대상 자녀 수", "number")
-                                                        .defaultValue("0").required(true)
-                                                        .help("만 8세 이상 ~ 20세 이하 자녀.").build()
-                                        )),
-                                Feature.leaf("tax/sports-credit", s,
-                                        "14_기타세액공제", "기타세액공제",
-                                        "체육시설 이용료 세액공제",
-                                        "「소득세법」제59조의4 ③ — 2025년 귀속~ 9세 미만·초등학교 2학년 이하 자녀 체육시설 이용료의 15%, 연 300만원 한도.",
-                                        List.of(
-                                                Input.of("year", "기준 연도", "select")
-                                                        .options(yearOptions()).defaultValue(yearStr).build(),
-                                                Input.of("sportsExpense", "체육시설 이용료 (원, 연간)", "number")
-                                                        .defaultValue("0").required(true)
-                                                        .help("헬스장·수영장·태권도장 등 이용료.").build()
+                                                Feature.leaf("tax/medical-expense-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "의료비 세액공제",
+                                                        "「소득세법」제59조의4 ① — 총급여 3% 초과분의 15%를 산출세액에서 공제 (일반 700만원 한도).",
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("salary", "총급여 (원, 연간)", "number")
+                                                                        .defaultValue("0")
+                                                                        .help("의료비 임계 산정 기준 (총급여 × 3%).")
+                                                                        .required(true).build(),
+                                                                Input.of("medicalExpense", "의료비 지출액 (원, 연간)", "number")
+                                                                        .defaultValue("0")
+                                                                        .help("본인·기본공제대상 부양가족이 지출한 의료비 합계. 연말정산 간소화 기준.")
+                                                                        .required(true).build()
+                                                        ), List.of("tax/comprehensive-income-tax")),
+                                                Feature.leaf("tax/education-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "교육비 세액공제",
+                                                        "「소득세법」제59조의4 ② — 단계별 한도 내에서 교육비의 15%를 세액공제.",
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("stage", "교육 단계", "select")
+                                                                        .options(List.of("미취학·초중고", "대학·대학원", "본인(직장인 재교육)"))
+                                                                        .defaultValue("대학·대학원")
+                                                                        .help("단계별 1인당 한도: 미취학·초중고 300만원, 대학/본인 900만원.").build(),
+                                                                Input.of("educationExpense", "교육비 지출액 (원, 연간)", "number")
+                                                                        .defaultValue("0").required(true).build()
+                                                        ), List.of("tax/comprehensive-income-tax")),
+                                                Feature.leaf("tax/rent-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "월세 세액공제",
+                                                        "「조세특례제한법」제95조의2 — 무주택 세대주, 총급여 8천만원 이하. 5,500만원 이하 17% / 그 외 15%.",
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("salary", "총급여 (원, 연간)", "number")
+                                                                        .defaultValue("0").required(true)
+                                                                        .help("총급여 5,500만원을 기준으로 공제율이 자동 분기됩니다.").build(),
+                                                                Input.of("rentPaid", "연 월세 지출액 (원)", "number")
+                                                                        .defaultValue("0").required(true)
+                                                                        .help("연 1,000만원 한도. 한도 초과분은 자동 절사.").build()
+                                                        ), List.of("tax/comprehensive-income-tax")),
+                                                Feature.leaf("tax/pension-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "연금계좌 세액공제",
+                                                        "「소득세법」제59조의3 — 연금저축·IRP 납입액 900만원 한도. 5,500만원 이하 15% / 그 외 12%.",
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("salary", "총급여 (원, 연간)", "number")
+                                                                        .defaultValue("0").required(true).build(),
+                                                                Input.of("pensionContribution", "연금계좌 납입액 (원, 연금저축+IRP)", "number")
+                                                                        .defaultValue("0").required(true).build()
+                                                        ), List.of("tax/comprehensive-income-tax")),
+                                                Feature.leaf("tax/donation-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "기부금 세액공제",
+                                                        "「소득세법」제59조의4 ④ — 1,000만원 이하 15% + 초과분 30% (Type A 정규형).",
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("donation", "기부금 합계 (원, 연간)", "number")
+                                                                        .defaultValue("0").required(true)
+                                                                        .help("법정·지정 기부금 합계.").build()
+                                                        ), List.of("tax/comprehensive-income-tax")),
+                                                Feature.leaf("tax/child-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "자녀 세액공제",
+                                                        "「소득세법」제59조의2 — 1명 25만원·2명 55만원·3명 이상 1인당 40만원 가산 (8세 이상)."}}
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("childCount", "기본공제대상 자녀 수", "number")
+                                                                        .defaultValue("0").required(true)
+                                                                        .help("만 8세 이상 ~ 20세 이하 자녀.").build()
+                                                        ), List.of("tax/comprehensive-income-tax")),
+                                                Feature.leaf("tax/sports-credit", s,
+                                                        "12_근로소득", "세액공제",
+                                                        "체육시설 이용료 세액공제",
+                                                        "「소득세법」제59조의4 ③ — 2025년 귀속~ 9세 미만·초등학교 2학년 이하 자녀 체육시설 이용료의 15%, 연 300만원 한도.",
+                                                        List.of(
+                                                                Input.of("year", "기준 연도", "select")
+                                                                        .options(yearOptions()).defaultValue(yearStr).build(),
+                                                                Input.of("sportsExpense", "체육시설 이용료 (원, 연간)", "number")
+                                                                        .defaultValue("0").required(true)
+                                                                        .help("헬스장·수영장·태권도장 등 이용료.").build()
+                                                        ), List.of("tax/comprehensive-income-tax"))
                                         ))
                         )),
 

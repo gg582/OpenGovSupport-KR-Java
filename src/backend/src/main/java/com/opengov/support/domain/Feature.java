@@ -14,14 +14,22 @@ public record Feature(
         String summary,
         List<Input> inputs,
         List<Feature> children,
-        Boolean composite) {
+        Boolean composite,
+        List<String> requires) {
 
     /** Leaf feature — 실제 계산기 (children 없음). */
     public static Feature leaf(String id, String section, String domainKey,
                                String domainTitle, String title, String summary,
                                List<Input> inputs) {
+        return leaf(id, section, domainKey, domainTitle, title, summary, inputs, null);
+    }
+
+    /** Leaf feature with prerequisite feature ids. */
+    public static Feature leaf(String id, String section, String domainKey,
+                               String domainTitle, String title, String summary,
+                               List<Input> inputs, List<String> requires) {
         return new Feature(id, section, domainKey, domainTitle, title, summary,
-                           inputs, null, null);
+                           inputs, null, null, requires);
     }
 
     /** Group feature — 하위 children 만 보유하는 그룹핑 노드. */
@@ -29,7 +37,7 @@ public record Feature(
                                 String domainTitle, String title, String summary,
                                 List<Feature> children) {
         return new Feature(id, section, domainKey, domainTitle, title, summary,
-                           List.of(), children, null);
+                           List.of(), children, null, null);
     }
 
     /** Composite feature — 합성 시나리오. 자체 입력 + 하위 children 동시 보유. */
@@ -37,7 +45,7 @@ public record Feature(
                                     String domainTitle, String title, String summary,
                                     List<Input> inputs, List<Feature> children) {
         return new Feature(id, section, domainKey, domainTitle, title, summary,
-                           inputs, children, Boolean.TRUE);
+                           inputs, children, Boolean.TRUE, null);
     }
 
     public static final String SECTION_WELFARE = "welfare";

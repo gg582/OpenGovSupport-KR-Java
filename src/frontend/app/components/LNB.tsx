@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { Feature } from "../lib/api";
+import { filterAvailable } from "../lib/api";
 
 export default function LNB({
   features,
@@ -14,8 +15,9 @@ export default function LNB({
 }) {
   const pathname = usePathname();
   const filtered = features.filter((f) => f.section === section);
+  const available = filterAvailable(filtered);
   const grouped = new Map<string, { title: string; items: Feature[] }>();
-  for (const f of filtered) {
+  for (const f of available) {
     if (!grouped.has(f.domainKey)) {
       grouped.set(f.domainKey, { title: f.domainTitle, items: [] });
     }
@@ -37,7 +39,7 @@ export default function LNB({
             aria-current={homeActive ? "page" : undefined}
           >
             <span>▣ {sectionLabel} 전체 보기</span>
-            <span className="text-[11px] font-mono text-navy/50">{filtered.length}</span>
+            <span className="text-[11px] font-mono text-navy/50">{available.length}</span>
           </Link>
         </li>
         {Array.from(grouped.entries()).map(([key, { title, items }]) => (
@@ -53,7 +55,7 @@ export default function LNB({
             </ul>
           </li>
         ))}
-        {filtered.length === 0 && (
+        {available.length === 0 && (
           <li className="px-3 py-3 text-xs text-navy/55">
             등록된 기능이 없습니다.
           </li>

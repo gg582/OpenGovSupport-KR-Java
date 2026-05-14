@@ -22,7 +22,19 @@ export type Feature = {
   children?: Feature[];
   /** true if this is a composite scenario node (has its own inputs + children). */
   composite?: boolean;
+  /** Prerequisite feature ids — if present, this feature cannot be used standalone. */
+  requires?: string[];
 };
+
+/** Strip features (and their children) that have prerequisites (requires). */
+export function filterAvailable(features: Feature[]): Feature[] {
+  return features
+    .filter((f) => !f.requires || f.requires.length === 0)
+    .map((f) => ({
+      ...f,
+      children: f.children ? filterAvailable(f.children) : undefined,
+    }));
+}
 
 export type Result = {
   title: string;

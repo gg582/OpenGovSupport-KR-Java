@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Feature } from "../lib/api";
+import { filterAvailable } from "../lib/api";
 
 export default function SectionListing({
   features,
@@ -16,8 +17,9 @@ export default function SectionListing({
   intro: { purpose: string; basis: string; output: string };
 }) {
   const filtered = features.filter((f) => f.section === section);
+  const available = filterAvailable(filtered);
   const grouped = new Map<string, { title: string; items: Feature[] }>();
-  for (const f of filtered) {
+  for (const f of available) {
     if (!grouped.has(f.domainKey)) {
       grouped.set(f.domainKey, { title: f.domainTitle, items: [] });
     }
@@ -48,7 +50,7 @@ export default function SectionListing({
         <DomainSection key={key} domainKey={key} title={gTitle} items={items} />
       ))}
 
-      {filtered.length === 0 && (
+      {available.length === 0 && (
         <div className="panel">
           <div className="panel-header">기능 없음</div>
           <div className="px-4 py-4 text-sm text-navy/70">

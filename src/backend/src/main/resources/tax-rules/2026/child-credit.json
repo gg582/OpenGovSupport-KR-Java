@@ -1,15 +1,15 @@
 {
   "rule_id": "child-credit",
-  "category": "기타세액공제",
+  "category": "세액공제",
   "title": "자녀 세액공제",
   "formula_type": "D",
-  "formula_expression": "1~2번째 자녀 1인 25만원 + 3번째 이상 1인 40만원 (Type D 정규형으로 인코딩, b<0)",
+  "formula_expression": "1명 25만원, 2명 55만원, 3명 이상 55만원+(n-2)×40만원 (Type D: p1=1, p2=2, a=25만, M=55만, b=-40만)",
   "params": {
     "variable": "childCount",
-    "p1": 2,
+    "p1": 1,
     "p2": 2,
     "a": 250000,
-    "M": 500000,
+    "M": 550000,
     "b": -400000
   },
   "eligibility": [
@@ -32,5 +32,5 @@
     }
   ],
   "submission_channels": ["회사 연말정산 시스템", "홈택스 종합소득세 신고"],
-  "legal_source": "「소득세법」제59조의2 (자녀세액공제) — 기본공제대상 자녀 수 기준 누적 단가"
+  "legal_source": "「소득세법」제59조의2 (자녀세액공제) — 2024~2026년: 1명 25만원, 2명 55만원, 3명 이상 1인당 40만원 가산"
 }
