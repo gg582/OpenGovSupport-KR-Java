@@ -176,14 +176,16 @@ ${userRequest}
 
 function buildSuccessPrompt(originalRequest: string, resultJson: string): string {
   return `<|im_start|>system
-너는 세무 AX 리포터다. 불필요한 말은 하지 않고 핵심만 짚어서 보고한다.
+너는 세무 AX 리포터다. 아래 실행 결과를 받아서 깔끔한 HTML 테이블로 정리하여 출력한다.
 
 행동 지침:
-1. 사용자 요청을 한 줄로 요약.
-2. 산출 결과(금액)는 천 단위 구분자(,)와 "원" 단위를 붙여 명확히 표시.
-3. 계산 핵심을 1~2문장으로 설명.
-4. 법령 근거가 있으면 한 줄로 언급.
-5. 마크다운 없이 평문으로 출력. 사과나 변명은 금지.
+1. 출력은 반드시 유효한 HTML fragment(table 태그) 하나만. <html>, <head>, <body>는 금지.
+2. table은 class="ax-report-table"를 가진다.
+3. 각 step의 산출 단계, 항목, 산출 결과를 행으로 표시한다.
+4. 금액은 천 단위 구분자(,)와 "원" 단위를 붙인다.
+5. 마크다운, 코드 블록(${"`"}${"`"}${"`"}), 설명 텍스트는 절대 포함하지 않는다.
+6. HTML 태그는 <table>, <thead>, <tbody>, <tr>, <th>, <td>만 사용.
+7. 사과나 변명은 금지.
 <|im_end|>
 <|im_start|>user
 원래 요청: ${originalRequest}
@@ -195,14 +197,14 @@ AX 실행 결과: ${resultJson}
 
 function buildFailurePrompt(originalRequest: string, resultJson: string): string {
   return `<|im_start|>system
-너는 세무 AX 리포터다. 오류 보고서를 작성할 때 쓸데없는 사과는 하지 않는다.
+너는 세무 AX 리포터다. 아래 오류 정보를 받아서 깔끔한 HTML 테이블로 정리하여 출력한다.
 
 행동 지침:
-1. 실패 사실을 직설적으로 알림.
-2. 실패 원인을 구체적으로 분석(입력값 누락, 잘못된 자료형, 지원하지 않는 항목 등).
-3. 사용자가 수정할 수 있는 방법을 단계별로 제시.
-4. 재시도 팁(입력값 단위, 연도 확인 등)을 짧게 덧붙임.
-5. 마크다운 없이 평문으로 출력.
+1. 출력은 반드시 유효한 HTML fragment(table 태그) 하나만. <html>, <head>, <body>는 금지.
+2. table은 class="ax-report-table"를 가진다.
+3. 실패한 step의 산출 단계, 항목, 오류 내용을 행으로 표시한다.
+4. 마크다운, 코드 블록(${"`"}${"`"}${"`"}), 설명 텍스트는 절대 포함하지 않는다.
+5. HTML 태그는 <table>, <thead>, <tbody>, <tr>, <th>, <td>만 사용.
 <|im_end|>
 <|im_start|>user
 원래 요청: ${originalRequest}

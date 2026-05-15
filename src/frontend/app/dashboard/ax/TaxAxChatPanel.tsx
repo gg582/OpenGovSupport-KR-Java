@@ -6,7 +6,7 @@ import type { AxPlan } from "./types";
 import { useGraphStore } from "../lib/store";
 
 export default function TaxAxChatPanel() {
-  const { messages, phase, sendMessage, executeChatPlan, confirmClarification, rejectClarification, exportResultToXlsx, exportResultToPdf } =
+  const { messages, phase, sendMessage, executeChatPlan, confirmClarification, rejectClarification, exportResultToXlsx, exportResultToPdf, isExpertMode, toggleExpertMode } =
     useTaxAxChat();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -36,9 +36,18 @@ export default function TaxAxChatPanel() {
     <aside className="dash-exec tax-ax-chat-panel">
       <div className="tax-ax-header">
         <h3>세무 AX — 대화형 세법 계산</h3>
-        <button className="tax-ax-close" onClick={() => setMode("normal")} aria-label="닫기">
-          ×
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            className="btn btn-sm"
+            onClick={toggleExpertMode}
+            style={{ fontSize: 12, padding: "4px 10px" }}
+          >
+            {isExpertMode ? "전문가 모드 ON" : "전문가 모드 OFF"}
+          </button>
+          <button className="tax-ax-close" onClick={() => setMode("normal")} aria-label="닫기">
+            ×
+          </button>
+        </div>
       </div>
 
       <div className="tax-ax-messages">
@@ -62,9 +71,16 @@ export default function TaxAxChatPanel() {
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
                   <div className="tax-ax-avatar">AX</div>
                   <div className="tax-ax-bubble tax-ax-bubble-bot">
-                    {msg.content.split("\n").map((line, i) => (
-                      <p key={i}>{line}</p>
-                    ))}
+                    {msg.content.trim().startsWith("<") ? (
+                      <div
+                        className="tax-ax-result-table-wrap"
+                        dangerouslySetInnerHTML={{ __html: msg.content }}
+                      />
+                    ) : (
+                      msg.content.split("\n").map((line, i) => (
+                        <p key={i}>{line}</p>
+                      ))
+                    )}
                   </div>
                 </div>
               );
@@ -96,6 +112,7 @@ export default function TaxAxChatPanel() {
                 </div>
               );
             case "plan": {
+              if (!isExpertMode) return null;
               const hasSteps = msg.plan.steps && msg.plan.steps.length > 0;
               return (
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
@@ -125,15 +142,13 @@ export default function TaxAxChatPanel() {
               );
             }
             case "result":
+              if (!isExpertMode) return null;
               return (
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
                   <div className="tax-ax-avatar">AX</div>
                   <div className="tax-ax-bubble tax-ax-bubble-bot">
-                    <p>요청하신 산출이 완료되었습니다. 결과를 확인해 주시기 바랍니다.</p>
-                    <div
-                      className="tax-ax-result-table-wrap"
-                      dangerouslySetInnerHTML={{ __html: msg.content }}
-                    />
+                    <p style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>📝 원문 응답</p>
+                    <pre className="tax-ax-plan-code" style={{ maxHeight: 300, overflow: "auto" }}>{JSON.stringify(msg.result, null, 2)}</pre>
                     <div className="tax-ax-actions">
                       <button
                         className="btn btn-sm"
@@ -165,7 +180,7 @@ export default function TaxAxChatPanel() {
           }
         })}
 
-        {(phase === "thinking" || phase === "executing" || phase === "reporting") && (
+        {(phase === "thinking" || phase === "executing" || phase === "reporting" || phase === "formatting" || phase === "preparing") && (
           <div className="tax-ax-msg tax-ax-msg-bot">
             <div className="tax-ax-avatar">AX</div>
             <div className="tax-ax-bubble tax-ax-bubble-bot">
@@ -174,6 +189,13 @@ export default function TaxAxChatPanel() {
                 <span />
                 <span />
               </div>
+              <p className="tax-ax-hint" style={{ marginTop: 8, fontSize: 13, color: "#6b7280" }}>
+                {phase === "thinking" && "AI가 요청을 본내는 중입니다..."}
+                {phase === "executing" && "AI의 요청으로부터 데이터를 계산하는 중입니다..."}
+                {phase === "reporting" && "표로 정리하는 중입니다..."}
+                {phase === "formatting" && "정리된 표의 서식을 만듭니다..."}
+                {phase === "preparing" && "엑셀 파일과 PDF로 준비 중입니다..."}
+              </p>
             </div>
           </div>
         )}

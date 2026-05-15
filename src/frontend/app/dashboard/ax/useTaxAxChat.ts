@@ -25,6 +25,8 @@ export type ChatPhase =
   | "thinking"
   | "executing"
   | "reporting"
+  | "formatting"
+  | "preparing"
   | "done"
   | "error"
   | "clarifying";
@@ -45,6 +47,82 @@ function extractJson(text: string): { json: string; plain: string } {
 /* ------------------------------------------------------------------ */
 /*  결과에서 amount / title / 요약 추출 (백엔드 응답: {title,text,data})  */
 /* ------------------------------------------------------------------ */
+
+/** 결과로 간주할 키 (우선순위 순서). 입력값은 제외. */
+const RESULT_KEY_PRIORITY = [
+  "amount",
+  "earnedDeduction",
+  "totalCredits",
+  "earnedIncome",
+  "refund",
+  "medicalCredit",
+  "educationCredit",
+  "rentCredit",
+  "pensionCredit",
+  "donationCredit",
+  "childCredit",
+  "marriageCredit",
+  "sportsCredit",
+  "recognizedIncome",
+  "ratio",
+  "qualified",
+  "deduction",
+  "payable",
+  "shares",
+];
+
+/** 입력값 키 — 결과 추출 시 무시 */
+const INPUT_KEYS = new Set([
+  "grossSalary",
+  "taxableIncome",
+  "salary",
+  "householdIncome",
+  "childCount",
+  "year",
+  "supplyValue",
+  "purchaseValue",
+  "giftBase",
+  "inheritanceBase",
+  "revenue",
+  "industry",
+  "stage",
+  "isMarriedInPeriod",
+  "claimedBefore",
+  "spouseClaim",
+  "dependentCount",
+  "insurancePremium",
+  "prepaidTax",
+  "donation",
+  "pensionContribution",
+  "rentPaid",
+  "medicalExpense",
+  "educationExpense",
+  "sportsExpense",
+  "householdSize",
+  "overseasDays",
+  "totalEstate",
+  "spouseCount",
+  "parentCount",
+  "salesSupplyAmount",
+  "purchaseSupplyAmount",
+  "recognizedIncome",
+  "businessIncome",
+  "financialIncome",
+  "rentalIncome",
+  "transferIncome",
+  "generalProperty",
+  "financialAssets",
+  "vehicleAssets",
+  "debt",
+  "explanationSteps",
+  "eligibility",
+  "documents",
+  "submissionChannels",
+  "legalSource",
+  "ruleId",
+  "category",
+]);
+
 function pickResult(response: unknown): {
   amount?: number;
   title?: string;
@@ -70,20 +148,29 @@ function pickResult(response: unknown): {
   if (amount === undefined && typeof obj.amount === "number") {
     amount = obj.amount;
   }
-  // 3) composite 룰: data 낶의 숫자 값 스캔 (amount 필드가 없을 때)
+  // 3) composite 룰: RESULT_KEY_PRIORITY 순서로 결과 키 탐색
   if (amount === undefined && dataObj) {
-    const candidates: number[] = [];
-    for (const v of Object.values(dataObj)) {
-      if (typeof v === "number") candidates.push(v);
+    for (const key of RESULT_KEY_PRIORITY) {
+      const v = dataObj[key];
+      if (typeof v === "number") {
+        amount = v;
+        break;
+      }
     }
-    if (candidates.length > 0) {
-      amount = Math.max(...candidates);
+  }
+  // 4) fallback: 입력값이 아닌 숫자 값 중 첫 번째 양수
+  if (amount === undefined && dataObj) {
+    for (const [k, v] of Object.entries(dataObj)) {
+      if (typeof v === "number" && !INPUT_KEYS.has(k) && v > 0) {
+        amount = v;
+        break;
+      }
     }
   }
 
   const title = typeof obj.title === "string" ? obj.title : undefined;
 
-  // 4) text 에서 결과 라인 추출
+  // 5) text 에서 결과 라인 추출
   let summary = "";
   if (typeof obj.text === "string") {
     const lines = obj.text.split("\n");
@@ -109,7 +196,33 @@ function pickResult(response: unknown): {
 }
 
 /* ------------------------------------------------------------------ */
-/*  결과 테이블 HTML                                                    */
+/*  HTML self-heal (LLM 생성 HTML 정제)                                 */
+/* ------------------------------------------------------------------ */
+function sanitizeHtmlTable(html: string): string {
+  if (!html) return "";
+  let cleaned = html.trim();
+  // 마크다운 코드 블록 제거
+  cleaned = cleaned.replace(/```html\s*/gi, "").replace(/```\s*/g, "");
+  // <html>, <head>, <body> 제거
+  cleaned = cleaned.replace(/<\/?html[^>]*>/gi, "");
+  cleaned = cleaned.replace(/<\/?head[^>]*>/gi, "");
+  cleaned = cleaned.replace(/<\/?body[^>]*>/gi, "");
+  // script, style 제거
+  cleaned = cleaned.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+  cleaned = cleaned.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+  // event handler 제거
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
+  // javascript: 링크 제거
+  cleaned = cleaned.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
+  // table 태그가 없으면 감싸기
+  if (!cleaned.includes("<table")) {
+    cleaned = `<table class="ax-report-table">${cleaned}</table>`;
+  }
+  return cleaned;
+}
+
+/* ------------------------------------------------------------------ */
+/*  결과 테이블 HTML (전문가 모드용 원문)                               */
 /* ------------------------------------------------------------------ */
 function buildResultTable(result: AxExecutionResult): string {
   const rows = result.stepResults
@@ -186,8 +299,11 @@ export function useTaxAxChat() {
 
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [error, setError] = useState("");
+  const [isExpertMode, setIsExpertMode] = useState(false);
   const abortRef = useRef(false);
   const wizardRef = useRef<WizardState | null>(null);
+
+  const toggleExpertMode = useCallback(() => setIsExpertMode((prev) => !prev), []);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
@@ -410,11 +526,18 @@ export function useTaxAxChat() {
           );
           if (abortRef.current) return;
 
+          setPhase("formatting");
+          await new Promise((r) => setTimeout(r, 600));
+          const sanitized = sanitizeHtmlTable(report);
+
+          setPhase("preparing");
+          await new Promise((r) => setTimeout(r, 600));
           addMessage({
             id: nextId(),
             role: "assistant",
-            content: report,
+            content: sanitized,
           });
+
           setPhase("done");
           return;
         } catch (e) {
@@ -589,11 +712,13 @@ export function useTaxAxChat() {
     messages,
     phase,
     error,
+    isExpertMode,
     sendMessage,
     executeChatPlan,
     confirmClarification,
     rejectClarification,
     exportResultToXlsx,
     exportResultToPdf,
+    toggleExpertMode,
   };
 }
