@@ -1,15 +1,20 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { generateTaxChatResponse, reportToQwen, fixAxPlan } from "./qwen-client";
+import { generateAxChatResponse, reportToQwen, fixAxPlan } from "./qwen-client";
+import type { AxDomain } from "./qwen-client";
 import { executePlan } from "./ax-api";
 import type { AxPlan, AxExecutionResult } from "./types";
+import { useGraphStore } from "../lib/store";
+import { FORMULA_RULES } from "../lib/registry";
+import type { FormulaRule, GraphNode, GraphEdge } from "../lib/types";
+import { GRID, snap } from "../lib/types";
 
 export type ChatMessageRole = "user" | "assistant" | "plan" | "result" | "error" | "clarification";
 
 export type ChatMessage =
   | { id: string; role: "user"; content: string }
-  | { id: string; role: "assistant"; content: string; result?: AxExecutionResult }
+  | { id: string; role: "assistant"; content: string; result?: AxExecutionResult; plan?: AxPlan }
   | { id: string; role: "clarification"; content: string; neededFields: string[]; originalRequest: string }
   | { id: string; role: "plan"; content: string; plan: AxPlan }
   | {
@@ -17,6 +22,7 @@ export type ChatMessage =
       role: "result";
       content: string;
       result: AxExecutionResult;
+      plan?: AxPlan;
     }
   | { id: string; role: "error"; content: string };
 
@@ -52,8 +58,8 @@ function extractJson(text: string): { json: string; plain: string } {
 const RESULT_KEY_PRIORITY = [
   "amount",
   "earnedDeduction",
-  "totalCredits",
   "earnedIncome",
+  "totalCredits",
   "refund",
   "medicalCredit",
   "educationCredit",
@@ -65,11 +71,38 @@ const RESULT_KEY_PRIORITY = [
   "sportsCredit",
   "recognizedIncome",
   "ratio",
+  "ratioPct",
   "qualified",
+  "overseasThresholdDays",
   "deduction",
   "payable",
   "shares",
 ];
+
+/** 결과 키 → 한글 라벨 (산출식 기반) */
+const RESULT_KEY_LABELS: Record<string, string> = {
+  amount: "산출세액",
+  earnedDeduction: "근로소득공제액",
+  earnedIncome: "근로소득금액",
+  totalCredits: "세액공제합계",
+  refund: "환급/추징액",
+  medicalCredit: "의료비세액공제",
+  educationCredit: "교육비세액공제",
+  rentCredit: "월세세액공제",
+  pensionCredit: "연금계좌세액공제",
+  donationCredit: "기부금세액공제",
+  childCredit: "자녀세액공제",
+  marriageCredit: "결혼세액공제",
+  sportsCredit: "체육시설세액공제",
+  recognizedIncome: "소득인정액",
+  ratio: "중위소득비율",
+  ratioPct: "중위소득비율(%)",
+  qualified: "자격여부",
+  overseasThresholdDays: "해외체류기준일수",
+  deduction: "공제액",
+  payable: "납부/환급세액",
+  shares: "상속분배",
+};
 
 /** 입력값 키 — 결과 추출 시 무시 */
 const INPUT_KEYS = new Set([
@@ -114,6 +147,13 @@ const INPUT_KEYS = new Set([
   "financialAssets",
   "vehicleAssets",
   "debt",
+  "householdSize",
+  "overseasDays",
+  "overseasThresholdDays",
+  "primitivesUsed",
+  "tiers",
+  "qualifiedFor",
+  "cutoffPct",
   "explanationSteps",
   "eligibility",
   "documents",
@@ -134,6 +174,8 @@ function pickResult(response: unknown): {
   const obj = response as Record<string, unknown>;
 
   let amount: number | undefined;
+  let boolResult: { key: string; value: boolean } | undefined;
+  let strResult: { key: string; value: string } | undefined;
   let dataObj: Record<string, unknown> | undefined;
 
   if (obj.data && typeof obj.data === "object") {
@@ -155,6 +197,12 @@ function pickResult(response: unknown): {
       if (typeof v === "number") {
         amount = v;
         break;
+      } else if (typeof v === "boolean") {
+        boolResult = { key, value: v };
+        break;
+      } else if (typeof v === "string" && v.trim().length > 0) {
+        strResult = { key, value: v };
+        break;
       }
     }
   }
@@ -170,15 +218,14 @@ function pickResult(response: unknown): {
 
   const title = typeof obj.title === "string" ? obj.title : undefined;
 
-  // 5) text 에서 결과 라인 추출
+  // 5) text 에서 결과 라인 추출 (최후의 수단)
   let summary = "";
-  if (typeof obj.text === "string") {
+  if (amount === undefined && !boolResult && !strResult && typeof obj.text === "string") {
     const lines = obj.text.split("\n");
     const resultLine = lines.find((l) => l.startsWith("[결과]"));
     if (resultLine) {
       summary = resultLine.replace("[결과]", "").trim();
     } else {
-      // 금액이 포함된 첫 번째 핵심 라인 찾기
       const moneyLine = lines.find(
         (l) => l.includes("원") && (l.includes("=") || l.includes("−") || l.includes(":") || l.includes("·")),
       );
@@ -190,6 +237,10 @@ function pickResult(response: unknown): {
 
   if (amount !== undefined) {
     summary = `${amount.toLocaleString("ko-KR")}원`;
+  } else if (boolResult) {
+    summary = `${RESULT_KEY_LABELS[boolResult.key] ?? boolResult.key}: ${boolResult.value ? "예" : "아니오"}`;
+  } else if (strResult) {
+    summary = `${RESULT_KEY_LABELS[strResult.key] ?? strResult.key}: ${strResult.value}`;
   }
 
   return { amount, title, summary: summary || "—" };
@@ -253,87 +304,96 @@ function sanitizeHtmlTable(html: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  결과 테이블 HTML (전문가 모드용 원문)                               */
+/*  결과 행 정규화 — HTML / Excel / PDF 공통 사용                       */
 /* ------------------------------------------------------------------ */
-function buildResultTable(result: AxExecutionResult): string {
-  const rows = result.stepResults
-    .map((sr) => {
-      if (!sr.success || !sr.response || typeof sr.response !== "object") {
-        return `<tr>
-          <td>${sr.outputKey}</td>
-          <td>${sr.description ?? "—"}</td>
-          <td style="text-align:right;font-weight:600">${sr.error ?? "—"}</td>
-          <td>✗ 실패</td>
-        </tr>`;
-      }
-      const resp = sr.response as Record<string, unknown>;
-      const dataObj =
-        resp.data && typeof resp.data === "object"
-          ? (resp.data as Record<string, unknown>)
-          : null;
-      const title =
-        typeof resp.title === "string" ? resp.title : (sr.description ?? "—");
+interface ResultRow {
+  step: string;
+  item: string;
+  value: string;
+  status: string;
+}
 
-      // data에서 결과 키를 순서대로 펼쳐서 행 생성
-      let valueRows = "";
-      if (dataObj) {
-        for (const key of RESULT_KEY_PRIORITY) {
-          const val = dataObj[key];
-          if (typeof val === "number") {
-            // camelCase → 한글 라벨
-            const label = key
-              .replace(/([A-Z])/g, " $1")
-              .replace(/^./, (s) => s.toUpperCase());
-            valueRows += `<tr>
-              <td>${sr.outputKey}</td>
-              <td>${title} — ${label}</td>
-              <td style="text-align:right;font-weight:600">${val.toLocaleString("ko-KR")}원</td>
-              <td>✓ 성공</td>
-            </tr>`;
-          }
+function buildResultRows(result: AxExecutionResult): ResultRow[] {
+  const rows: ResultRow[] = [];
+  for (const sr of result.stepResults) {
+    if (!sr.success || !sr.response || typeof sr.response !== "object") {
+      rows.push({
+        step: sr.outputKey,
+        item: sr.description ?? "—",
+        value: sr.error ?? "—",
+        status: "실패",
+      });
+      continue;
+    }
+
+    const resp = sr.response as Record<string, unknown>;
+    const dataObj =
+      resp.data && typeof resp.data === "object"
+        ? (resp.data as Record<string, unknown>)
+        : null;
+    const title =
+      typeof resp.title === "string" ? resp.title : (sr.description ?? "—");
+
+    let hasResult = false;
+    if (dataObj) {
+      for (const key of RESULT_KEY_PRIORITY) {
+        const val = dataObj[key];
+        if (typeof val === "number" && val !== 0) {
+          hasResult = true;
+          rows.push({
+            step: sr.outputKey,
+            item: `${title} — ${RESULT_KEY_LABELS[key] ?? key}`,
+            value: `${val.toLocaleString("ko-KR")}원`,
+            status: "성공",
+          });
+        } else if (typeof val === "boolean") {
+          hasResult = true;
+          rows.push({
+            step: sr.outputKey,
+            item: `${title} — ${RESULT_KEY_LABELS[key] ?? key}`,
+            value: val ? "예" : "아니오",
+            status: "성공",
+          });
+        } else if (typeof val === "string" && val.trim().length > 0) {
+          hasResult = true;
+          rows.push({
+            step: sr.outputKey,
+            item: `${title} — ${RESULT_KEY_LABELS[key] ?? key}`,
+            value: val,
+            status: "성공",
+          });
         }
       }
-      // 결과 키가 하나도 없으면 pickResult fallback
-      if (!valueRows) {
-        const picked = pickResult(sr.response);
-        valueRows = `<tr>
-          <td>${sr.outputKey}</td>
-          <td>${picked.title ?? sr.description ?? "—"}</td>
-          <td style="text-align:right;font-weight:600">${picked.summary}</td>
-          <td>✓ 성공</td>
-        </tr>`;
-      }
-      return valueRows;
-    })
-    .join("");
+    }
 
+    if (!hasResult) {
+      const picked = pickResult(sr.response);
+      rows.push({
+        step: sr.outputKey,
+        item: picked.title ?? sr.description ?? "—",
+        value: picked.summary,
+        status: "성공",
+      });
+    }
+  }
+  return rows;
+}
+
+function buildResultTable(result: AxExecutionResult): string {
+  const rows = buildResultRows(result);
+  const body = rows
+    .map(
+      (r) =>
+        `<tr><td>${r.step}</td><td>${r.item}</td><td style="text-align:right;font-weight:600">${r.value}</td><td>${r.status === "성공" ? "✓ 성공" : "✗ 실패"}</td></tr>`,
+    )
+    .join("");
   return `<table class="ax-result-table">
     <thead><tr><th>산출 단계</th><th>항목</th><th>산출 결과</th><th>상태</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${body}</tbody>
   </table>`;
 }
 
-const STORAGE_KEY = "opengov-tax-ax-chat-history";
 
-const initialAssistantMessage: ChatMessage = {
-  id: "msg_0",
-  role: "assistant",
-  content:
-    "안녕하십니까, 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산을 도와드리겠습니다. 필요하신 계산이 있으시면 말씀해 주시기 바랍니다. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려주세요'",
-};
-
-function loadMessages(): ChatMessage[] {
-  if (typeof window === "undefined") return [initialAssistantMessage];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [initialAssistantMessage];
-    const parsed = JSON.parse(raw) as ChatMessage[];
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-  } catch {
-    // ignore parse errors
-  }
-  return [initialAssistantMessage];
-}
 
 type WizardState = {
   originalRequest: string;
@@ -348,7 +408,33 @@ function buildEnrichedRequest(original: string, collected: Record<string, string
   return `${original} (${parts})`;
 }
 
-export function useTaxAxChat() {
+export function useTaxAxChat(domain: AxDomain = "tax") {
+  const STORAGE_KEY = domain === "tax"
+    ? "opengov-tax-ax-chat-history"
+    : "opengov-welfare-ax-chat-history";
+
+  const initialAssistantMessage: ChatMessage = {
+    id: "msg_0",
+    role: "assistant",
+    content:
+      domain === "tax"
+        ? "안녕하십니까, 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산을 도와드리겠습니다. 필요하신 계산이 있으시면 말씀해 주시기 바랍니다. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려주세요'"
+        : "안녕하십니까, 복지 AX 챗봇입니다.\n소득인정액, 중위소득 비율, 복지 자격 여부 등 사회복지 관련 계산을 도와드리겠습니다. 필요하신 계산이 있으시면 말씀해 주시기 바랍니다. 예) '월급 250만원, 가구원 3인 가구의 복지 자격을 알려주세요'",
+  };
+
+  function loadMessages(): ChatMessage[] {
+    if (typeof window === "undefined") return [initialAssistantMessage];
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [initialAssistantMessage];
+      const parsed = JSON.parse(raw) as ChatMessage[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // ignore parse errors
+    }
+    return [initialAssistantMessage];
+  }
+
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const messagesRef = useRef<ChatMessage[]>(messages);
   useEffect(() => {
@@ -397,7 +483,7 @@ export function useTaxAxChat() {
           { role: "user" as const, content: userText.trim() },
         ];
 
-        const raw = await generateTaxChatResponse(history);
+        const raw = await generateAxChatResponse(history, domain);
         if (abortRef.current) return;
 
         const { json, plain } = extractJson(raw);
@@ -583,6 +669,7 @@ export function useTaxAxChat() {
             role: "result",
             content: tableHtml,
             result: res,
+            plan: currentPlan,
           });
 
           setPhase("reporting");
@@ -606,6 +693,7 @@ export function useTaxAxChat() {
             role: "assistant",
             content: sanitized,
             result: res,
+            plan: currentPlan,
           });
 
           setPhase("done");
@@ -636,6 +724,7 @@ export function useTaxAxChat() {
               originalRequest,
               JSON.stringify(currentPlan, null, 2),
               errMsg,
+              domain,
             );
             if (abortRef.current) return;
 
@@ -665,44 +754,158 @@ export function useTaxAxChat() {
     [addMessage],
   );
 
-  const exportResultToXlsx = useCallback(
-    async (result: AxExecutionResult, filename = "세무AX_산출결과") => {
-      const xlsx = await import("xlsx");
-      const rows = result.stepResults.map((sr) => {
-        const picked =
-          sr.success && sr.response && typeof sr.response === "object"
-            ? pickResult(sr.response)
-            : { summary: sr.error ?? "—" };
-        return {
-          산출단계: sr.outputKey,
-          항목: picked.title ?? sr.description ?? "—",
-          결과: picked.summary,
-          상태: sr.success ? "성공" : "실패",
-        };
-      });
-      const ws = xlsx.utils.json_to_sheet(rows);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, "산출결과");
-      const buf = xlsx.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob([buf], { type: "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${filename}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    },
-    [],
-  );
-
   const confirmClarification = useCallback(
     async (originalRequest: string) => {
       wizardRef.current = null;
       await sendMessage("예, 이대로 진행해 주시기 바랍니다.");
     },
     [sendMessage],
+  );
+
+  /* ------------------------------------------------------------------ */
+  /*  AX 결과 → 대시보드 노드 등록                                       */
+  /* ------------------------------------------------------------------ */
+
+  const newId = (prefix = "n"): string =>
+    `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+
+  function endpointToRuleId(endpoint: string): FormulaRule | undefined {
+    for (const [ruleId, rule] of Object.entries(FORMULA_RULES)) {
+      if (rule.endpoint === endpoint) return ruleId as FormulaRule;
+    }
+    return undefined;
+  }
+
+  function defaultDropOffset(nodes: GraphNode[]): { x: number; y: number } {
+    if (nodes.length === 0) {
+      return { x: 2 * GRID.size, y: 2 * GRID.size };
+    }
+    const maxRight = Math.max(...nodes.map((n) => n.position.x + 224));
+    return { x: snap(maxRight + 4 * GRID.size), y: 2 * GRID.size };
+  }
+
+  const registerToDashboard = useCallback(
+    (result: AxExecutionResult, plan?: AxPlan) => {
+      if (!plan || !plan.steps || plan.steps.length === 0) {
+        console.warn("[registerToDashboard] 등록할 플랜이 없습니다.");
+        return;
+      }
+
+      const store = useGraphStore.getState();
+      const existingNodes = store.doc.nodes;
+      const offset = defaultDropOffset(existingNodes);
+
+      const newNodes: GraphNode[] = [];
+      const newEdges: GraphEdge[] = [];
+      const stepNodeMap = new Map<number, GraphNode>();
+
+      for (let i = 0; i < plan.steps.length; i++) {
+        const step = plan.steps[i];
+        const ruleId = endpointToRuleId(step.endpoint);
+        if (!ruleId) {
+          console.warn(`[registerToDashboard] 지원하지 않는 endpoint: ${step.endpoint}`);
+          continue;
+        }
+
+        const tpl = FORMULA_RULES[ruleId];
+        const formulaId = newId();
+        const baseX = offset.x;
+        const baseY = offset.y + i * 180;
+
+        const formulaNode: GraphNode = {
+          id: formulaId,
+          type: "stat",
+          position: { x: baseX, y: baseY },
+          data: {
+            kind: "formula",
+            label: tpl.label,
+            rule: ruleId,
+            inputs: tpl.inputs,
+            outputs: tpl.outputs,
+          },
+        };
+        newNodes.push(formulaNode);
+        stepNodeMap.set(i, formulaNode);
+
+        // 입력값 처리
+        const inputEntries = Object.entries(step.inputs);
+        for (let j = 0; j < inputEntries.length; j++) {
+          const [inputKey, rawValue] = inputEntries[j];
+          // 백엔드 변수명 → 포트 ID
+          const portEntry = Object.entries(tpl.inputMap).find(([, v]) => v === inputKey);
+          const portId = portEntry?.[0] ?? inputKey;
+
+          // __prev_... 참조 → 이전 노드와 연결
+          if (typeof rawValue === "string" && rawValue.startsWith("__prev_")) {
+            const refKey = rawValue.replace(/__prev_|__/g, "").trim();
+            for (let pi = i - 1; pi >= 0; pi--) {
+              if (plan.steps[pi].outputKey === refKey) {
+                const prevNode = stepNodeMap.get(pi);
+                if (prevNode) {
+                  const srcHandle = prevNode.data.outputs?.[0]?.id ?? null;
+                  const edge: GraphEdge = {
+                    id: newId("e"),
+                    source: prevNode.id,
+                    target: formulaId,
+                    sourceHandle: srcHandle,
+                    targetHandle: portId,
+                    type: "ortho",
+                  };
+                  newEdges.push(edge);
+                }
+                break;
+              }
+            }
+            continue;
+          }
+
+          // 리터럴 값 → manual 노드 생성
+          if (
+            typeof rawValue === "number" ||
+            typeof rawValue === "string" ||
+            typeof rawValue === "boolean"
+          ) {
+            const manualId = newId();
+            const portInfo = tpl.inputs.find((p) => p.id === portId);
+            const manualNode: GraphNode = {
+              id: manualId,
+              type: "stat",
+              position: {
+                x: baseX - 240,
+                y: baseY + j * 60,
+              },
+              data: {
+                kind: "manual",
+                label: portInfo?.label ?? inputKey,
+                inputs: [],
+                outputs: [{ id: "v", name: "v", label: "값" }],
+                value:
+                  typeof rawValue === "boolean"
+                    ? rawValue
+                      ? 1
+                      : 0
+                    : rawValue,
+              },
+            };
+            newNodes.push(manualNode);
+
+            newEdges.push({
+              id: newId("e"),
+              source: manualId,
+              target: formulaId,
+              sourceHandle: "v",
+              targetHandle: portId,
+              type: "ortho",
+            });
+          }
+        }
+      }
+
+      store.setNodes((prev) => [...prev, ...newNodes]);
+      store.setEdges((prev) => [...prev, ...newEdges]);
+
+    },
+    [],
   );
 
   const rejectClarification = useCallback(() => {
@@ -716,20 +919,17 @@ export function useTaxAxChat() {
   }, [addMessage]);
 
   const exportResultToPdf = useCallback(
-    (result: AxExecutionResult, filename = "세무AX_산출결과") => {
-      const rows = result.stepResults
-        .map((sr) => {
-          const picked =
-            sr.success && sr.response && typeof sr.response === "object"
-              ? pickResult(sr.response)
-              : { summary: sr.error ?? "—" };
-          return `<tr>
-            <td style="padding:8px;border:1px solid #ccc">${sr.outputKey}</td>
-            <td style="padding:8px;border:1px solid #ccc">${picked.title ?? sr.description ?? "—"}</td>
-            <td style="padding:8px;border:1px solid #ccc;text-align:right;font-weight:600">${picked.summary}</td>
-            <td style="padding:8px;border:1px solid #ccc">${sr.success ? "성공" : "실패"}</td>
-          </tr>`;
-        })
+    (result: AxExecutionResult, filename = domain === "tax" ? "세무AX_산출결과" : "복지AX_산출결과") => {
+      const rows = buildResultRows(result)
+        .map(
+          (r) =>
+            `<tr>
+            <td style="padding:8px;border:1px solid #ccc">${r.step}</td>
+            <td style="padding:8px;border:1px solid #ccc">${r.item}</td>
+            <td style="padding:8px;border:1px solid #ccc;text-align:right;font-weight:600">${r.value}</td>
+            <td style="padding:8px;border:1px solid #ccc">${r.status}</td>
+          </tr>`,
+        )
         .join("");
 
       const html = `
@@ -775,7 +975,33 @@ export function useTaxAxChat() {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    [],
+    [domain],
+  );
+
+  const exportResultToXlsx = useCallback(
+    async (result: AxExecutionResult, filename = domain === "tax" ? "세무AX_산출결과" : "복지AX_산출결과") => {
+      const xlsx = await import("xlsx");
+      const rows = buildResultRows(result).map((r) => ({
+        산출단계: r.step,
+        항목: r.item,
+        결과: r.value,
+        상태: r.status,
+      }));
+      const ws = xlsx.utils.json_to_sheet(rows);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "산출결과");
+      const buf = xlsx.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([buf], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filename}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    [domain],
   );
 
   return {
@@ -790,5 +1016,6 @@ export function useTaxAxChat() {
     exportResultToXlsx,
     exportResultToPdf,
     toggleExpertMode,
+    registerToDashboard,
   };
 }

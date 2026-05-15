@@ -4,6 +4,7 @@ import json
 import asyncio
 import re
 from collections import OrderedDict
+from typing import Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -117,6 +118,7 @@ class PlanRequest(BaseModel):
     user_request: str
     history: list[ChatMessage] = []
     max_new_tokens: int = 512
+    domain: Optional[str] = None
 
 
 class FixRequest(BaseModel):
@@ -124,6 +126,7 @@ class FixRequest(BaseModel):
     failed_plan: str
     error_info: str
     max_new_tokens: int = 512
+    domain: Optional[str] = None
 
 
 @app.get("/health")
@@ -163,7 +166,21 @@ async def generate(req: GenerateRequest):
     return {"generated_text": generated_text}
 
 
-def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
+def _filter_summary_by_domain(summary: str, domain: Optional[str]) -> str:
+    if not domain:
+        return summary
+    lines = summary.split("\n")
+    if domain == "tax":
+        filtered = [line for line in lines if "/api/tax/" in line]
+    elif domain == "welfare":
+        filtered = [line for line in lines if "/api/statutory/" in line]
+    else:
+        filtered = lines
+    return "\n".join(filtered) if filtered else summary
+
+
+def _build_plan_prompt(user_request: str, history: list[ChatMessage], domain: Optional[str] = None) -> str:
+    endpoints_summary = _filter_summary_by_domain(ENDPOINTS_SPEC_SUMMARY, domain)
     system = f"""<|im_start|>system
 너는 AX(Automation eXecution) 엔진의 플랜 생성기다. 쓸데없는 말 하지 말고 오직 JSON만 출력한다. 절대 사과하지 마라. "죄송합니다", "sorry", "unable", "cannot" 같은 방어적 문구는 금지. 유효하지 않은 요청이면 빈 steps로 끝낸다.
 
@@ -192,7 +209,7 @@ JSON 형식:
 {{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}]}}
 
 사용 가능한 산출식 목록:
-{ENDPOINTS_SPEC_SUMMARY}
+{endpoints_summary}
 <|im_end|>"""
 
     few_shots = """<|im_start|>user
@@ -216,7 +233,8 @@ JSON 형식:
     return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n"
 
 
-def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str) -> str:
+def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str, domain: Optional[str] = None) -> str:
+    endpoints_summary = _filter_summary_by_domain(ENDPOINTS_SPEC_SUMMARY, domain)
     system = f"""<|im_start|>system
 너는 AX 플랜 수정기다. 쓸데없는 말 하지 말고 오직 JSON만 출력한다. 절대 사과하지 마라.
 
@@ -231,7 +249,7 @@ JSON 형식:
 {{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}],"analysis":"오류 원인 요약"}}
 
 사용 가능한 산출식 목록:
-{ENDPOINTS_SPEC_SUMMARY}
+{endpoints_summary}
 <|im_end|>"""
 
     return f"""{system}
@@ -246,7 +264,7 @@ JSON 형식:
 
 @app.post("/ax/plan")
 async def ax_plan(req: PlanRequest):
-    prompt = _build_plan_prompt(req.user_request, req.history)
+    prompt = _build_plan_prompt(req.user_request, req.history, req.domain)
 
     # 원시적 인메모리 캐시 조회
     cache_key = _cache_key(req.user_request, len(req.history))
@@ -268,7 +286,7 @@ async def ax_plan(req: PlanRequest):
 
 @app.post("/ax/fix")
 async def ax_fix(req: FixRequest):
-    prompt = _build_fix_prompt(req.original_request, req.failed_plan, req.error_info)
+    prompt = _build_fix_prompt(req.original_request, req.failed_plan, req.error_info, req.domain)
     generated_text = await _generate_async(prompt, req.max_new_tokens)
     result = generated_text.strip()
     return {"generated_text": result}

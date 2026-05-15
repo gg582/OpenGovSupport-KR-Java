@@ -56,6 +56,7 @@ export async function fixAxPlan(
   originalRequest: string,
   failedPlan: string,
   errorInfo: string,
+  domain: AxDomain = "tax",
 ): Promise<string> {
   const res = await fetch("/api/llm/ax/fix", {
     method: "POST",
@@ -64,6 +65,7 @@ export async function fixAxPlan(
       original_request: originalRequest,
       failed_plan: failedPlan,
       error_info: errorInfo,
+      domain,
     }),
   });
   if (!res.ok) {
@@ -89,16 +91,22 @@ export async function reportToQwen(
 }
 
 /* ------------------------------------------------------------------ */
-/*  세무 AX — 세법 endpoint 만 필터링                                   */
+/*  AX — 도메인별 endpoint 필터링                                       */
 /* ------------------------------------------------------------------ */
+
+export type AxDomain = "tax" | "welfare";
 
 export type ChatMessage =
   | { role: "user"; content: string }
   | { role: "assistant"; content: string };
 
-function buildTaxEndpointInfo(): string {
+function buildEndpointInfo(domain: AxDomain): string {
   return Object.entries(FORMULA_RULES)
-    .filter(([, meta]) => meta.endpoint.startsWith("/api/tax/"))
+    .filter(([, meta]) => {
+      if (domain === "tax") return meta.endpoint.startsWith("/api/tax/");
+      if (domain === "welfare") return meta.endpoint.startsWith("/api/statutory/");
+      return true;
+    })
     .map(([key, meta]) => {
       const ins = meta.inputs.map((p) => `${p.name}: number`).join(", ");
       const outs = meta.outputs.map((p) => `${p.name}: number`).join(", ");
@@ -108,11 +116,12 @@ function buildTaxEndpointInfo(): string {
 }
 
 /**
- * 멀티턴 세무 AX 대화.
+ * 멀티턴 AX 대화.
  * @returns AI 의 응답 문자열. JSON 플랜이 포함될 수 있음.
  */
-export async function generateTaxChatResponse(
+export async function generateAxChatResponse(
   messages: ChatMessage[],
+  domain: AxDomain = "tax",
   _modelId?: string,
 ): Promise<string> {
   // 마지막 메시지가 사용자 요청, 나머지는 history
@@ -121,7 +130,7 @@ export async function generateTaxChatResponse(
   const res = await fetch("/api/llm/ax/plan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_request: userRequest, history }),
+    body: JSON.stringify({ user_request: userRequest, history, domain }),
   });
   if (!res.ok) {
     throw new Error(`LLM 요청 실패 (${res.status}): ${await res.text()}`);
@@ -219,14 +228,16 @@ AX 실패 정보: ${resultJson}
 `;
 }
 
-function buildTaxChatPrompt(messages: ChatMessage[]): string {
-  const endpointsInfo = buildTaxEndpointInfo();
+function buildAxChatPrompt(messages: ChatMessage[], domain: AxDomain = "tax"): string {
+  const endpointsInfo = buildEndpointInfo(domain);
+  const domainLabel = domain === "tax" ? "세무" : "복지";
+  const domainDesc = domain === "tax" ? "세법 계산" : "복지 자격·급여 계산";
 
   const system = `<|im_start|>system
-너는 세무 AX다. 쓸데없는 말 하지 말고 필요한 것만 딱 말한다.
+너는 ${domainLabel} AX다. 쓸데없는 말 하지 말고 필요한 것만 딱 말한다.
 
 역할:
-- 세법 계산 요청이 들어오면 제공된 산출식 목록만 사용해 JSON 플랜을 생성.
+- ${domainDesc} 요청이 들어오면 제공된 산출식 목록만 사용해 JSON 플랜을 생성.
 - 목록에 없는 endpoint나 규칙은 절대 지어내지 않음.
 - 정보가 부족하면 직설적으로 묻는다.
 - 일반 질문은 짧게 답변.
@@ -240,7 +251,7 @@ function buildTaxChatPrompt(messages: ChatMessage[]): string {
 5. JSON 외 텍스트는 평문. 마크다운 코드 블록( \`\`\` ) 금지.
 6. outputKey는 고유. inputs는 구체적인 숫자만.
 
-사용 가능한 세법 산출식 목록:
+사용 가능한 산출식 목록:
 ${endpointsInfo}
 <|im_end|>`;
 

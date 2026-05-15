@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useTaxAxChat } from "./useTaxAxChat";
 import type { AxPlan } from "./types";
+import type { AxDomain } from "./qwen-client";
 import { useGraphStore } from "../lib/store";
 
-export default function TaxAxChatPanel() {
-  const { messages, phase, sendMessage, executeChatPlan, confirmClarification, rejectClarification, exportResultToXlsx, exportResultToPdf, isExpertMode, toggleExpertMode } =
-    useTaxAxChat();
+export default function TaxAxChatPanel({ domain = "tax" as AxDomain }: { domain?: AxDomain }) {
+  const { messages, phase, sendMessage, executeChatPlan, confirmClarification, rejectClarification, exportResultToXlsx, exportResultToPdf, registerToDashboard, isExpertMode, toggleExpertMode } =
+    useTaxAxChat(domain);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const setMode = useGraphStore((s) => s.setMode);
@@ -35,7 +36,7 @@ export default function TaxAxChatPanel() {
   return (
     <aside className="dash-exec tax-ax-chat-panel">
       <div className="tax-ax-header">
-        <h3>세무 AX — 대화형 세법 계산</h3>
+        <h3>{domain === "tax" ? "세무 AX — 대화형 세법 계산" : "복지 AX — 대화형 복지 자격 계산"}</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button
             className="btn btn-sm"
@@ -90,6 +91,13 @@ export default function TaxAxChatPanel() {
                               onClick={() => exportResultToPdf(msg.result!)}
                             >
                               📄 PDF 다운로드
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => registerToDashboard(msg.result!, msg.plan)}
+                              style={{ width: "100%", marginTop: 8 }}
+                            >
+                              🧩 대시보드에 등록
                             </button>
                           </div>
                         )}
@@ -180,6 +188,13 @@ export default function TaxAxChatPanel() {
                       >
                         📄 PDF 다운로드
                       </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => registerToDashboard(msg.result, msg.plan)}
+                        style={{ width: "100%", marginTop: 8 }}
+                      >
+                        🧩 대시보드에 등록
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -224,7 +239,7 @@ export default function TaxAxChatPanel() {
         <textarea
           className="tax-ax-textarea"
           rows={2}
-          placeholder={phase === "clarifying" ? "질문에 답변해 주시기 바랍니다…" : "세법 계산을 요청해 주시기 바랍니다… (예: 연봉 6,000만원 직장인의 근로소득공제 금액)"}
+          placeholder={phase === "clarifying" ? "질문에 답변해 주시기 바랍니다…" : domain === "tax" ? "세법 계산을 요청해 주시기 바랍니다… (예: 연봉 6,000만원 직장인의 근로소득공제 금액)" : "복지 계산을 요청해 주시기 바랍니다… (예: 월급 250만원 가구원 3인 가구의 복지 자격)"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

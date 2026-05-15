@@ -26,6 +26,7 @@ export default function Dashboard() {
   const setDoc = useGraphStore((s) => s.setDoc);
   const runAll = useGraphStore((s) => s.runAll);
   const mode = useGraphStore((s) => s.mode);
+  const axDomain = doc.kind === "welfare" ? "welfare" : "tax";
   const uiMode = useGraphStore((s) => s.uiMode);
   const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
@@ -140,7 +141,7 @@ export default function Dashboard() {
           <EasyToolbar />
           <EasyCanvas />
           <EasyExecPanel />
-          {mode === "ax" && <TaxAxChatPanel />}
+          {mode === "ax" && <TaxAxChatPanel domain={axDomain} />}
           {helpPanel}
         </div>
       </ReactFlowProvider>
@@ -154,7 +155,7 @@ export default function Dashboard() {
         <Palette />
         <Canvas />
         {mode === "ax" ? (
-          <TaxAxChatPanel />
+          <TaxAxChatPanel domain={axDomain} />
         ) : mode === "normal" ? (
           <LogPanel />
         ) : (
