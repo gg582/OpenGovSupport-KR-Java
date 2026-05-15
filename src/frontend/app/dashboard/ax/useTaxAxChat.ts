@@ -104,6 +104,7 @@ const RESULT_KEY_LABELS: Record<string, string> = {
   deduction: "공제액",
   payable: "납부/환급세액",
   shares: "상속분배",
+  marriedChildCount: "자녀수",
 };
 
 /** 입력값 키 — 결과 추출 시 무시 */

@@ -237,10 +237,10 @@ export const FORMULA_RULES: Record<
   "simple-expense-rate": {
     label: "단순경비율",
     endpoint: "/api/tax/simple-expense-rate",
-    inputs: [p("revenue", "수입금액")],
+    inputs: [p("industry", "업종"), p("revenue", "수입금액")],
     outputs: [p("amount", "필요경비")],
     legalBasis: "「소득세법 시행령」 제143조",
-    inputMap: { revenue: "revenue" },
+    inputMap: { industry: "industry", revenue: "revenue" },
     parent: "사업소득",
   },
   "vat-payable": {
