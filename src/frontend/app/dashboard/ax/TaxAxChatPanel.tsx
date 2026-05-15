@@ -190,7 +190,7 @@ export default function TaxAxChatPanel() {
                 <span />
               </div>
               <p className="tax-ax-hint" style={{ marginTop: 8, fontSize: 13, color: "#6b7280" }}>
-                {phase === "thinking" && "AI가 요청을 본내는 중입니다..."}
+                {phase === "thinking" && "AI가 요청을 보내는 중입니다..."}
                 {phase === "executing" && "AI의 요청으로부터 데이터를 계산하는 중입니다..."}
                 {phase === "reporting" && "표로 정리하는 중입니다..."}
                 {phase === "formatting" && "정리된 표의 서식을 만듭니다..."}
