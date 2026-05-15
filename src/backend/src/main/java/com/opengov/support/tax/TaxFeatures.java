@@ -311,7 +311,7 @@ public final class TaxFeatures {
                                                 Feature.leaf("tax/child-credit", s,
                                                         "12_근로소득", "세액공제",
                                                         "자녀 세액공제",
-                                                        "「소득세법」제59조의2 — 1명 25만원·2명 55만원·3명 이상 1인당 40만원 가산 (8세 이상)."}}
+                                                        "「소득세법」제59조의2 — 1명 25만원·2명 55만원·3명 이상 1인당 40만원 가산 (8세 이상)."),
                                                         List.of(
                                                                 Input.of("year", "기준 연도", "select")
                                                                         .options(yearOptions()).defaultValue(yearStr).build(),
