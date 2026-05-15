@@ -75,6 +75,31 @@ export async function fixAxPlan(
   return (data.generated_text ?? "").trim();
 }
 
+export async function summarizeAxResult(
+  resultJson: string,
+  originalRequest: string,
+): Promise<string> {
+  const prompt = `<|im_start|>system
+너는 세무·복지 계산 결과를 한국어로 깔끔하게 요약하는 AI 어시스턴트다.
+
+행동 지침:
+1. 사용자의 원래 질문과 AX 실행 결과를 바탕으로, 일반인이 이해하기 쉬운 자연어 문단으로 요약한다.
+2. 핵심 숫자(금액, 비율, 자격 여부 등)는 반드시 포함하되, 천 단위 구분자(,)와 "원" 단위를 붙인다.
+3. 마크다운, HTML 태그, 코드 블록, JSON은 절대 사용하지 않는다.
+4. 문장은 간결하고 예의 바르게 작성한다.
+5. 계산 과정이 여러 단계이면 단계별로 짧게 정리한다.
+<|im_end|>
+<|im_start|>user
+원래 요청: ${originalRequest}
+
+AX 실행 결과 JSON: ${resultJson}
+<|im_end|>
+<|im_start|>assistant
+`;
+  const text = await callGenerate(prompt, 512);
+  return text.trim();
+}
+
 export async function reportToQwen(
   success: boolean,
   resultJson: string,
@@ -247,7 +272,7 @@ function buildAxChatPrompt(messages: ChatMessage[], domain: AxDomain = "tax"): s
 2. 정보 부족 → 필요한 것을 직설적으로 질문.
 3. 일반 질문 → 평문으로 짧게 답변.
 4. JSON 플랜 형식:
-{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":72000000},"outputKey":"earnedDed","description":"근로소득공제 계산"}]}
+{"steps":[{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{"grossSalary":72000000},"outputKey":"earnedDeduction","description":"근로소득공제 계산"}]}
 5. JSON 외 텍스트는 평문. 마크다운 코드 블록( \`\`\` ) 금지.
 6. outputKey는 고유. inputs는 구체적인 숫자만.
 

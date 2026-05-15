@@ -103,9 +103,34 @@ export default function TaxAxChatPanel({ domain = "tax" as AxDomain }: { domain?
                         )}
                       </>
                     ) : (
-                      msg.content.split("\n").map((line, i) => (
-                        <p key={i}>{line}</p>
-                      ))
+                      <>
+                        {msg.content.split("\n").map((line, i) => (
+                          <p key={i}>{line}</p>
+                        ))}
+                        {msg.result && (
+                          <div className="tax-ax-actions" style={{ marginTop: 12 }}>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => exportResultToXlsx(msg.result!)}
+                            >
+                              📊 XLSX 다운로드
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => exportResultToPdf(msg.result!)}
+                            >
+                              📄 PDF 다운로드
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => registerToDashboard(msg.result!, msg.plan)}
+                              style={{ width: "100%", marginTop: 8 }}
+                            >
+                              🧩 대시보드에 등록
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -225,9 +250,9 @@ export default function TaxAxChatPanel({ domain = "tax" as AxDomain }: { domain?
               <p className="tax-ax-hint" style={{ marginTop: 8, fontSize: 13, color: "#6b7280" }}>
                 {phase === "thinking" && "AI가 요청을 보내는 중입니다..."}
                 {phase === "executing" && "AI의 요청으로부터 데이터를 계산하는 중입니다..."}
-                {phase === "reporting" && "표로 정리하는 중입니다..."}
-                {phase === "formatting" && "정리된 표의 서식을 만듭니다..."}
-                {phase === "preparing" && "엑셀 파일과 PDF로 준비 중입니다..."}
+                {phase === "reporting" && "AI로 응답을 정리하는 중..."}
+                {phase === "formatting" && "표 서식을 다듬는 중입니다..."}
+                {phase === "preparing" && "결과를 준비하는 중입니다..."}
               </p>
             </div>
           </div>

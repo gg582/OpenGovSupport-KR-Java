@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { generateAxChatResponse, reportToQwen, fixAxPlan } from "./qwen-client";
+import { generateAxChatResponse, reportToQwen, fixAxPlan, summarizeAxResult } from "./qwen-client";
 import type { AxDomain } from "./qwen-client";
 import { executePlan } from "./ax-api";
 import type { AxPlan, AxExecutionResult } from "./types";
 import { useGraphStore } from "../lib/store";
 import { FORMULA_RULES } from "../lib/registry";
-import type { FormulaRule, GraphNode, GraphEdge } from "../lib/types";
+import type { FormulaRule, GraphNode, GraphEdge, NodeData } from "../lib/types";
 import { GRID, snap } from "../lib/types";
 
 export type ChatMessageRole = "user" | "assistant" | "plan" | "result" | "error" | "clarification";
@@ -58,6 +58,7 @@ function extractJson(text: string): { json: string; plain: string } {
 const RESULT_KEY_PRIORITY = [
   "amount",
   "earnedDeduction",
+  "earnedDed",
   "earnedIncome",
   "totalCredits",
   "refund",
@@ -83,6 +84,7 @@ const RESULT_KEY_PRIORITY = [
 const RESULT_KEY_LABELS: Record<string, string> = {
   amount: "산출세액",
   earnedDeduction: "근로소득공제액",
+  earnedDed: "근로소득공제액",
   earnedIncome: "근로소득금액",
   totalCredits: "세액공제합계",
   refund: "환급/추징액",
@@ -453,6 +455,10 @@ export function useTaxAxChat(domain: AxDomain = "tax") {
   const [phase, setPhase] = useState<ChatPhase>("idle");
   const [error, setError] = useState("");
   const [isExpertMode, setIsExpertMode] = useState(false);
+  const isExpertModeRef = useRef(isExpertMode);
+  useEffect(() => {
+    isExpertModeRef.current = isExpertMode;
+  }, [isExpertMode]);
   const abortRef = useRef(false);
   const wizardRef = useRef<WizardState | null>(null);
 
@@ -663,38 +669,62 @@ export function useTaxAxChat(domain: AxDomain = "tax") {
           const res = await executePlan(currentPlan);
           if (abortRef.current) return;
 
-          const tableHtml = buildResultTable(res);
-          addMessage({
-            id: nextId(),
-            role: "result",
-            content: tableHtml,
-            result: res,
-            plan: currentPlan,
-          });
+          const isExpert = isExpertModeRef.current;
+
+          if (isExpert) {
+            const tableHtml = buildResultTable(res);
+            addMessage({
+              id: nextId(),
+              role: "result",
+              content: tableHtml,
+              result: res,
+              plan: currentPlan,
+            });
+          }
 
           setPhase("reporting");
-          const accurateTable = buildResultTable(res);
-          const report = await reportToQwen(
-            res.overallSuccess,
-            JSON.stringify(res, null, 2),
-            originalRequest,
-            accurateTable,
-          );
-          if (abortRef.current) return;
+          if (isExpert) {
+            const accurateTable = buildResultTable(res);
+            const report = await reportToQwen(
+              res.overallSuccess,
+              JSON.stringify(res, null, 2),
+              originalRequest,
+              accurateTable,
+            );
+            if (abortRef.current) return;
 
-          setPhase("formatting");
-          await new Promise((r) => setTimeout(r, 600));
-          const sanitized = sanitizeHtmlTable(report);
+            setPhase("formatting");
+            await new Promise((r) => setTimeout(r, 600));
+            const sanitized = sanitizeHtmlTable(report);
 
-          setPhase("preparing");
-          await new Promise((r) => setTimeout(r, 600));
-          addMessage({
-            id: nextId(),
-            role: "assistant",
-            content: sanitized,
-            result: res,
-            plan: currentPlan,
-          });
+            setPhase("preparing");
+            await new Promise((r) => setTimeout(r, 600));
+            addMessage({
+              id: nextId(),
+              role: "assistant",
+              content: sanitized,
+              result: res,
+              plan: currentPlan,
+            });
+          } else {
+            // 쉬운 모드: 자연어 요약 + 다운로드/대시보드 액션
+            setPhase("formatting");
+            const summary = await summarizeAxResult(
+              JSON.stringify(res, null, 2),
+              originalRequest,
+            );
+            if (abortRef.current) return;
+
+            setPhase("preparing");
+            await new Promise((r) => setTimeout(r, 400));
+            addMessage({
+              id: nextId(),
+              role: "assistant",
+              content: summary,
+              result: res,
+              plan: currentPlan,
+            });
+          }
 
           setPhase("done");
           return;
@@ -812,6 +842,38 @@ export function useTaxAxChat(domain: AxDomain = "tax") {
         const baseX = offset.x;
         const baseY = offset.y + i * 180;
 
+        // 실행 결과 → 노드 runtime 주입
+        const stepResult = result.stepResults[i];
+        let runtime: NodeData["runtime"] | undefined;
+        if (stepResult?.success && stepResult.response && typeof stepResult.response === "object") {
+          const resp = stepResult.response as Record<string, unknown>;
+          const dataObj =
+            resp.data && typeof resp.data === "object"
+              ? (resp.data as Record<string, unknown>)
+              : null;
+          let output: unknown = undefined;
+          if (dataObj) {
+            for (const key of RESULT_KEY_PRIORITY) {
+              if (dataObj[key] !== undefined) {
+                output = dataObj[key];
+                break;
+              }
+            }
+            if (output === undefined) output = dataObj;
+          } else {
+            output = resp;
+          }
+          runtime = {
+            output,
+            rawFormula: stepResult.description ?? tpl.label,
+            legalBasis: tpl.legalBasis,
+            substituted: resp,
+            intermediate: dataObj ?? {},
+            epoch: Date.now(),
+            durationMs: result.elapsedMs,
+          };
+        }
+
         const formulaNode: GraphNode = {
           id: formulaId,
           type: "stat",
@@ -822,6 +884,7 @@ export function useTaxAxChat(domain: AxDomain = "tax") {
             rule: ruleId,
             inputs: tpl.inputs,
             outputs: tpl.outputs,
+            runtime,
           },
         };
         newNodes.push(formulaNode);
@@ -901,9 +964,65 @@ export function useTaxAxChat(domain: AxDomain = "tax") {
         }
       }
 
+      // 마지막 단계 결과를 받는 output 노드 추가
+      if (stepNodeMap.size > 0) {
+        const lastIdx = Math.max(...Array.from(stepNodeMap.keys()));
+        const lastNode = stepNodeMap.get(lastIdx)!;
+        const outPort = lastNode.data.outputs?.[0]?.id ?? "amount";
+        const outputId = newId();
+        const outputNode: GraphNode = {
+          id: outputId,
+          type: "stat",
+          position: { x: lastNode.position.x + 320, y: lastNode.position.y },
+          data: {
+            kind: "output",
+            label: "AX 결과",
+            inputs: [{ id: "v", name: "v", label: "값" }],
+            outputs: [],
+          },
+        };
+        newNodes.push(outputNode);
+        newEdges.push({
+          id: newId("e"),
+          source: lastNode.id,
+          target: outputId,
+          sourceHandle: outPort,
+          targetHandle: "v",
+          type: "ortho",
+        });
+
+        const lastStepResult = result.stepResults[lastIdx];
+        if (lastStepResult?.success && lastStepResult.response && typeof lastStepResult.response === "object") {
+          const resp = lastStepResult.response as Record<string, unknown>;
+          const dataObj =
+            resp.data && typeof resp.data === "object"
+              ? (resp.data as Record<string, unknown>)
+              : null;
+          let output: unknown = undefined;
+          if (dataObj) {
+            for (const key of RESULT_KEY_PRIORITY) {
+              if (dataObj[key] !== undefined) {
+                output = dataObj[key];
+                break;
+              }
+            }
+            if (output === undefined) output = dataObj;
+          } else {
+            output = resp;
+          }
+          outputNode.data.runtime = {
+            output,
+            rawFormula: "AX 결과",
+            legalBasis: "",
+            substituted: {},
+            intermediate: {},
+            epoch: Date.now(),
+          };
+        }
+      }
+
       store.setNodes((prev) => [...prev, ...newNodes]);
       store.setEdges((prev) => [...prev, ...newEdges]);
-
     },
     [],
   );
