@@ -141,8 +141,8 @@
       "url": "${BASE_URL}/api/tax/earned-income-deduction",
       "endpoint": "/api/tax/earned-income-deduction",
       "method": "POST",
-      "title": "근로소득공제",
-      "description": "「소득세법」제47조 5단계 누진율표로 총급여에서 차감할 근로소득공제액을 계산합니다.",
+      "title": "근로소득공제 및 선택적 세액공제",
+      "description": "「소득세법」제47조 근로소득공제 + 제59조의2~4 세액공제를 통합 계산합니다. 선택적 항목은 값을 입력하면 자동 활성화됩니다.",
       "inputs": [
         {
           "name": "year",
@@ -151,11 +151,7 @@
           "required": false,
           "default": "2025",
           "help": "",
-          "options": [
-            "2024",
-            "2025",
-            "2026"
-          ]
+          "options": ["2024", "2025", "2026"]
         },
         {
           "name": "grossSalary",
@@ -165,12 +161,110 @@
           "default": "0",
           "help": "비과세소득을 제외한 연간 총급여. 5,000만원 이하 70%부터 1억 초과 2%까지 5단계.",
           "options": []
+        },
+        {
+          "name": "medicalExpense",
+          "label": "의료비 지출액 (원)",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 의료비 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "educationExpense",
+          "label": "교육비 지출액 (원)",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 교육비 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "rentPaid",
+          "label": "월세 지출액 (원, 연간)",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 월세 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "pensionContribution",
+          "label": "연금계좌 납입액 (원)",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 연금계좌 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "donation",
+          "label": "기부금 (원)",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 기부금 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "childCount",
+          "label": "기본공제대상 자녀 수",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 자녀 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "sportsExpense",
+          "label": "체육시설 이용료 (원, 연간)",
+          "type": "number",
+          "required": false,
+          "default": "0",
+          "help": "값 > 0 이면 체육시설 세액공제 자동 계산",
+          "options": []
+        },
+        {
+          "name": "isMarriedInPeriod",
+          "label": "혼인신고 시기 해당",
+          "type": "select",
+          "required": false,
+          "default": "미해당",
+          "help": "2024~2026년 혼인신고 시 '해당' 선택",
+          "options": ["해당", "미해당"]
+        },
+        {
+          "name": "claimedBefore",
+          "label": "이전에 공제받은 적 있음",
+          "type": "select",
+          "required": false,
+          "default": "false",
+          "help": "생애 1회 한도",
+          "options": ["false", "true"]
+        },
+        {
+          "name": "spouseClaim",
+          "label": "배우자 공제 여부",
+          "type": "select",
+          "required": false,
+          "default": "본인만",
+          "help": "배우자도 공제받으면 '배우자도' 선택",
+          "options": ["본인만", "배우자도"]
         }
       ],
       "outputs": [
         {
-          "name": "amount",
-          "label": "결과값"
+          "name": "earnedDeduction",
+          "label": "근로소득공제액"
+        },
+        {
+          "name": "earnedIncome",
+          "label": "근로소득금액"
+        },
+        {
+          "name": "totalCredits",
+          "label": "세액공제 합계"
         }
       ],
       "formula_expression": "공제액 = 총급여 × 공제율 − 누진보정액 (총급여 구간별)",

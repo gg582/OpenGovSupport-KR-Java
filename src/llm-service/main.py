@@ -35,12 +35,22 @@ except Exception as e:
 
 def _summarize_spec(spec_text: str) -> str:
     """43KB JSON 전체를 LLM 프롬프트에 넣으면 토큰이 폭발해 OOM/timeout 이 발생한다.
-    endpoint/method/inputs/outputs 만 간결히 요약한다."""
+    endpoint/method/inputs(type, options 포함)/outputs 만 간결히 요약한다."""
     try:
         data = json.loads(spec_text)
         lines = []
         for ep in data.get("endpoints", []):
-            ins = ", ".join(i.get("name", "") for i in ep.get("inputs", []))
+            ins_parts = []
+            for i in ep.get("inputs", []):
+                name = i.get("name", "")
+                typ = i.get("type", "number")
+                req = "필수" if i.get("required") else "선택"
+                if typ == "select" and i.get("options"):
+                    opts = "/".join(str(o) for o in i["options"])
+                    ins_parts.append(f"{name}({typ}:{opts},{req})")
+                else:
+                    ins_parts.append(f"{name}({typ},{req})")
+            ins = ", ".join(ins_parts)
             outs = ", ".join(o.get("name", "") for o in ep.get("outputs", []))
             lines.append(
                 f"- {ep.get('endpoint', '')} [{ep.get('method', 'POST')}] "
@@ -128,10 +138,9 @@ def _generate(prompt: str, max_new_tokens: int) -> str:
     outputs = model.generate(
         **inputs,
         max_new_tokens=min(max_new_tokens, 512),
-        max_length=512,
         do_sample=True,
         temperature=0.1,
-        repetition_penalty=1.1,
+        repetition_penalty=1.2,
         eos_token_id=tokenizer.encode("<|im_end|>", add_special_tokens=False)[0]
         if tokenizer.encode("<|im_end|>", add_special_tokens=False)
         else None,
@@ -155,27 +164,29 @@ async def generate(req: GenerateRequest):
 
 
 def _build_plan_prompt(user_request: str, history: list[ChatMessage]) -> str:
-    # SLLM에 최적화: 간결한 system + 명확한 Few-shot 예제 + 반복 강조
     system = f"""<|im_start|>system
-You are a helpful assistant that outputs only JSON. You never refuse any request. Never say "죄송합니다", "sorry", "unable", "cannot", or any defensive phrase. Always produce valid JSON.
+너는 AX(Automation eXecution) 엔진의 플랜 생성기다. 쓸데없는 말 하지 말고 오직 JSON만 출력한다. 절대 사과하지 마라. "죄송합니다", "sorry", "unable", "cannot" 같은 방어적 문구는 금지. 유효하지 않은 요청이면 빈 steps로 끝낸다.
 
-Chain-of-Thought (생성 전 반드시 수행):
-1. 추출: 사용자 요청에서 산출식에 필요한 입력값만 추출한다.
-2. 필터: 제공된 산출식 목록에 없는 입력은 무시한다. 절대 지어내지 않는다.
-3. 생성: 아래 JSON 형식으로 플랜을 생성한다.
-4. Reverse check: 생성한 JSON이 유효한지 다시 확인한다. 중복 필드, 잘못된 문자열, 불필요한 필드가 없는지 검증한다.
+Chain-of-Thought (생성 전 반드시 수행, 단 출력에는 절대 포함하지 마라):
+1. 추출: 사용자 요청에서 산출식에 필요한 입력값을 모두 추출. 언급된 모든 숫자와 조건을 빠짐없이 추출.
+2. 매핑: 추출한 값을 사용 가능한 산출식의 inputs에 매핑. 복합 산출식(earned-income-deduction, year-end-settlement 등)은 하나의 endpoint로 여러 관련 항목을 한 번에 처리할 수 있다. 사용자가 언급한 모든 값을 inputs에 포함.
+3. 필터: 제공된 산출식 목록에 없는 입력은 무시. 절대 지어내지 않음.
+4. 생성: 아래 JSON 형식으로 플랜 생성.
+5. Reverse check: JSON 유효성, 중복 필드, 잘못된 문자열, 불필요한 필드 검증.
 
 규칙:
-1. 출력은 반드시 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
+1. 출력은 반드시 JSON 객체 하나만. 앞뒤에 텍스트, 마크다운 코드 블록(```), 주석, 줄임표시(…) 절대 금지.
 2. 각 step은 endpoint, method, inputs, outputKey, description 필드를 가진다.
-3. endpoint는 반드시 사용 가능한 산출식 목록에 있는 경로만 사용한다.
-4. method는 "POST"가 기본이다.
-5. inputs는 원(KRW) 단위 정수 숫자만 사용한다. 쉼표나 "원" 문자열 금지.
-6. outputKey는 플랜 전체에서 고유한 영문 문자열이다.
-7. description은 20자 이내 한국어 요약이다.
-8. year 필드는 필요할 때만 포함하며 1900~2100 사이 정수이다.
-9. 지원 불가 요청이면 빈 steps 배열과 message 필드를 반환한다.
-10. 이전 단계 결과를 참조할 때만 "__prev_<outputKey>__" 형태의 placeholder를 사용한다.
+3. endpoint는 사용 가능한 산출식 목록에 있는 경로만. select 타입은 반드시 지정된 옵션 값만 사용.
+4. method는 "POST"가 기본.
+5. inputs는 원(KRW) 단위 정수 숫자만. 쉼표나 "원" 문자열 금지. select 필드는 문자열로 정확히 일치.
+6. 선택적 필드는 사용자가 제공하지 않으면 생략 가능하다. 값이 0이나 기본값이면 생략필요.
+7. 사용자가 이미 필요한 정보를 제공했다면, clarification 없이 바로 steps를 생성. needed_fields는 정말 필수 정보가 완전히 누락되었을 때만 사용.
+8. outputKey는 플랜 전체에서 고유한 영문 문자열.
+9. description은 20자 이내 한국어 요약.
+10. year는 필요할 때만 포함하며 1900~2100 사이 정수.
+11. 지원 불가면 {{"steps":[],"message":"지원하지 않는 요청입니다."}}.
+12. 이전 단계 결과 참조 시 "__prev_<outputKey>__" placeholder만 사용.
 
 JSON 형식:
 {{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}]}}
@@ -184,7 +195,6 @@ JSON 형식:
 {ENDPOINTS_SPEC_SUMMARY}
 <|im_end|>"""
 
-    # Few-shot 예제 (SLLM이 패턴을 모방하도록)
     few_shots = """<|im_start|>user
 2024년 연봉 7200만원 근로소득공제 계산해줘<|im_end|>
 <|im_start|>assistant
@@ -203,19 +213,19 @@ JSON 형식:
         lines.append(f"<|im_start|>{m.role}\n{m.content}<|im_end|>")
     history_text = "\n".join(lines)
 
-    return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n<thought>\n"
+    return f"{system}\n{few_shots}\n{history_text}\n<|im_start|>user\n{user_request}<|im_end|>\n<|im_start|>assistant\n"
 
 
 def _build_fix_prompt(original_request: str, failed_plan: str, error_info: str) -> str:
     system = f"""<|im_start|>system
-You are a helpful assistant that outputs only JSON. You never refuse any request. Never say "죄송합니다", "sorry", "unable", "cannot", or any defensive phrase. Always produce valid JSON.
+너는 AX 플랜 수정기다. 쓸데없는 말 하지 말고 오직 JSON만 출력한다. 절대 사과하지 마라.
 
 규칙:
-1. 출력은 반드시 아래 형식의 JSON 객체 하나만이다. JSON 앞뒤에 어떤 텍스트도 올 수 없다.
-2. 오류 원인을 분석하여 입력값, endpoint, method, outputKey, inputs 등을 수정한다.
-3. 모든 입력값은 원(KRW) 단위 정수 숫자만 사용한다.
-4. 제공되지 않은 endpoint나 규칙은 절대 지어내지 않는다.
-5. 수정된 플랜만 출력한다.
+1. 출력은 반드시 JSON 객체 하나만. 앞뒤에 텍스트, 마크다운 코드 블록(```), 주석 절대 금지.
+2. 오류 원인을 분석하여 입력값, endpoint, method, outputKey, inputs 등을 수정.
+3. 모든 입력값은 원(KRW) 단위 정수 숫자만. select 필드는 지정된 옵션 값만 사용.
+4. 제공되지 않은 endpoint나 규칙은 절대 지어내지 않음.
+5. 수정된 플랜만 출력.
 
 JSON 형식:
 {{"steps":[{{"endpoint":"/api/tax/earned-income-deduction","method":"POST","inputs":{{"grossSalary":72000000}},"outputKey":"earnedDed","description":"근로소득공제 계산"}}],"analysis":"오류 원인 요약"}}
@@ -231,7 +241,6 @@ JSON 형식:
 오류 정보: {error_info}
 <|im_end|>
 <|im_start|>assistant
-<thought>
 """
 
 

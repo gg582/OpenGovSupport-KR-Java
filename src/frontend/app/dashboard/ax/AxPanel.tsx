@@ -154,7 +154,7 @@ export default function AxPanel() {
           rows={3}
           value={request}
           onChange={(e) => setRequest(e.target.value)}
-          placeholder="예: 연봉 7200만원 직장인의 종합소득세를 계산해줘"
+          placeholder="예: 연봉 7,200만원 직장인의 종합소득세를 계산해 주세요"
         />
         <button
           className="btn btn-accent"

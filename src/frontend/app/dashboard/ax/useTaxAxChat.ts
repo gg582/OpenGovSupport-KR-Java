@@ -55,29 +55,52 @@ function pickResult(response: unknown): {
   }
   const obj = response as Record<string, unknown>;
 
-  // 1) data.amount
   let amount: number | undefined;
+  let dataObj: Record<string, unknown> | undefined;
+
   if (obj.data && typeof obj.data === "object") {
-    const data = obj.data as Record<string, unknown>;
-    if (typeof data.amount === "number") amount = data.amount;
+    dataObj = obj.data as Record<string, unknown>;
+  }
+
+  // 1) data.amount (단일 룰)
+  if (dataObj && typeof dataObj.amount === "number") {
+    amount = dataObj.amount;
   }
   // 2) 최상위 amount
   if (amount === undefined && typeof obj.amount === "number") {
     amount = obj.amount;
   }
-
-  const title = typeof obj.title === "string" ? obj.title : undefined;
-
-  // 3) text 에서 [결과] 라인 추출
-  let summary = "";
-  if (typeof obj.text === "string") {
-    const resultLine = obj.text.split("\n").find((l) => l.startsWith("[결과]"));
-    if (resultLine) {
-      summary = resultLine.replace("[결과]", "").trim();
+  // 3) composite 룰: data 낶의 숫자 값 스캔 (amount 필드가 없을 때)
+  if (amount === undefined && dataObj) {
+    const candidates: number[] = [];
+    for (const v of Object.values(dataObj)) {
+      if (typeof v === "number") candidates.push(v);
+    }
+    if (candidates.length > 0) {
+      amount = Math.max(...candidates);
     }
   }
 
-  // amount 가 있으면 "12,345,678원" 으로 덮어씀
+  const title = typeof obj.title === "string" ? obj.title : undefined;
+
+  // 4) text 에서 결과 라인 추출
+  let summary = "";
+  if (typeof obj.text === "string") {
+    const lines = obj.text.split("\n");
+    const resultLine = lines.find((l) => l.startsWith("[결과]"));
+    if (resultLine) {
+      summary = resultLine.replace("[결과]", "").trim();
+    } else {
+      // 금액이 포함된 첫 번째 핵심 라인 찾기
+      const moneyLine = lines.find(
+        (l) => l.includes("원") && (l.includes("=") || l.includes("−") || l.includes(":") || l.includes("·")),
+      );
+      if (moneyLine) {
+        summary = moneyLine.trim().replace(/^\s*·\s*/, "");
+      }
+    }
+  }
+
   if (amount !== undefined) {
     summary = `${amount.toLocaleString("ko-KR")}원`;
   }
@@ -116,7 +139,7 @@ const initialAssistantMessage: ChatMessage = {
   id: "msg_0",
   role: "assistant",
   content:
-    "안녕하세요! 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산이 필요하시면 편하게 말씀해 주세요. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려줘'",
+    "안녕하십니까, 세무 AX 챗봇입니다.\n연봉, 종합소득세, 세액공제, 부가가치세 등 세법 관련 계산을 도와드리겠습니다. 필요하신 계산이 있으시면 말씀해 주시기 바랍니다. 예) '연봉 5,000만원 직장인의 근로소득공제 금액을 알려주세요'",
 };
 
 function loadMessages(): ChatMessage[] {
@@ -225,7 +248,7 @@ export function useTaxAxChat() {
               addMessage({
                 id: nextId(),
                 role: "assistant",
-                content: `계산을 위해 ${firstField}이(가) 필요합니다. 알려주시겠어요?`,
+                content: `요청하신 계산을 위해서 ${firstField}이(가) 필요합니다. 필요한 정보를 요청드립니다.`,
               });
               setPhase("clarifying");
               return;
@@ -317,7 +340,7 @@ export function useTaxAxChat() {
           addMessage({
             id: nextId(),
             role: "assistant",
-            content: `그럼 ${nextField}은(는) 어떻게 되시나요?`,
+            content: `그럼 ${nextField}은(는) 어떻게 되나요?`,
           });
           setPhase("clarifying");
           return;
@@ -399,7 +422,7 @@ export function useTaxAxChat() {
           let errMsg = (e as Error).message;
 
           if (errMsg.includes("Failed to fetch") || errMsg.includes("NetworkError")) {
-            errMsg = "서버와의 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+            errMsg = "서버와의 연결에 실패하였습니다. 잠시 후 다시 시도해 주시기 바랍니다.";
           }
 
           if (Date.now() > deadline) {
@@ -412,7 +435,7 @@ export function useTaxAxChat() {
           addMessage({
             id: nextId(),
             role: "assistant",
-            content: `AX 실행 실패 (시도 ${attempt}): ${errMsg}\n플랜을 수정하여 재시도합니다...`,
+            content: `AX 실행 실패 (시도 ${attempt}): ${errMsg}\n플랜을 수정하여 재시도하겠습니다. 잠시만 기다려 주시기 바랍니다.`,
           });
 
           try {
@@ -484,7 +507,7 @@ export function useTaxAxChat() {
   const confirmClarification = useCallback(
     async (originalRequest: string) => {
       wizardRef.current = null;
-      await sendMessage("예, 이대로 진행해줘");
+      await sendMessage("예, 이대로 진행해 주시기 바랍니다.");
     },
     [sendMessage],
   );
@@ -494,7 +517,7 @@ export function useTaxAxChat() {
     addMessage({
       id: nextId(),
       role: "assistant",
-      content: "알겠습니다. 정확한 계산을 위해 필요한 정보만 다시 입력해 주세요.",
+      content: "죄송합니다. 정확한 계산을 위해서는 필요한 정보를 다시 입력해 주시기 바랍니다.",
     });
     setPhase("idle");
   }, [addMessage]);

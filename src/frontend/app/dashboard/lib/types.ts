@@ -38,6 +38,7 @@ export type FormulaRule =
   | "pension-credit"
   | "donation-credit"
   | "child-credit"
+  | "marriage-credit"
   | "earned-income-credit"
   | "simple-expense-rate"
   | "vat-payable"

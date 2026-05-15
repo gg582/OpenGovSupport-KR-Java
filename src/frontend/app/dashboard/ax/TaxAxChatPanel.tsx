@@ -101,7 +101,7 @@ export default function TaxAxChatPanel() {
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
                   <div className="tax-ax-avatar">AX</div>
                   <div className="tax-ax-bubble tax-ax-bubble-bot">
-                    <p>산출 플랜을 생성했습니다. 아래 내용을 확인하고 실행해 주세요.</p>
+                    <p>요청하신 산출 플랜을 생성하였습니다. 아래 내용을 확인하신 후 실행해 주시기 바랍니다.</p>
                     <pre className="tax-ax-plan-code">{msg.content}</pre>
                     {hasSteps ? (
                       <button
@@ -117,7 +117,7 @@ export default function TaxAxChatPanel() {
                       </button>
                     ) : (
                       <p className="tax-ax-plan-no-steps" style={{ color: "#b45309", fontSize: 14, marginTop: 8 }}>
-                        ⚠️ 실행 가능한 계산 단계가 없습니다. 필요한 정보가 부족하거나 지원하지 않는 요청일 수 있습니다.
+                        ⚠️ 실행 가능한 계산 단계가 없습니다. 필요한 정보가 부족하거나 지원하지 않는 요청일 수 있습니다. 다시 한번 확인해 주시기 바랍니다.
                       </p>
                     )}
                   </div>
@@ -129,7 +129,7 @@ export default function TaxAxChatPanel() {
                 <div key={msg.id} className="tax-ax-msg tax-ax-msg-bot">
                   <div className="tax-ax-avatar">AX</div>
                   <div className="tax-ax-bubble tax-ax-bubble-bot">
-                    <p>산출이 완료되었습니다. 결과를 확인해 주세요.</p>
+                    <p>요청하신 산출이 완료되었습니다. 결과를 확인해 주시기 바랍니다.</p>
                     <div
                       className="tax-ax-result-table-wrap"
                       dangerouslySetInnerHTML={{ __html: msg.content }}
@@ -184,7 +184,7 @@ export default function TaxAxChatPanel() {
         <textarea
           className="tax-ax-textarea"
           rows={2}
-          placeholder={phase === "clarifying" ? "질문에 답변해 주세요…" : "세법 계산을 요청해 보세요… (예: 연봉 6000만원 직장인 근로소득공제 금액)"}
+          placeholder={phase === "clarifying" ? "질문에 답변해 주시기 바랍니다…" : "세법 계산을 요청해 주시기 바랍니다… (예: 연봉 6,000만원 직장인의 근로소득공제 금액)"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
