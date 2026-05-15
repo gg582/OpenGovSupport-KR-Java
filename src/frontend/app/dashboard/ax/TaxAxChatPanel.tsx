@@ -72,10 +72,28 @@ export default function TaxAxChatPanel() {
                   <div className="tax-ax-avatar">AX</div>
                   <div className="tax-ax-bubble tax-ax-bubble-bot">
                     {msg.content.trim().startsWith("<") ? (
-                      <div
-                        className="tax-ax-result-table-wrap"
-                        dangerouslySetInnerHTML={{ __html: msg.content }}
-                      />
+                      <>
+                        <div
+                          className="tax-ax-result-table-wrap"
+                          dangerouslySetInnerHTML={{ __html: msg.content }}
+                        />
+                        {msg.result && (
+                          <div className="tax-ax-actions" style={{ marginTop: 12 }}>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => exportResultToXlsx(msg.result!)}
+                            >
+                              📊 XLSX 다운로드
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => exportResultToPdf(msg.result!)}
+                            >
+                              📄 PDF 다운로드
+                            </button>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       msg.content.split("\n").map((line, i) => (
                         <p key={i}>{line}</p>

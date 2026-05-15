@@ -9,7 +9,7 @@ export type ChatMessageRole = "user" | "assistant" | "plan" | "result" | "error"
 
 export type ChatMessage =
   | { id: string; role: "user"; content: string }
-  | { id: string; role: "assistant"; content: string }
+  | { id: string; role: "assistant"; content: string; result?: AxExecutionResult }
   | { id: string; role: "clarification"; content: string; neededFields: string[]; originalRequest: string }
   | { id: string; role: "plan"; content: string; plan: AxPlan }
   | {
@@ -198,11 +198,33 @@ function pickResult(response: unknown): {
 /* ------------------------------------------------------------------ */
 /*  HTML self-heal (LLM 생성 HTML 정제)                                 */
 /* ------------------------------------------------------------------ */
+const ALLOWED_HTML_TAGS = new Set([
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "br",
+  "p",
+  "span",
+  "div",
+  "strong",
+  "em",
+  "b",
+  "i",
+  "caption",
+  "colgroup",
+  "col",
+]);
+
 function sanitizeHtmlTable(html: string): string {
   if (!html) return "";
   let cleaned = html.trim();
   // 마크다운 코드 블록 제거
   cleaned = cleaned.replace(/```html\s*/gi, "").replace(/```\s*/g, "");
+  // 백틱 문자 제거
+  cleaned = cleaned.replace(/`/g, "");
   // <html>, <head>, <body> 제거
   cleaned = cleaned.replace(/<\/?html[^>]*>/gi, "");
   cleaned = cleaned.replace(/<\/?head[^>]*>/gi, "");
@@ -214,6 +236,13 @@ function sanitizeHtmlTable(html: string): string {
   cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
   // javascript: 링크 제거
   cleaned = cleaned.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
+  // 허용되지 않은 태그 제거 (whitelist 기반)
+  cleaned = cleaned.replace(/<[^>]+>/g, (match) => {
+    const m = match.match(/<\/?([a-zA-Z0-9_-]+)/);
+    if (!m) return "";
+    const tag = m[1].toLowerCase();
+    return ALLOWED_HTML_TAGS.has(tag) ? match : "";
+  });
   // table 태그가 없으면 감싸기
   if (!cleaned.includes("<table")) {
     cleaned = `<table class="ax-report-table">${cleaned}</table>`;
@@ -536,6 +565,7 @@ export function useTaxAxChat() {
             id: nextId(),
             role: "assistant",
             content: sanitized,
+            result: res,
           });
 
           setPhase("done");
