@@ -3,6 +3,8 @@ package com.opengov.support.llm;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -24,26 +26,46 @@ public class LlmProxyController {
 
     @PostMapping("/generate")
     public ResponseEntity<?> generate(@RequestBody Map<String, Object> body) {
-        return restTemplate.postForEntity(llmUrl + "/generate", body, Object.class);
+        return proxy("/generate", body);
     }
 
     @PostMapping("/ax/plan")
     public ResponseEntity<?> axPlan(@RequestBody Map<String, Object> body) {
-        return restTemplate.postForEntity(llmUrl + "/ax/plan", body, Object.class);
+        return proxy("/ax/plan", body);
     }
 
     @PostMapping("/ax/fix")
     public ResponseEntity<?> axFix(@RequestBody Map<String, Object> body) {
-        return restTemplate.postForEntity(llmUrl + "/ax/fix", body, Object.class);
+        return proxy("/ax/fix", body);
     }
 
     @PostMapping("/agent/execute")
     public ResponseEntity<?> agentExecute(@RequestBody Map<String, Object> body) {
-        return restTemplate.postForEntity("http://network-agent:8000/execute", body, Object.class);
+        try {
+            return restTemplate.postForEntity("http://network-agent:8000/execute", body, Object.class);
+        } catch (HttpServerErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Object.class));
+        } catch (ResourceAccessException e) {
+            return ResponseEntity.status(503).body(Map.of("error", "Network agent unavailable"));
+        }
     }
 
     @GetMapping("/health")
     public ResponseEntity<?> health() {
-        return restTemplate.getForEntity(llmUrl + "/health", Object.class);
+        try {
+            return restTemplate.getForEntity(llmUrl + "/health", Object.class);
+        } catch (ResourceAccessException e) {
+            return ResponseEntity.status(503).body(Map.of("status", "unavailable"));
+        }
+    }
+
+    private ResponseEntity<?> proxy(String path, Map<String, Object> body) {
+        try {
+            return restTemplate.postForEntity(llmUrl + path, body, Object.class);
+        } catch (HttpServerErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAs(Object.class));
+        } catch (ResourceAccessException e) {
+            return ResponseEntity.status(503).body(Map.of("error", "LLM service unavailable"));
+        }
     }
 }

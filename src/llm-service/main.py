@@ -137,23 +137,38 @@ def health():
 
 
 def _generate(prompt: str, max_new_tokens: int) -> str:
-    inputs = tokenizer(prompt, return_tensors="pt")
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=min(max_new_tokens, 512),
-        do_sample=True,
-        temperature=0.1,
-        repetition_penalty=1.2,
-        eos_token_id=tokenizer.encode("<|im_end|>", add_special_tokens=False)[0]
-        if tokenizer.encode("<|im_end|>", add_special_tokens=False)
-        else None,
-        pad_token_id=tokenizer.pad_token_id,
-    )
-    # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자르면 토큰/문자 불일치로 결과가 망가짐)
-    input_length = inputs.input_ids.shape[1]
-    new_tokens = outputs[0][input_length:]
-    return tokenizer.decode(new_tokens, skip_special_tokens=True)
+    try:
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=tokenizer.model_max_length,
+        )
+        eos_token_id = None
+        encoded = tokenizer.encode("<|im_end|>", add_special_tokens=False)
+        if encoded:
+            eos_token_id = encoded[0]
 
+        pad_token_id = tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = tokenizer.eos_token_id
+
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=min(max_new_tokens, 512),
+            do_sample=True,
+            temperature=0.1,
+            repetition_penalty=1.2,
+            eos_token_id=eos_token_id,
+            pad_token_id=pad_token_id,
+        )
+        # 입력 토큰 길이 이후의 토큰만 디코딩 (문자열 길이로 자륾 토큰/문자 불일치로 결과가 망가짐)
+        input_length = inputs.input_ids.shape[1]
+        new_tokens = outputs[0][input_length:]
+        return tokenizer.decode(new_tokens, skip_special_tokens=True)
+    except Exception as e:
+        print(f"[LLM] Generation error: {e}", flush=True)
+        raise RuntimeError(f"LLM generation failed: {e}") from e
 
 async def _generate_async(prompt: str, max_new_tokens: int) -> str:
     """CPU 집약적인 ONNX generate 를 이벤트 루프를 블록하지 않도록 별도 스레드에서 실행."""
