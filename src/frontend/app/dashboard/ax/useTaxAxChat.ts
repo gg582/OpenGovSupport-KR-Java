@@ -236,6 +236,8 @@ function sanitizeHtmlTable(html: string): string {
   cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
   // javascript: 링크 제거
   cleaned = cleaned.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
+  // ${...} 템플릿 리터럴 잔여물 제거 (LLM이 JSON 키를 그대로 출력한 경우)
+  cleaned = cleaned.replace(/\$\{[^}]+\}/g, "");
   // 허용되지 않은 태그 제거 (whitelist 기반)
   cleaned = cleaned.replace(/<[^>]+>/g, (match) => {
     const m = match.match(/<\/?([a-zA-Z0-9_-]+)/);
@@ -256,16 +258,52 @@ function sanitizeHtmlTable(html: string): string {
 function buildResultTable(result: AxExecutionResult): string {
   const rows = result.stepResults
     .map((sr) => {
-      const picked =
-        sr.success && sr.response && typeof sr.response === "object"
-          ? pickResult(sr.response)
-          : { summary: sr.error ?? "—" };
-      return `<tr>
-        <td>${sr.outputKey}</td>
-        <td>${picked.title ?? sr.description ?? "—"}</td>
-        <td style="text-align:right;font-weight:600">${picked.summary}</td>
-        <td>${sr.success ? "✓ 성공" : "✗ 실패"}</td>
-      </tr>`;
+      if (!sr.success || !sr.response || typeof sr.response !== "object") {
+        return `<tr>
+          <td>${sr.outputKey}</td>
+          <td>${sr.description ?? "—"}</td>
+          <td style="text-align:right;font-weight:600">${sr.error ?? "—"}</td>
+          <td>✗ 실패</td>
+        </tr>`;
+      }
+      const resp = sr.response as Record<string, unknown>;
+      const dataObj =
+        resp.data && typeof resp.data === "object"
+          ? (resp.data as Record<string, unknown>)
+          : null;
+      const title =
+        typeof resp.title === "string" ? resp.title : (sr.description ?? "—");
+
+      // data에서 결과 키를 순서대로 펼쳐서 행 생성
+      let valueRows = "";
+      if (dataObj) {
+        for (const key of RESULT_KEY_PRIORITY) {
+          const val = dataObj[key];
+          if (typeof val === "number") {
+            // camelCase → 한글 라벨
+            const label = key
+              .replace(/([A-Z])/g, " $1")
+              .replace(/^./, (s) => s.toUpperCase());
+            valueRows += `<tr>
+              <td>${sr.outputKey}</td>
+              <td>${title} — ${label}</td>
+              <td style="text-align:right;font-weight:600">${val.toLocaleString("ko-KR")}원</td>
+              <td>✓ 성공</td>
+            </tr>`;
+          }
+        }
+      }
+      // 결과 키가 하나도 없으면 pickResult fallback
+      if (!valueRows) {
+        const picked = pickResult(sr.response);
+        valueRows = `<tr>
+          <td>${sr.outputKey}</td>
+          <td>${picked.title ?? sr.description ?? "—"}</td>
+          <td style="text-align:right;font-weight:600">${picked.summary}</td>
+          <td>✓ 성공</td>
+        </tr>`;
+      }
+      return valueRows;
     })
     .join("");
 
@@ -548,10 +586,12 @@ export function useTaxAxChat() {
           });
 
           setPhase("reporting");
+          const accurateTable = buildResultTable(res);
           const report = await reportToQwen(
             res.overallSuccess,
             JSON.stringify(res, null, 2),
             originalRequest,
+            accurateTable,
           );
           if (abortRef.current) return;
 

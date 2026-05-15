@@ -77,10 +77,11 @@ export async function reportToQwen(
   success: boolean,
   resultJson: string,
   originalRequest: string,
+  tableHtml: string = "",
   _modelId?: string,
 ): Promise<string> {
   const prompt = success
-    ? buildSuccessPrompt(originalRequest, resultJson)
+    ? buildSuccessPrompt(originalRequest, resultJson, tableHtml)
     : buildFailurePrompt(originalRequest, resultJson);
   const text = await callGenerate(prompt, 512);
   // 서버는 생성된 텍스트만 반환하므로 slice 불필요
@@ -174,14 +175,14 @@ ${userRequest}
 `;
 }
 
-function buildSuccessPrompt(originalRequest: string, resultJson: string): string {
+function buildSuccessPrompt(originalRequest: string, resultJson: string, tableHtml: string): string {
   return `<|im_start|>system
 너는 세무 AX 리포터다. 아래 실행 결과를 받아서 깔끔한 HTML 테이블로 정리하여 출력한다.
 
 행동 지침:
 1. 출력은 반드시 유효한 HTML fragment(table 태그) 하나만. <html>, <head>, <body>는 금지.
 2. table은 class="ax-report-table"를 가진다.
-3. 각 step의 산출 단계, 항목, 산출 결과를 행으로 표시한다.
+3. 아래 제공된 정확한 산출 결과 테이블의 값을 그대로 사용. 숫자는 절대 변경하지 마라.
 4. 금액은 천 단위 구분자(,)와 "원" 단위를 붙인다.
 5. 마크다운, 코드 블록(${"`"}${"`"}${"`"}), 설명 텍스트는 절대 포함하지 않는다.
 6. HTML 태그는 <table>, <thead>, <tbody>, <tr>, <th>, <td>만 사용.
@@ -189,7 +190,11 @@ function buildSuccessPrompt(originalRequest: string, resultJson: string): string
 <|im_end|>
 <|im_start|>user
 원래 요청: ${originalRequest}
-AX 실행 결과: ${resultJson}
+
+정확한 산출 결과 테이블:
+${tableHtml}
+
+AX 실행 결과 JSON: ${resultJson}
 <|im_end|>
 <|im_start|>assistant
 `;
