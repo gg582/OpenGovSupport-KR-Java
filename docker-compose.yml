@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     environment:
       HF_TOKEN: "${HUGGINGFACE_TOKEN}"
-      MODEL_ID: "Qwen/Qwen2.5-Coder-0.5B-Instruct"
+      MODEL_ID: "Qwen/Qwen3-0.6B"
       BASE_URL: "http://backend:8080"
     volumes:
       - hf-cache:/root/.cache/huggingface

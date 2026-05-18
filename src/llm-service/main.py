@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer
 from optimum.onnxruntime import ORTModelForCausalLM
 
-MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
+MODEL_ID = os.getenv("MODEL_ID", "Qwen/Qwen3-0.6B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 
@@ -86,16 +86,48 @@ def _cache_key(user_request: str, history_len: int = 0) -> str:
 async def lifespan(app: FastAPI):
     global model, tokenizer
     print(f"[LLM] Loading model {MODEL_ID} …", flush=True)
+    
+    from transformers import AutoConfig
     tokenizer = AutoTokenizer.from_pretrained(
         MODEL_ID, token=HF_TOKEN, trust_remote_code=True
     )
-    model = ORTModelForCausalLM.from_pretrained(
-        MODEL_ID,
-        token=HF_TOKEN,
-        trust_remote_code=True,
-        file_name="onnx/model_quantized.onnx",
-        use_io_binding=True,
-    )
+    
+    # Qwen3 (및 일부 최신 모델)의 head_dim mismatch 대응을 위해 config를 먼저 로드하고 보정한다.
+    # optimum 라이브러리가 head_dim을 hidden_size / num_attention_heads 로 계산하는 경우,
+    # Qwen3-0.6B 처럼 head_dim이 128인데 계산상 64가 나오는 경우 런타임 에러가 발생한다.
+    config = AutoConfig.from_pretrained(MODEL_ID, token=HF_TOKEN, trust_remote_code=True)
+    
+    if hasattr(config, "head_dim") and config.head_dim:
+        expected_head_dim = config.hidden_size // config.num_attention_heads
+        if config.head_dim != expected_head_dim:
+            print(f"[LLM] head_dim mismatch detected: config={config.head_dim}, calc={expected_head_dim}. Patching config.hidden_size...", flush=True)
+            # optimum의 차원 계산을 속이기 위해 hidden_size를 (head_dim * num_heads)로 임시 조정한다.
+            # 이는 ONNX 모델의 실제 가중치 로드에는 영향을 주지 않으며, 오직 런타임의 KV 캐시 텐서 모양 준비에만 사용된다.
+            config.hidden_size = config.head_dim * config.num_attention_heads
+
+    # ONNX 모델 로드
+    # file_name이 없으면 기본 model.onnx를 찾거나 export=True 시 생성한다.
+    # 퀀타이즈된 모델이 있다면 그것을 우선 사용하도록 시도.
+    try:
+        model = ORTModelForCausalLM.from_pretrained(
+            MODEL_ID,
+            token=HF_TOKEN,
+            trust_remote_code=True,
+            file_name="onnx/model_quantized.onnx",
+            use_io_binding=True,
+            config=config,
+        )
+    except Exception as e:
+        print(f"[LLM] Failed to load quantized model, falling back to export: {e}", flush=True)
+        model = ORTModelForCausalLM.from_pretrained(
+            MODEL_ID,
+            token=HF_TOKEN,
+            trust_remote_code=True,
+            export=True,
+            use_io_binding=True,
+            config=config,
+        )
+    
     print("[LLM] Model loaded.", flush=True)
     yield
     print("[LLM] Shutting down.", flush=True)
